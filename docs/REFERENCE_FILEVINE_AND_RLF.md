@@ -255,3 +255,74 @@ Fields Filevine shows in the matter header or sections that `FIELDS` has no home
 - **Government-entity notice deadlines.** Already flagged in the roadmap as unrepresentable,
   and the reason the `Self-Insured / Government` option is currently a trap: the 6-month
   notice deadline is usually nearer than the 2-year SOL.
+
+---
+
+## 5. The Tasks landing screen (second observation)
+
+A screenshot of the **first screen on login** — and it is **Tasks, not a dashboard.** The
+prototype opens on Dashboard; Filevine opens on the logged-in user's task list. Corrected in
+the roadmap.
+
+> Real client data again, so structure only below — no names or case details transcribed.
+
+### The left rail is contextual, not fixed
+
+For Tasks it holds **due-date buckets**: All Due Dates · On or Before Today · Due Today ·
+Next 7 Days · Next 30 Days, under a header showing the item count. On a matter it holds the
+section list. Same rail, different contents depending on the global-nav selection — so the
+shell should treat the rail as a slot the active view fills, not a fixed component.
+
+### Filter chips are a first-class control
+
+The toolbar carries sort (`↑ Due Date`), an `Assigned to` dropdown, and a `Filter` menu.
+Active filters then render as **individually removable chips** — `Incomplete ⊗`,
+`Assigned to Me ⊗`, `Due on or Before <date> ⊗` — plus **Clear Filters** and **Reset
+Filters** as separate actions. Three view-density toggles sit at the right.
+
+Worth copying wholesale. It makes the current query visible and reversible, which a
+dropdown-only filter UI does not.
+
+### The finding that matters: a task *is* an activity entry
+
+Each card carries, in one object:
+
+- the **matter** it belongs to, as a link, titled `Last, First YY-NNN`
+- an **actor line** — `<person> created a task • <date> • <time>`
+- **@mention chips** resolving to short handles (`@jscholl`, `@orlando4`) *and* role accounts
+  (`@hlaccounting`), distinct from display names like `Alex TurnerJr.`
+- **body text** — a real note, not a title
+- **attachments** inline, with type icons and an expander (a `.jpg`, a `.PDF`)
+- **assignee** and **due date**, both inline-editable via dropdowns on the card
+- a **Complete Task** button
+- an **Overdue** badge, a **pin**, and a kebab menu
+- on one card, a **count badge on the avatar** — threaded replies
+
+So a task is a note that happens to carry an assignee, a due date, and a completion state.
+That is exactly what Filevine's Notes API implies (typed `note | task | call | text`), and it
+**collapses two tables in the plan into one.** See the decision entry.
+
+### Task volume is not exceptional — it's the normal state
+
+The header read **117 items** with filters already narrowed to *incomplete, assigned to me*.
+Visible tasks were overdue by **months to over a year**, and still open.
+
+Design consequences, none of them cosmetic:
+
+- **Overdue is not an alarm state, it's the default.** A dashboard panel that lights up red on
+  overdue tasks would be permanently red and therefore ignored. The prototype's "Overdue
+  Tasks" panel would show 117+ items on day one.
+- **The list must be fast and paginated at hundreds of rows**, contradicting the earlier
+  assessment that pagination was a non-issue at 200–500 matters. That was about *matters*;
+  tasks are a bigger set.
+- **Bulk operations are essential, not ergonomic polish** — nobody clears a 117-item backlog
+  one click at a time. Reinforces borrowing RLF's bulk complete/delete.
+- **Sort and filter defaults carry real weight.** The useful default is a narrow slice, not
+  everything.
+
+### Minor notes
+
+- A **"Use new Tasks"** toggle sits top-right: Filevine is mid-migration to a rebuilt Tasks
+  UI, and this screenshot is the new one. Worth knowing we're cloning the current design.
+- Global bar: ☰ · Tasks · Feed · Project Hub · Documents · project search · a
+  document-create icon · a layers icon · help · avatar menu.

@@ -295,3 +295,93 @@ entity, and the chain regeneration logic already works this way — the composit
 
 Revisit only if the paralegal's actual use shows the two need different fields. A split later
 is a migration; a premature split is a second set of routes forever.
+
+---
+
+## 2026-08-27 · Tasks is the landing screen, not a dashboard
+
+Observed directly: logging into Filevine lands on **Tasks** — the current user's list, filtered
+to incomplete and assigned to them. There is no dashboard home.
+
+The prototype opens on Dashboard, and the original plan carried that forward without
+questioning it. Route `/` to Tasks.
+
+The Dashboard panels aren't wasted — the KPI cards, trial countdown, and stale-case widget are
+genuinely useful and RLF's equivalent is one of its standout features. They belong somewhere
+reachable, just not as the front door. **What staff need on opening the app is "what do I owe
+today," not "how is the practice doing."**
+
+**The left rail is a slot, not a component.** On Tasks it holds due-date buckets (All Due
+Dates, On or Before Today, Due Today, Next 7 Days, Next 30 Days) with an item count in the
+header; on a matter it holds the section list. The shell owns the rail's *position*; the active
+view supplies its *contents*.
+
+---
+
+## 2026-08-27 · A task IS an activity entry — collapse the two tables into one
+
+The single most useful thing the Tasks screenshot settles.
+
+Every task card carries: the matter, an actor line (`<person> created a task • date • time`),
+**@mention chips**, **body text that is a real note rather than a title**, **inline
+attachments**, an assignee, a due date, a completion button, a pin, and a reply count. That is
+a note with an assignee and a due date bolted on — not a separate kind of object.
+
+Filevine's own Notes API agrees: notes are typed `note | task | call | text`.
+
+**So there is one `activity` table, and task-ness is the presence of assignment fields:**
+
+```
+activity(
+  id, matter_id, kind,              -- note | task | call | text | email | fax | system
+  author_user_id, actor_label,
+  body, pinned, parent_id,          -- parent_id gives threaded replies
+  assigned_to_user_id, due_date,    -- NULL for a plain note
+  completed, completed_at, completed_by,
+  source,                           -- ui | auto | import | system
+  rule_key,                         -- set only when source='auto'
+  created_at, ...
+)
+```
+
+This supersedes the earlier "one task table, two views" entry — same instinct, one table
+further. What changes and what doesn't:
+
+- **The chain idempotency survives unchanged.** Partial unique index on
+  `(matter_id, rule_key) WHERE source = 'auto'`. Auto deadline tasks are simply rows with
+  `kind='task'`, `source='auto'`, and a `rule_key`.
+- **Filevine's "Assign as Task" on a note becomes an UPDATE, not an INSERT** — set
+  `assigned_to_user_id` and `due_date` on the row that already exists. That is exactly why the
+  feature works "in place" in their UI, and it would have been awkward across two tables.
+- **Attachments key to `activity`**, not to `matter`. They hang off the entry that introduced
+  them.
+- **`parent_id`** gives the reply threading implied by the count badge on one card's avatar.
+- The append-only audit guard applies to `kind='system'` rows only; human rows edit normally.
+
+Net effect: the `task` table and the separate feed table both disappear into this. One table
+backs the Activity section, the global Tasks screen, the firm-wide Feed, and the audit trail.
+
+**Users need a handle as well as a display name.** Mentions render as `@jscholl` / `@orlando4`
+while assignment shows `Alex TurnerJr.`, and role accounts like `@hlaccounting` sit
+alongside real people. So: `app_user.handle` (unique), `app_user.display_name`, and an
+`is_role_account` flag.
+
+---
+
+## 2026-08-27 · Overdue is the normal state, so design for backlog not for alarm
+
+The observed Tasks screen showed **117 open items** *already filtered* to incomplete and
+assigned to one person, with visible tasks overdue by months to more than a year.
+
+This is worth recording because it contradicts an assumption in the original plan and changes
+several small decisions:
+
+- **Do not build alarm-state UI around overdue.** A red panel that is permanently red gets
+  ignored, and then it is worse than nothing — the same reasoning that killed the dead
+  notification bell. Overdue needs a calm, sortable badge.
+- **Pagination is required on tasks.** The earlier note that pagination was a non-issue was
+  about *matters* (200–500). Tasks are a much larger set and the landing screen renders them.
+- **Bulk complete and bulk delete are load-bearing, not polish.** Nobody clears a 117-item
+  backlog one click at a time.
+- **Default filters matter more than the unfiltered view.** Filevine's own default is a narrow
+  slice — incomplete, mine, due before a date — and that is the right instinct to copy.
