@@ -16,15 +16,39 @@ Rough order of value. If you only get through Part 1, that's the important half.
 This is the part that saves the most rebuild time. Every item here is a setting somebody
 chose deliberately, and reconstructing it from memory later is guesswork.
 
-- [ ] **Project Template export, for every project type.** Filevine has a native export for
-      custom sections — it includes all fields and widgets plus advanced properties (locked,
-      required, visibility). *This is the single most valuable file on the list.* It turns ten
-      of the fourteen sections from guesswork into configuration.
+- [ ] **Project Template export, for every project type.** *The single most valuable file on
+      the list* — it turns ten of the fourteen sections from guesswork into configuration.
+
+      **Path:** Main Menu → Advanced → **Customs Editor** → select Org → select the template.
+      Whole template via the Import/Export dropdown; a single section via the export icon
+      beside it.
+
+      **It is two clicks, not one.** The export icon *generates* a file; you then click the
+      generated file to download it. Easy to generate one and never actually save it.
+
+      **Permission needed first — check before anything else:** Org Admin, plus access to the
+      Customs Editor and the "Import/Export Custom Templates" advanced tool, granted in the
+      **Advanced Access** tab. If you don't have these, chasing whoever does is the urgent
+      task, not the export itself.
+
+      **Included:** all fields and widgets, plus locked / required / visibility.
+      **NOT included: auto-tags and auto-move settings.** If a field auto-tags a document or
+      auto-moves a matter to the next phase, that behavior is in no export file. Screenshot
+      the field settings for anything you know behaves that way.
+
+      **Repeat per project type.** The matter we looked at showed `UIM`, so there are others;
+      each is its own template and its own export.
+
+      **If the permission can't be sorted in time:** screenshot the **Customs Editor** itself
+      rather than the live matter pages. It shows every section with its fields and types in
+      one structured view — one screenshot of the editor is worth about five of a populated
+      matter.
 - [ ] **The project type list**, and which template each one uses. (The matter we looked at
       showed `UIM`, so there is more than one.)
 - [ ] **Phase list per project type** — the stages a matter moves through.
 - [ ] **Every dropdown's option values.** Usually inside the template export; verify rather
-      than assume. These are tedious to reconstruct and easy to get subtly wrong.
+      than assume by opening the file. These are tedious to reconstruct and easy to get
+      subtly wrong.
 - [ ] **Deadline chain definitions** — Filevine's native chaining rules: trigger → offset →
       deadline name. High value: this maps directly onto the eight rules already built, and
       will show which ones the firm actually relies on plus any we don't have.
