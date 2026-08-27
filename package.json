@@ -2,11 +2,14 @@
   "name": "higdon-cms",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "node --test \"lib/**/*.test.js\" && TZ=Pacific/Auckland node --test \"lib/**/*.test.js\" && TZ=Pacific/Honolulu node --test \"lib/**/*.test.js\"",
+    "test:one": "node --test \"lib/**/*.test.js\""
   },
   "dependencies": {
     "lucide-react": "^1.34.0",
