@@ -1,0 +1,36 @@
+# Real client data. NEVER commit. This line is first on purpose.
+/imports/
+*.xlsx
+*.xls
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Next.js
+.next/
+out/
+build/
+next-env.d.ts
+
+# Drizzle
+drizzle/meta/_journal.json.bak
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Test output
+coverage/
+
+# Local scratch
+/tmp/
+*.local
