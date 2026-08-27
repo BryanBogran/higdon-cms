@@ -326,3 +326,121 @@ Design consequences, none of them cosmetic:
   UI, and this screenshot is the new one. Worth knowing we're cloning the current design.
 - Global bar: ☰ · Tasks · Feed · Project Hub · Documents · project search · a
   document-create icon · a layers icon · help · avatar menu.
+
+---
+
+## 6. The firm's own requirements note
+
+Supplied by the firm's principal. **This is the spec; Filevine is the layout reference.** Where
+they conflict, this wins.
+
+> Software to access our Google Calendar and calendar things for us.
+>
+> Have a dashboard with active cases, overdue tasks, inactive cases, and trial within
+> 30/60/90/120 days with email notifications. Then we need a case section that will provide us
+> a list of all our cases with filtering capabilities. A search bar to search our cases. A task
+> section for people to upload tasks and then send an email and deadline for the assigned
+> person.
+>
+> We need a way for emails for a case to be stored in the file and text messages.
+>
+> Paul's uploaded spreadsheet will show everything we need in the case file. Each thing should
+> have a space to say yes or no when completed, and then have a link upload to upload our
+> Google Drive link with the specific document.
+
+### What this validates
+
+The prototype was built from this note, and it hits most of it. Specifically:
+
+- The **dashboard** described is exactly `DashboardPanel` — five KPI cards and 30/60/90/120
+  trial tiers. Not a coincidence, and not a Filevine deviation to correct.
+- **"Each thing should have a space to say yes or no when completed, and then a link"** is
+  precisely the `yesnoDoc` shape (`{ done, docUrl, note, date }`) and the 13-item litigation
+  checklist. The design is confirmed by the client, not inferred.
+- **"Paul's uploaded spreadsheet will show everything we need in the case file"** — the
+  spreadsheet *is* the field spec for the matter record. That raises the stakes on Phase 3's
+  profiling: it isn't only a migration input, it's the requirements document for the case file.
+
+### What it adds that the plan didn't have
+
+| Requirement | Status |
+|---|---|
+| **Google Calendar** read *and* write | Was deferred to Milestone 2; it's a stated core ask |
+| **Email notifications** on dashboard tiers | The reminder engine, now explicitly required |
+| **Task assignment sends an email** with the deadline | New — assignment is a notification trigger, not just a field write |
+| **Emails stored on the case file** | Gmail ingestion into the activity feed |
+| **Text messages stored on the case file** | New — SMS ingestion, no source identified yet |
+| **Google Drive links** | Prototype uses Dropbox |
+
+**"Send an email and deadline for the assigned person"** is worth reading carefully: assigning
+a task is expected to *notify*. That interacts with the no-autosend constraint — and the
+resolution is that the two aren't in conflict. No-autosend protects **statutory deadline
+communications going outside the firm**. An internal "you've been assigned this" email is a
+different class of message and can send directly.
+
+### The open question this raises
+
+Where do documents actually live? The note says Drive links, the firm said Drive — but the
+Filevine **Documents** tab lists PDFs with dates, a folder hierarchy
+(`<Org> / <Matter> / Docs / Medicals`), doc tags, and full-text search across 1,000+ files.
+That reads like documents stored *in* Filevine.
+
+If both are true, the firm has two document homes and needs to choose one. **If the files are
+in Filevine, extracting them was urgent before the licence lapsed.**
+
+---
+
+## 7. Feed, Project Hub, and Documents (third observation)
+
+### Feed — firm-wide activity, 6,414 items
+
+Left rail is **kind filters with live counts** (capped at `99+`): Notes · Messages · Emails ·
+Faxes · Phone Calls · Texts · Tasks · Reminders, above an `All`. Two special views sit at the
+top: **Unread** (the default) and **My Recent Activity**.
+
+- **Unread implies per-user read state** on activity entries — a join table, not a boolean
+  column, since read state is per person.
+- Entries group by date with per-group counts: a **Pinned** group (3 items), then **Today**
+  (89 items). Pins are global to the feed, not per matter.
+- The pin icon renders **filled yellow** when active.
+- **"Assign as Task"** appears as a link on note entries — the in-place promotion, confirmed a
+  second time.
+- Email entries record **direction and delivery state**: one read `<role> sent an email to
+  <recipient> · [Received]`. So `direction` and a status chip belong on email-kind rows.
+- **The actor can be a role rather than a person** — one entry's actor was `Scheduling`. Ties
+  to the `is_role_account` flag.
+- 89 items in one day across 253 matters is the real throughput this feed has to handle.
+
+### Project Hub — the case list
+
+Toolbar: sort by **Last Activity**, then dropdowns for **My Projects · Project Type · Phase ·
+Primary · Tags**, toggles for **Show archived** and **Pinned only**, and a live count
+(**253 Projects**). Active filters render as removable chips with a **Clear filters** action.
+Search is a dedicated **Search Projects** box, separate from the global one.
+
+Columns: **Project Name · Project Type · Phase · Tags · Primary · Last Activity**. Each row
+shows a colored initials avatar, the project name as a link, and a **numeric legacy ID**
+beneath it. Paginated, 100 per page.
+
+Observed **Project Type** was uniformly `Personal Injury (Master)` — so there is one master
+type, and the `UIM` value in the earlier matter header is something else (a sub-type or a
+section selector). Worth resolving, but not blocking.
+
+### Documents — a real document management surface
+
+This is more capable than the plan assumed. A left filter rail with **Title Contains · Doc
+Contains · File Type · Doc Tags · Projects**, and an explicit **Apply** button.
+
+**"Doc Contains — find a word or phrase" is full-text search inside document contents.** That
+is a substantial feature and not something the prototype's pasted-URL model can offer at all.
+
+Table: **Title · Date · Tags · Project Name**, with row checkboxes for bulk actions, an
+expander per row, and a **breadcrumb showing the folder path** —
+`<Org> / <Matter> / Docs / Medicals`. Observed folders: `Medicals`, `Pleadings`. Doc tags
+observed: `#meds`, `#medicals`, `#pleadings`, `#pleadingindex`. Sorted by **Last Opened by
+Me**. 1,000+ documents, paginated.
+
+So documents need: a **per-matter folder tree**, **tags**, **a date**, **last-opened-by-user
+tracking**, and ideally **content search**. Full-text search over Drive-hosted files is
+possible via the Drive API but is a real piece of work — flag it as a scoped decision rather
+than an assumed feature.

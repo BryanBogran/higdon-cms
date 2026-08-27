@@ -385,3 +385,97 @@ several small decisions:
   backlog one click at a time.
 - **Default filters matter more than the unfiltered view.** Filevine's own default is a narrow
   slice — incomplete, mine, due before a date — and that is the right instinct to copy.
+
+---
+
+## 2026-08-27 · CORRECTION: Dashboard is the landing screen after all
+
+Reverses the "Tasks is the landing screen" entry above. That entry inferred the front door
+from Filevine's behavior. The firm's own written requirements say otherwise, and they win.
+
+The boss's requirements note asks, verbatim, for:
+
+> a dashboard with active cases, overdue tasks, inactive cases, and trial within 30/60/90/120
+> days with email notifications
+
+That is a precise description of the prototype's existing `DashboardPanel` — its five KPI
+cards (Active Matters, Opened This Month, Overdue Tasks, Inactive 30+ Days, Trial Within 120
+Days) and its 30/60/90/120 trial-countdown tiers. The prototype was evidently built from this
+note.
+
+**So the prototype's divergences from Filevine are not all accidents to be corrected.** Some
+are deliberate answers to stated requirements, and the dashboard is the clearest case:
+Filevine has no dashboard, the firm asked for one, and one already exists.
+
+**The governing rule from here: Filevine is the layout reference; the requirements note is the
+spec. Where they conflict, the note wins.** Filevine's job is to make the app feel familiar,
+not to cap what it does.
+
+Practically: `/` routes to **Dashboard**. Tasks, Feed, Project Hub, and Documents sit in the
+global rail exactly as Filevine has them, and Dashboard joins them as the home tab. The
+rail-as-a-slot decision is unaffected and still correct.
+
+---
+
+## 2026-08-27 · Google Drive, not Dropbox
+
+The prototype models a document as a pasted **Dropbox** URL. The requirements note says:
+
+> have a link upload to upload our Google Drive link with the specific document
+
+And the firm confirmed separately that documents live on Google Drive.
+
+So every `docUrl` is a Drive link. This matters beyond a label change:
+
+- **Drive has a real API and an OAuth story**, so a picker is possible rather than
+  paste-a-URL — and eventually reading folder contents, which Dropbox-link-pasting could
+  never do.
+- **Sharing semantics differ.** A Drive link's access depends on the file's sharing settings
+  and the viewer's Workspace identity, where an unauthenticated Dropbox share link is a bearer
+  token. If the firm's Drive is in the same Workspace as their Google accounts, this is
+  materially *safer* than the status quo, because access follows the person rather than the URL.
+- The earlier caution about never logging `doc_url` into the audit table still stands, but the
+  exposure it guards against is smaller.
+
+**Open question that changes the design:** the Filevine Documents tab lists PDFs with folder
+paths and full-text search, which suggests documents are stored *in Filevine*, not merely
+linked. If so, the firm has two document homes today and needs to pick one. Drive plus links
+is the cheaper answer and matches the note.
+
+---
+
+## 2026-08-27 · Phase and Tags are first-class, and distinct from status
+
+From the Project Hub screenshot, two matter attributes the prototype has no home for.
+
+**Phase** — observed values `Litigation` and `Settlement`. This is the matter's lifecycle
+position and it is **not** the same as the prototype's `status`
+(`Open | Closed | Settled - Not Disbursed | Default Judgment`). Filevine carries both: status
+is whether the file is open, phase is where it is in the work. Sortable and filterable in the
+hub. Add `phase` as its own column with its own option list.
+
+**Tags** — used heavily and doing real work. Observed on matters: `#commercial`, `#lien`,
+`#driver`, `#minor`, `#2pls`, `#passenger`, `#SlipNFall`, `#NOFA--FILED`, plus what look like
+opposing-firm names. On documents: `#meds`, `#medicals`, `#pleadings`, `#pleadingindex`.
+
+They're serving at least three purposes at once — case characteristics, workflow state, and
+counterparty identification. That argues for a **free-form tag table with a many-to-many join,
+not an enum**, applied to both matters and documents. The hub shows an overflow indicator
+(`+3`) and filters by tag, so tags need indexing, not just storage.
+
+Do not try to normalize these into the status/phase columns. The firm has clearly evolved a
+working taxonomy and the fastest way to lose their goodwill is to tell them their tags are
+wrong.
+
+Also from the hub, cheap and worth having:
+
+- **`primary_user_id`** — the "Primary" column, the person who owns the file.
+- **A numeric legacy Filevine project ID** shown under each project name. **Store it.** It is
+  the join key that makes reconciling any Filevine export against the spreadsheet possible,
+  and it is free to keep.
+- **Project names carry free-text suffixes** — one row read `<Name> 26-044 1st case`. So the
+  display name is not strictly derived from `Last, First YY-NNN`; keep a `project_name` field
+  rather than always composing it.
+- **Matters can be pinned** ("Pinned only" toggle) and **archived** ("Show archived"),
+  confirming the soft-delete decision.
+- **253 projects**, paginated 100 at a time. Consistent with the earlier estimate.

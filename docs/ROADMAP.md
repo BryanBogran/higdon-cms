@@ -112,12 +112,16 @@ control available.
 button works, and Dashboard/Cases/Tasks have re-homed into the new IA.
 
 - Global rail: **Tasks · Feed · Project Hub · Documents** + global search
-- **`/` routes to Tasks, not a dashboard.** Confirmed by observation — Filevine has no
-  dashboard home. The Dashboard panels stay reachable but are not the front door; what staff
-  need on opening is "what do I owe today," not "how is the practice doing."
+- **`/` routes to Dashboard.** The firm's requirements note asks for it by name — "active
+  cases, overdue tasks, inactive cases, and trial within 30/60/90/120 days with email
+  notifications" — which is the prototype's `DashboardPanel` exactly. Filevine has no
+  dashboard; the firm asked for one, so Dashboard joins the global rail as the home tab. (This
+  reverses an earlier call made from Filevine's behavior alone.)
 - **The left rail is a slot the active view fills**, not a fixed component: due-date buckets
-  on Tasks (All Due Dates · On or Before Today · Due Today · Next 7 Days · Next 30 Days, with
-  an item count), the section list on a matter.
+  on Tasks (All Due Dates · On or Before Today · Due Today · Next 7 Days · Next 30 Days),
+  kind-filters with counts on Feed (Notes, Messages, Emails, Faxes, Phone Calls, Texts, Tasks,
+  Reminders — plus Unread and My Recent Activity), a faceted filter panel on Documents, and
+  the section list on a matter. Every rail carries a live item count.
 - **Filter chips as a first-class control** — individually removable, plus separate Clear and
   Reset actions. Makes the active query visible and reversible.
 - Matter shell: header (`Last, First YY-NNN`, client name, click-to-call phone,
@@ -152,8 +156,19 @@ Phase 13, because Reminders is a Filevine section and therefore in scope.
 
 The original hybrid schema, plus what the clone requires:
 
-- `matter` — now with **client phone, client email, case/project type**. The prototype has
-  none of these and Filevine shows all three in the header.
+- `matter` — now with **client phone, client email, project type**, plus **`phase`**
+  (Litigation / Settlement / …, distinct from `status`), **`primary_user_id`**,
+  **`project_name`** (names carry free-text suffixes, so don't always compose from
+  `Last, First YY-NNN`), **`pinned`**, and **`legacy_filevine_id`** — the numeric ID under each
+  Project Hub row, free to keep and the only clean join key between a Filevine export and the
+  spreadsheet.
+- **`tag` + `matter_tag` + `document_tag`** — free-form, many-to-many, indexed. Tags are doing
+  real work in the hub (case characteristics, workflow state, and counterparty names all at
+  once), so this is a tag table, not an enum. Don't try to normalize them into status/phase.
+- **`activity_read`** — per-user read state, since Feed's default view is Unread. A join
+  table, not a column.
+- **`document`** — per-matter folder path, tags, date, and last-opened-by-user. Drive links,
+  not Dropbox.
 - `matter_checklist_item` — PK `(matter_id, field_key)`, `occurred_on`
 - **`activity` — one table replacing both `task` and the feed.** A Filevine task *is* a note
   with an assignee and a due date: the same card carries body text, @mentions, attachments,
@@ -211,7 +226,17 @@ Then **Expenses** (money math, totals; `RS Case Exp` is a real sheet), **Deadlin
 proper section view over the auto tasks with holiday warnings, and **Case Summary**. The
 remaining ten stay generic until use argues otherwise.
 
-### Phase 13 — Reminders and the cron engine · 5–7 evenings
+### Phase 13 — Reminders, notifications, and Google Calendar · 7–10 evenings
+
+Promoted and widened: the requirements note asks for Google Calendar access and email
+notifications explicitly, so these are core rather than Milestone 2.
+
+- **Task assignment sends an email** with the deadline to the assignee. Note this does *not*
+  breach the no-autosend rule: that rule protects **statutory communications leaving the
+  firm**. An internal "you've been assigned this" is a different class of message.
+- **Dashboard tier notifications** — the 30/60/90/120 trial countdown, emailed.
+- **Google Calendar** two-way sync, replacing the prototype's copy-to-clipboard stopgap.
+
 
 The producer the prototype never had, built on RLF's proven shape:
 
@@ -253,7 +278,13 @@ Unchanged. The importer is retired after cutover, enforced in code.
    it in `extract-notice.js`; hold the line.
 3. **Case status reports** — per matter or all-active, labelled sections, Word/PDF export,
    "Request Changes" to revise in place.
-4. **Gmail sync and email triage.**
+4. **Gmail sync and email triage** — required by the note ("emails for a case to be stored
+   in the file"), so this is scope rather than a nice-to-have.
+5. **Text-message capture** — also required by the note. No source identified yet; needs a
+   decision on where the firm's SMS actually lives before it can be scoped.
+6. **Document full-text search.** Filevine's Documents tab has "Doc Contains", searching
+   inside file contents across 1,000+ documents. Achievable over Drive-hosted files via the
+   Drive API, but a real piece of work — a scoped decision, not an assumed feature.
 
 Target the current model generation — Sonnet 5 for extraction and drafting, Haiku 4.5 where
 latency and cost dominate. RLF's call sites are a generation behind.
