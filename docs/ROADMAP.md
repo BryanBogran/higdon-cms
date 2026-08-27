@@ -112,8 +112,16 @@ control available.
 button works, and Dashboard/Cases/Tasks have re-homed into the new IA.
 
 - Global rail: **Tasks · Feed · Project Hub · Documents** + global search
+- **`/` routes to Tasks, not a dashboard.** Confirmed by observation — Filevine has no
+  dashboard home. The Dashboard panels stay reachable but are not the front door; what staff
+  need on opening is "what do I owe today," not "how is the practice doing."
+- **The left rail is a slot the active view fills**, not a fixed component: due-date buckets
+  on Tasks (All Due Dates · On or Before Today · Due Today · Next 7 Days · Next 30 Days, with
+  an item count), the section list on a matter.
+- **Filter chips as a first-class control** — individually removable, plus separate Clear and
+  Reset actions. Makes the active query visible and reversible.
 - Matter shell: header (`Last, First YY-NNN`, client name, click-to-call phone,
-  click-to-email, project-type selector) + left section rail + content area
+  click-to-email, project-type selector) + section rail + content area
 - `lib/sections/registry.ts` — `{ key, label, icon, order, enabled, component }`, all
   fourteen present from day one
 - App Router pages, real URLs, deep-linkable
@@ -147,10 +155,20 @@ The original hybrid schema, plus what the clone requires:
 - `matter` — now with **client phone, client email, case/project type**. The prototype has
   none of these and Filevine shows all three in the header.
 - `matter_checklist_item` — PK `(matter_id, field_key)`, `occurred_on`
-- `task` — one table, partial unique `(matter_id, rule_key) WHERE source='auto'`
-- **`activity`** — the merged feed: `kind` discriminator, `pinned`, `body`, `author_id`,
-  mentions, plus system rows. Append-only trigger guards system rows; human rows edit
-  normally.
+- **`activity` — one table replacing both `task` and the feed.** A Filevine task *is* a note
+  with an assignee and a due date: the same card carries body text, @mentions, attachments,
+  assignee, due date, completion, pin, and a reply count. So `kind`
+  (`note | task | call | text | email | fax | system`), `pinned`, `body`, `author_user_id`,
+  `parent_id` for threaded replies, and nullable `assigned_to_user_id` / `due_date` /
+  `completed`. Chain idempotency unchanged — partial unique
+  `(matter_id, rule_key) WHERE source='auto'`. Filevine's "Assign as Task" on a note becomes
+  an UPDATE rather than an INSERT, which is why it works in place. Append-only trigger guards
+  `kind='system'` rows only; human rows edit normally.
+- **`attachment`** — keyed to `activity`, not to `matter`. Files hang off the entry that
+  introduced them, as the task cards show.
+- `app_user` gains **`handle`** (unique, for `@mention`) alongside `display_name`, plus an
+  `is_role_account` flag — mentions render `@jscholl` and `@hlaccounting` while assignment
+  shows `Alex TurnerJr.`
 - **`contact` / `matter_party`** — the Parties entity, with `role` on the join
 - **`section_record`** — the generic engine's row storage, `(matter_id, section_key, ordinal,
   data jsonb)`. JSONB is correct *here*, unlike on `matter`: these rows have no statutory
@@ -167,6 +185,10 @@ Unchanged from the original plan. Auth remains the gate: no real client data in 
 database before it lands.
 
 ### Phase 11 — Activity feed, for real · 8–12 evenings
+
+> Because `activity` is one table, this phase delivers the **matter Activity section, the
+> global Tasks landing screen, and the firm-wide Feed** from one component family. That is a
+> large part of why the clone is tractable.
 
 **Done when** a paralegal can post a note, pin it, @mention someone, filter to Phone Calls,
 and promote a note to a task without leaving the feed.
@@ -203,7 +225,18 @@ Cap and alert on scheduled-job cost. RLF's setup guide warns that exhausting Net
 pauses the *entire site*; the hosting differs but the lesson transfers.
 
 ### Phase 14 — Importer · 8–12 evenings
+
 ### Phase 15 — Daily-use hardening · 5–7 evenings
+
+Task edit, soft delete/archive, centralized `values` factory, activity feed on the matter, and
+a shared `dateBadge(days)` helper that returns `unknown` (grey, warned) for `null` — never
+green.
+
+Added from observation: **task pagination and bulk complete/delete.** Not polish — the Filevine
+Tasks screen showed **117 open items already filtered to one person**, overdue by months to
+over a year. Nobody clears that one click at a time, and a permanently-red overdue panel gets
+ignored exactly as the dead notification bell would have. Overdue is the normal state here:
+calm sortable badges, narrow default filters, no alarm UI.
 ### Phase 16 — Deploy, protect, back up, cut over · 3–4 evenings + a cutover day
 
 Unchanged. The importer is retired after cutover, enforced in code.
