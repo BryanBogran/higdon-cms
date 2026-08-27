@@ -2,8 +2,8 @@
 
 In-house replacement for Filevine. Texas personal-injury and litigation practice.
 
-**Status: pre-implementation.** This repo currently holds the reference prototype, the
-domain documentation below, and the architectural decision record. Nothing is built yet.
+**Status: Phase 1 complete.** The prototype renders in Next.js against a throwaway
+localStorage shim, proving the build. No database, no auth, no Filevine shell yet.
 
 - **Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md)**
 - Decisions and their reasoning: [docs/DECISIONS.md](docs/DECISIONS.md)
@@ -133,9 +133,9 @@ Calendar APIs — **still gated by a human review step for anything statutory.**
 
 > Note: the prototype's notification queue has **no producer**. Nothing ever creates an
 > entry; `trial-tier-fired` appears nowhere in the code. The bell renders, carries a badge,
-> and can never ring. The UI is removed in Phase 4 and the feature is built properly in
-> Milestone 2 — a bell that will never ring is worse than no bell, because staff see it
-> empty and conclude they're covered.
+> and can never ring. The dead UI is removed in Phase 6 and Reminders is built properly in
+> Phase 13 — a bell that will never ring is worse than no bell, because staff see it empty
+> and conclude they're covered.
 
 ### CSV / spreadsheet import
 
