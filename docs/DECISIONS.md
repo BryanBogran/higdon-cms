@@ -221,3 +221,77 @@ Postgres allows `current_date` in a CHECK constraint and it is a trap: constrain
 re-validated on dump/restore, so a row that was legal in 2026 can make a 2031 restore fail.
 
 "Not in 1904" belongs in the CHECK. "Not in the future" belongs in Zod.
+
+---
+
+## 2026-08-27 · The target is a Filevine clone, and Filevine's IA is the architecture
+
+Direction from the firm: match what Filevine does and how it is laid out, because staff use
+it daily and the point of building in-house is to remove cost, not to retrain everyone.
+
+This is not a skin. It reorders the build, because Filevine's information architecture is
+**two-level** and the prototype's is flat:
+
+- **Global rail:** Tasks · Feed · Project Hub · Documents · global project search
+- **Matter shell:** header (`Last, First YY-NNN`, client name, click-to-call phone,
+  click-to-email, project-type selector, Vitals toggle) + a **left section rail** + section
+  content
+- **Section rail** is Higdon's own configured set of 14: Activity, Med Chron Data, Call Log,
+  Intake, DCO, Meds, Lost Wages, Liens, Case Summary, Expenses, Parties, Insurance,
+  Deadline Chain, Reminders
+
+**Consequence for sequencing: build the shell before the sections.** The section rail is a
+**registry** — `{ key, label, icon, component, order, enabled }` — exactly as `FIELDS` is a
+registry today. Then a section is a data entry plus one component, and the fourteenth costs
+what the second did. Filevine itself configures sections per project type; a registry leaves
+that door open without building it now.
+
+**Consequence for the shell: real routing, finally.** `/matters/[id]/[section]`. The
+prototype has no router at all (`useState("dashboard")`), so no deep links, no back button,
+no way to send someone a link to a matter. Filevine has all three, and staff will expect them.
+
+**The prototype's three panels are not the app; they are three of its screens.** Dashboard,
+Cases, and Tasks re-home into the shell as Project Hub and Tasks. That is why the shell
+restructure lands *before* the per-record mutation refactor — otherwise every call site gets
+touched twice.
+
+---
+
+## 2026-08-27 · Activity ships in Milestone 1, and the audit table is its data source
+
+Activity is the default view of a Filevine matter. The prototype has nothing resembling it,
+which makes it the largest single gap against what staff use today — and adoption is won or
+lost on first impression.
+
+The convergence that makes this affordable: **the append-only event table already scheduled
+for Milestone 1 on legal-defensibility grounds is the feed's backing store.** One table now
+earns twice. System rows (field changes, task completions, imports) and human rows (notes,
+calls, emails, texts) live in one stream with a `kind` discriminator, which is exactly how
+Filevine's Quick Filters behave — one feed, filtered by kind.
+
+Two rules follow from the audit-trail role:
+
+- **Human-authored rows are editable; system rows never are.** The append-only trigger
+  guards system rows; notes need normal edit/delete semantics with their own history.
+- **The feed is the read model, not the source of truth for state.** A task's completion
+  lives on the task row; the feed records that it happened.
+
+Filevine mechanics to reproduce: Pinned group with a count, `@mention` resolving to people
+*and* role accounts, per-entry overdue badge / assignee / due date / Complete button inline,
+and **"Assign as Task" promoting a plain note in place**.
+
+---
+
+## 2026-08-27 · One task table, two views — not a separate deadlines entity
+
+Filevine shows both a global **Tasks** view and a per-matter **Deadline Chain** section; RLF
+models them as two Firestore collections. The prototype merges them into one map with
+`source: 'auto' | 'manual'`.
+
+**Keep the single table.** "Deadline Chain" renders the `source='auto'` rows for one matter;
+global "Tasks" renders assigned work across matters. Same vocabulary as Filevine, one
+entity, and the chain regeneration logic already works this way — the composite
+`(matter_id, rule_key)` idempotency key needs no redesign.
+
+Revisit only if the paralegal's actual use shows the two need different fields. A split later
+is a migration; a premature split is a second set of routes forever.

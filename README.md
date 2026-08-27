@@ -5,15 +5,22 @@ In-house replacement for Filevine. Texas personal-injury and litigation practice
 **Status: pre-implementation.** This repo currently holds the reference prototype, the
 domain documentation below, and the architectural decision record. Nothing is built yet.
 
-- Roadmap: `~/.claude/plans/what-should-be-the-splendid-book.md`
+- **Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md)**
 - Decisions and their reasoning: [docs/DECISIONS.md](docs/DECISIONS.md)
+- Reference study of Filevine and the RLF CMS: [docs/REFERENCE_FILEVINE_AND_RLF.md](docs/REFERENCE_FILEVINE_AND_RLF.md)
 - The original prototype README: [docs/ORIGINAL_PROTOTYPE_README.md](docs/ORIGINAL_PROTOTYPE_README.md)
 - Reference prototype, untouched: [prototype/](prototype/)
 
-**Milestone 1** is Cases + Tasks + Dashboard on Postgres with login, the firm's real
-spreadsheet imported, and a paralegal using it daily. Mail Intake, PI Intake, and the seven
-sections still absent relative to Filevine (Settlement Calculator, Expenses, Liens,
-Meds/Med Chron, Pleadings, Parties/Contacts, Related Cases) are Milestone 2+.
+**The target is a Filevine clone** — same information architecture, same vocabulary, same
+section set, so staff move over without retraining. Filevine's own configured section list is
+the spec: Activity, Med Chron Data, Call Log, Intake, DCO, Meds, Lost Wages, Liens, Case
+Summary, Expenses, Parties, Insurance, Deadline Chain, Reminders.
+
+The architecture that makes that tractable is a **generic section engine** driven by a
+registry: most Filevine sections are a field group plus a repeating collection plus
+attachments, so ten of the fourteen are configuration rather than code. All fourteen appear in
+the rail from the moment the shell lands; depth gets added where real use justifies it. See
+the roadmap for the honest effort estimate.
 
 ---
 
