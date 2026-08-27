@@ -227,13 +227,35 @@ latency and cost dominate. RLF's call sites are a generation behind.
 
 ---
 
-## Open input needed
+## Filevine access ends 2026-08-28
 
-**The Filevine screenshots.** The original prototype README cites "screenshots of the firm's
-actual Filevine project pages" as a source, and they are not in the export. One screenshot of
-the Activity view exists; the contents of the other thirteen sections are currently
-*inferred*. Those screenshots are to the section work what the spreadsheet profile is to the
-migration — the difference between building from evidence and building from a guess.
+Confirmed with the firm: the licence lapses tomorrow, and the team is already exporting case
+records. Documents live on Google Drive, so the client files themselves were never at risk.
+
+The extraction checklist is [FILEVINE_LAST_DAY_CHECKLIST.md](FILEVINE_LAST_DAY_CHECKLIST.md).
+Its premise: an ops team exporting *records* will skip *configuration and layout*, which are
+equally unrecoverable. The Project Template export is the highest-value single file, because
+it turns ten of the fourteen sections from guesswork into configuration.
+
+**What this changes about the plan:**
+
+- **Phases 2 and 3 are unaffected** — the date rewrite and the spreadsheet profiling depend on
+  nothing from Filevine. Work continues without interruption.
+- **Phase 4 (shell) and Phase 5 (section engine) now depend on whatever came out today.** If
+  the template export succeeded, the section registry is transcription rather than design. If
+  it didn't, the registry gets built from the one Activity screenshot plus the spreadsheet's
+  column names, and every section is a best guess until staff correct it in use.
+- **A new input arrives that the plan didn't assume: the Filevine Activity history.** If it
+  exported, the Phase 11 feed has real historical content to import and display, and the
+  Phase 7 `activity` table needs an import path alongside the matter importer. That is a
+  genuine addition to scope — and worth it, since for many matters the notes are the only
+  written record of what happened and why.
+- **The verification baseline is now load-bearing.** Record counts captured today are the only
+  way to prove the import was complete; the acceptance tests in the importer phase should
+  reconcile against them, not just against the spreadsheet.
+
+Once the dust settles, the first task is an inventory: what actually came out, in what format,
+with what fidelity. That determines whether the section work is configuration or archaeology.
 
 Most valuable, in order: **Parties · Expenses · Deadline Chain · Liens · Med Chron Data**,
 plus **Project Hub** (the matter list) and one **Documents** view.
