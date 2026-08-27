@@ -34,3 +34,6 @@ coverage/
 # Local scratch
 /tmp/
 *.local
+
+# Next.js build cache (Turbopack)
+.turbo/

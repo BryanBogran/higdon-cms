@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+/*
+ * Moved here verbatim from higdon-cms.jsx:848-853, where it was injected via
+ * document.createElement("style") at MODULE IMPORT TIME -- outside React, and
+ * guarded by `typeof document !== "undefined"`. Under Next that guard means it
+ * no-ops during SSR and only runs on hydration, so every .input on the page
+ * would render unstyled during first paint.
+ *
+ * Real CSS instead. Do not reintroduce the injection block.
+ */
+.input {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  outline: none;
+  background: white;
+}
+.input:focus {
+  border-color: #0f172a;
+}
