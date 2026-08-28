@@ -1,0 +1,24 @@
+# Netlify build configuration.
+#
+# The Next.js runtime installs itself automatically — no plugin entry needed.
+# What Netlify does NOT infer reliably is the Node version, and Next 16
+# requires Node 20+. An older default is a common cause of build failures that
+# look unrelated to Node.
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+  # Fail the build on a lockfile mismatch instead of silently resolving to
+  # different versions than were tested locally.
+  NPM_FLAGS = "--no-audit --no-fund"
+
+# NOTE ON PROTECTING THE SITE
+#
+# Netlify's site-wide password protection is a paid-plan feature, unlike
+# Vercel's deployment protection. That is acceptable here and not a data
+# exposure: middleware.ts requires a Supabase session for every route, so an
+# unauthenticated visitor reaches the login page and nothing else. Password
+# protection would be defence in depth, not the actual gate.
