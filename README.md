@@ -8,6 +8,7 @@ place. Follow [docs/SETUP.md](docs/SETUP.md) to point it at a real database — 
 Until then the app runs on browser storage.
 
 - **▶ Start here — setup runbook: [docs/SETUP.md](docs/SETUP.md)**
+- **Feeding Filevine's behaviour into this project: [docs/FILEVINE_CAPTURE.md](docs/FILEVINE_CAPTURE.md)**
 - **Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md)**
 - **Next up — backend, database, login: [docs/BACKEND_PLAN.md](docs/BACKEND_PLAN.md)**
 - Decisions and their reasoning: [docs/DECISIONS.md](docs/DECISIONS.md)
