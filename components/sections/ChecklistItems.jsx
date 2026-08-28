@@ -18,13 +18,14 @@
  * be noticed.
  */
 
-import { CheckCircle2, Circle, ExternalLink, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, Circle, AlertTriangle } from 'lucide-react';
+import DriveDrop from './DriveDrop';
 import { checklistFieldsForSection } from '@/lib/domain/fields';
 import { todayInFirmTz } from '@/lib/domain/dates';
 import { useData } from '@/lib/data/DataProvider';
 import { CHAIN_RULE_BY_KEY } from '@/lib/domain/chain';
 
-export default function ChecklistItems({ matterId, matter, sectionLabel, title = 'Checklist' }) {
+export default function ChecklistItems({ matterId, matter, sectionLabel, title = 'Checklist', uploadFolder }) {
   const { setChecklistItem } = useData();
   const values = matter?.values || {};
   const items = checklistFieldsForSection(sectionLabel);
@@ -89,25 +90,26 @@ export default function ChecklistItems({ matterId, matter, sectionLabel, title =
                 />
               </div>
 
-              <div className="flex gap-1.5 w-[220px] shrink-0">
-                <input
-                  type="url"
-                  className="input"
-                  placeholder="Google Drive link"
-                  value={item.docUrl || ''}
-                  onChange={(e) => setChecklistItem(matterId, f.key, { docUrl: e.target.value })}
+              {/*
+                Was a text box asking for a pasted Drive link. The document
+                proving an item is done should be attachable where the item is
+                ticked, not fetched from Drive and pasted back.
+              */}
+              <div className="w-[240px] shrink-0">
+                <DriveDrop
+                  value={item.docFile || (item.docUrl ? { name: 'Document', url: item.docUrl } : null)}
+                  onChange={(file) =>
+                    setChecklistItem(matterId, f.key, {
+                      docFile: file,
+                      // docUrl stays in step, so anything already reading it --
+                      // the old Documents index, an export -- keeps working.
+                      docUrl: file?.url || '',
+                    })
+                  }
+                  matterId={matterId}
+                  folderName={uploadFolder}
+                  placeholder="Drop the document"
                 />
-                {item.docUrl ? (
-                  <a
-                    href={item.docUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="shrink-0 px-2.5 grid place-items-center border border-slate-200 rounded-lg text-teal-700 hover:bg-slate-50"
-                    title="Open document"
-                  >
-                    <ExternalLink size={15} />
-                  </a>
-                ) : null}
               </div>
             </div>
           );

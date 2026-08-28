@@ -4,8 +4,9 @@
 
 import { checkBadDate, fmt } from '@/lib/domain/dates';
 import { AlertTriangle, ExternalLink, User, Paperclip, Check } from 'lucide-react';
+import DriveDrop from './DriveDrop';
 
-export default function FieldInput({ field, value, onChange, row }) {
+export default function FieldInput({ field, value, onChange, row, matterId, uploadFolder }) {
   const v = value ?? '';
 
   /**
@@ -191,37 +192,40 @@ export default function FieldInput({ field, value, onChange, row }) {
   }
 
   /** Documents hanging off one ROW, not the matter. Drive links for now. */
+  /**
+   * Files live in Drive, not in a text box.
+   *
+   * This used to be an input asking for a pasted Drive link, which meant:
+   * open Drive, find the case, find the folder, upload, wait, copy the link,
+   * come back, paste. Seven steps per document, each one a chance to paste the
+   * wrong link or file it under the wrong client.
+   */
   if (field.type === 'attachments') {
-    const list = Array.isArray(v) ? v : [];
     return (
-      <div>
-        {list.map((a, i) => (
-          <a
-            key={i}
-            href={a?.url || '#'}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 text-xs text-teal-700 hover:underline mb-0.5"
-          >
-            <Paperclip size={11} /> {a?.name || 'Document'}
-          </a>
-        ))}
-        <input
-          type="url"
-          className="input"
-          placeholder="Add a Drive link"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-              onChange([...list, { name: 'Document', url: e.currentTarget.value.trim() }]);
-              e.currentTarget.value = '';
-            }
-          }}
-        />
-      </div>
+      <DriveDrop
+        value={v}
+        onChange={onChange}
+        matterId={matterId}
+        folderName={uploadFolder}
+        multiple
+        placeholder="Drop files, or click to choose"
+      />
     );
   }
 
-  /** Multi-select, stored as an array. */
+  /** A single Drive document on this field. */
+  if (field.type === 'driveFile') {
+    return (
+      <DriveDrop
+        value={v}
+        onChange={onChange}
+        matterId={matterId}
+        folderName={uploadFolder}
+        placeholder="Drop a file, or click to choose"
+      />
+    );
+  }
+
   if (field.type === 'multiselect') {
     const list = Array.isArray(v) ? v : v ? [v] : [];
     return (

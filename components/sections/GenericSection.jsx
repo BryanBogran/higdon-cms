@@ -37,7 +37,7 @@ function money(n) {
 }
 
 /** One repeating table. Its own draft row, so two on a page cannot collide. */
-function Collection({ matterId, sectionKey, collection }) {
+function Collection({ matterId, sectionKey, collection, uploadFolder }) {
   const { sectionState, addSectionRow, updateSectionRow, deleteSectionRow } = useData();
   const storageKey = collection.storageKey || sectionKey;
   const state = sectionState(matterId, storageKey);
@@ -81,6 +81,8 @@ function Collection({ matterId, sectionKey, collection }) {
                         field={{ ...c, inputs: collection.calculated?.[c.key]?.inputs }}
                         value={row[c.key]}
                         row={row}
+                        matterId={matterId}
+                        uploadFolder={uploadFolder}
                         onChange={(val) => updateSectionRow(matterId, storageKey, row.id, { [c.key]: val })}
                       />
                     </td>
@@ -119,7 +121,13 @@ function Collection({ matterId, sectionKey, collection }) {
               <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">
                 {c.label}
               </label>
-              <FieldInput field={c} value={draft[c.key]} onChange={(val) => setDraft((d) => ({ ...d, [c.key]: val }))} />
+              <FieldInput
+                field={c}
+                value={draft[c.key]}
+                matterId={matterId}
+                uploadFolder={uploadFolder}
+                onChange={(val) => setDraft((d) => ({ ...d, [c.key]: val }))}
+              />
             </div>
           ))}
         <button
@@ -147,7 +155,7 @@ function Collection({ matterId, sectionKey, collection }) {
  * `full: true` on a field makes it span both columns, which is what long text
  * needs and what the printed sheets show.
  */
-function FieldGroup({ matterId, sectionKey, title, fields, state, setSectionField }) {
+function FieldGroup({ matterId, sectionKey, title, fields, state, setSectionField, uploadFolder }) {
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
       {title ? (
@@ -164,6 +172,8 @@ function FieldGroup({ matterId, sectionKey, title, fields, state, setSectionFiel
             <FieldInput
               field={f}
               value={state.fields[f.key]}
+              matterId={matterId}
+              uploadFolder={uploadFolder}
               onChange={(val) => setSectionField(matterId, sectionKey, f.key, val)}
             />
           </div>
@@ -196,6 +206,7 @@ export default function GenericSection({ matterId, matter, section }) {
           matter={matter}
           sectionLabel={section.checklistSection}
           title={`${section.label} checklist`}
+          uploadFolder={section.uploadFolder}
         />
       ) : null}
 
@@ -208,6 +219,7 @@ export default function GenericSection({ matterId, matter, section }) {
           fields={section.fields}
           state={state}
           setSectionField={setSectionField}
+          uploadFolder={section.uploadFolder}
         />
       ) : null}
 
@@ -220,6 +232,7 @@ export default function GenericSection({ matterId, matter, section }) {
           fields={g.fields}
           state={state}
           setSectionField={setSectionField}
+          uploadFolder={section.uploadFolder}
         />
       ))}
 
@@ -229,6 +242,7 @@ export default function GenericSection({ matterId, matter, section }) {
           matterId={matterId}
           sectionKey={section.key}
           collection={c}
+          uploadFolder={section.uploadFolder}
         />
       ))}
 

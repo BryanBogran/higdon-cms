@@ -15,7 +15,7 @@ import {
   getSupabaseServerClient, getCurrentUser, isServerSupabaseConfigured,
 } from '@/lib/supabase/server';
 import {
-  isDriveConfigured, driveConfig, createUploadSession, folderTree,
+  isDriveConfigured, driveConfig, createUploadSession, folderTree, resolveSubfolder,
 } from '@/lib/google/drive';
 import { isWithinTree } from '@/lib/google/drive-paths';
 
@@ -49,7 +49,9 @@ export async function POST(request) {
     );
   }
 
-  const { matterId, parentId, name, mimeType, sizeBytes } = await request.json().catch(() => ({}));
+  // `folderName` lets a field say "Medical Records" without knowing any ids.
+  const { matterId, parentId, folderName, name, mimeType, sizeBytes } =
+    await request.json().catch(() => ({}));
   if (!matterId || !name?.trim()) {
     return NextResponse.json({ error: 'matterId and name are required.' }, { status: 400 });
   }
@@ -69,7 +71,15 @@ export async function POST(request) {
   }
 
   const root = matter.drive_folder_id;
-  const target = parentId || root;
+  let target = parentId || root;
+
+  if (!parentId && folderName) {
+    // Resolved server-side rather than trusted from the client: a name cannot
+    // be used to reach outside the case, where a raw id could.
+    const sub = await resolveSubfolder(root, folderName);
+    if (!sub.ok) return NextResponse.json({ error: sub.error }, { status: 502 });
+    target = sub.folderId;
+  }
 
   const tree = await folderTree(root);
   if (!tree.ok) return NextResponse.json({ error: tree.error }, { status: 502 });

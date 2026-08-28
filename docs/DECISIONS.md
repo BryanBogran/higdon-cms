@@ -1156,3 +1156,38 @@ without a folder, and the Docs tab offers a button to finish the job later.
 The call is awaited so the folder exists before anyone opens Docs, and wrapped
 in a `try` that swallows network failure entirely. Awaiting without swallowing
 would reintroduce the coupling the soft-failure design exists to prevent.
+
+---
+
+## Documents are dropped, not pasted
+
+**Date:** 2026-08-28
+
+Every document field asked for a **pasted Google Drive link**. That meant: open
+Drive, find the case, find the right subfolder, upload, wait, copy the link,
+come back, paste. Seven steps to record one document, and every one of them a
+chance to paste the wrong link or file it under the wrong client.
+
+Drop the file on the field instead. It uploads into the case's own Drive folder
+and links itself.
+
+**Each section declares where its documents belong** — `uploadFolder` in the
+registry. Medicals writes to *Medical Records*, Pleading to *Pleadings*,
+Expenses to *Expenses*. Filing becomes a property of the section rather than a
+decision made per document, which is the part people get wrong.
+
+**A folder NAME is sent, never an id.** The server resolves it against this
+matter's own root, creating it when a case predates the folder template. A name
+cannot be used to reach outside the case; an id could, and the browse endpoint's
+ancestry check exists precisely because ids can.
+
+This replaced `type: 'url'` on the Medical Records Request field and rewired
+every `attachments` field and every checklist row through the same component.
+
+**Removing a file unlinks it; it stays in Drive.** Deleting a medical record
+because somebody attached it to the wrong row is not a recoverable mistake, and
+the button that does it should not be the same size as the one that fixes a
+typo.
+
+`docUrl` is still written alongside the new `docFile` on checklist items, so
+anything already reading it keeps working.
