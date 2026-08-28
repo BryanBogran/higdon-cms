@@ -47,6 +47,7 @@ export function DataProvider({ children }) {
   const [sections, setSections] = useState({});
   const [activity, setActivity] = useState({});
   const [documents, setDocuments] = useState({});
+  const [relations, setRelations] = useState([]);
   const [loaded, setLoaded] = useState(false);
   // Derived from the env on the first render, not after the load effect. It
   // used to start as 'local', so the user menu's first paint claimed "running
@@ -119,6 +120,7 @@ export function DataProvider({ children }) {
         setTasks(data.tasks || {});
         setActivity(data.activity || {});
         setDocuments(data.documents || {});
+        setRelations(data.relations || []);
         setSections(data.sections || {});
         setTeam(data.team || {});
       } catch (err) {
@@ -489,6 +491,23 @@ export function DataProvider({ children }) {
     [run, applyActivity]
   );
 
+  const addRelation = useCallback(
+    async (input) => {
+      const result = await run((s) => s.addRelation(input));
+      if (result.ok && result.relation) setRelations((r) => [...r, result.relation]);
+      return result;
+    },
+    [run]
+  );
+
+  const removeRelation = useCallback(
+    async (id) => {
+      setRelations((r) => r.filter((x) => x.id !== id));
+      return run((s) => s.removeRelation(id));
+    },
+    [run]
+  );
+
   /** Short-lived read URL for a stored attachment. Minted per click. */
   const signFile = useCallback((path) => run((s) => s.signFile(path)), [run]);
 
@@ -528,18 +547,18 @@ export function DataProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      matters, tasks, team, sections, activity, documents, loaded, saveState, backend, currentUser,
+      matters, tasks, team, sections, activity, documents, relations, loaded, saveState, backend, currentUser,
       createMatter, updateMatterField, setChecklistItem, archiveMatter, unarchiveMatter,
       createTask, updateTask, setTaskComplete, clearTaskOverride, deleteTask, bulkSetComplete,
       sectionState, setSectionField, addSectionRow, updateSectionRow, deleteSectionRow,
-      addActivity, addEmail, signFile, updateActivity, deleteActivity, assignActivityAsTask, saveTeam,
+      addActivity, addEmail, signFile, addRelation, removeRelation, updateActivity, deleteActivity, assignActivityAsTask, saveTeam,
     }),
     [
-      matters, tasks, team, sections, activity, documents, loaded, saveState, backend, currentUser,
+      matters, tasks, team, sections, activity, documents, relations, loaded, saveState, backend, currentUser,
       createMatter, updateMatterField, setChecklistItem, archiveMatter, unarchiveMatter,
       createTask, updateTask, setTaskComplete, clearTaskOverride, deleteTask, bulkSetComplete,
       sectionState, setSectionField, addSectionRow, updateSectionRow, deleteSectionRow,
-      addActivity, addEmail, signFile, updateActivity, deleteActivity, assignActivityAsTask, saveTeam,
+      addActivity, addEmail, signFile, addRelation, removeRelation, updateActivity, deleteActivity, assignActivityAsTask, saveTeam,
     ]
   );
 

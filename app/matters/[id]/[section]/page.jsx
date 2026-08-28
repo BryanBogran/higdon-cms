@@ -20,9 +20,16 @@ import CaseInfoSection from '@/components/sections/CaseInfoSection';
 import LitigationSection from '@/components/sections/LitigationSection';
 import DeadlineChainSection from '@/components/sections/DeadlineChainSection';
 import GenericSection from '@/components/sections/GenericSection';
+import SettlementCalculatorSection from '@/components/sections/SettlementCalculatorSection';
+import RelatedCasesSection from '@/components/sections/RelatedCasesSection';
+import DocsSection from '@/components/sections/DocsSection';
 
 const CUSTOM = {
   activity: ActivitySection,
+  'settlement-calculator': SettlementCalculatorSection,
+  'related-cases': RelatedCasesSection,
+  docs: DocsSection,
+  // Retired from the rail but still routable -- see `hidden` in the registry.
   'case-info': CaseInfoSection,
   litigation: LitigationSection,
   'deadline-chain': DeadlineChainSection,
@@ -82,7 +89,7 @@ export default function MatterSectionPage({ params }) {
           {Custom ? (
             <Custom matterId={id} matter={matter} />
           ) : (
-            <GenericSection matterId={id} section={def} />
+            <GenericSection matterId={id} matter={matter} section={def} />
           )}
         </main>
       </div>

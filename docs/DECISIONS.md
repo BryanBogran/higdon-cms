@@ -843,3 +843,90 @@ the uninformative failure this project criticises elsewhere.
 before any client is built, and returns 503 with a sentence explaining why.
 A missing environment variable is the single likeliest cause of this on a fresh
 deploy, and it is the one thing a bare 500 will never tell you.
+
+---
+
+## The rail is the firm's list, and order is data
+
+**Date:** 2026-08-28
+
+The seventeen sections were my reconstruction from screenshots. The firm's real
+list is fifteen. `RAIL_ORDER` in `lib/sections/registry.js` is an explicit array
+of keys — order is data, not array position — because staff navigate this rail
+by position all day and the order is theirs to dictate. When the screenshots
+land, changing it is editing one list rather than shuffling two hundred lines of
+section definitions.
+
+**Nothing was deleted.** Retired sections carry `hidden: true`: the route still
+resolves, every row they ever had is untouched, and re-exposing one is adding a
+key back to `RAIL_ORDER`.
+
+## The Litigation checklist scattered for free
+
+**Date:** 2026-08-28
+
+`matter_checklist_item` is keyed by `field_key`, not by section, and every entry
+in `lib/domain/fields.js` already carried a `section` string. So relocating the
+thirteen items into Pleading, Discovery, Depositions, Negotiations and Medicals
+was **editing thirteen strings** — no migration, no data movement, and
+`chain.js` still reads the same five triggers with all thirteen of its tests
+untouched.
+
+Verified in a browser rather than assumed: marking Served done with `2026-08-27`
+from inside the new **Pleading** tab produces Answer Due `2026-09-21` with the
+Rule 99 note verbatim — the identical assertion that guarded the Supabase swap.
+
+`ChecklistItems` asks `fields.js` which items belong to a section rather than
+being handed a key list, so moving one again stays a one-string change.
+
+## A collection carries its own storage key
+
+**Date:** 2026-08-28
+
+Medicals is one tab over two tables — a provider ledger and a visit chronology —
+and those were two sections (`meds`, `med-chron`) with rows already in the
+database.
+
+Rather than migrate rows into a new `medicals` key, a collection now declares
+`storageKey` and reads and writes under that. Merging two sections into one tab
+therefore moves nothing: the same records simply appear together. Generalising
+`GenericSection` to `collections: []` beat a bespoke Medicals component and
+benefits any future multi-table section.
+
+## Settlement money is integer cents
+
+**Date:** 2026-08-28
+
+`0.1 + 0.2 === 0.30000000000000004`. On a disbursement statement that surfaces
+as a total which does not match its own line items, and the firm's answer to
+"why is this a penny out" is that its software cannot add up.
+
+`lib/domain/settlement.js` is integers throughout and only formats at display
+time. Two properties are tested rather than assumed:
+
+- **The columns reconcile exactly.** Net is computed by SUBTRACTION from gross,
+  never accumulated, so wherever the fee rounding falls the residual lands in
+  the client's column rather than vanishing.
+- **Absent is not zero.** A blank lien amount is unknown; a zero lien amount is
+  settled for nothing. `parseMoney` returns `null` for the first, and the
+  calculator warns that the net is too high rather than quietly totalling it.
+
+A negative net is shown and flagged, never clamped. Clamping would hide that the
+file is short, which is the one thing somebody must know before this reaches a
+client.
+
+Two things that genuinely vary between fee agreements are options rather than
+assumptions, and the statement says which it used: whether the fee is on gross
+or gross-less-expenses, and whether expenses are recouped at invoiced or paid.
+
+## Related cases are undirected
+
+**Date:** 2026-08-28
+
+"A is related to B" and "B is related to A" are the same fact, so it is stored
+once. `matter_relation_pair_uq` normalises the pair with `least`/`greatest`, so
+the same link entered from the far end is refused rather than producing two rows
+that each render on both cases.
+
+A table rather than ids in JSONB, for referential integrity: `on delete cascade`
+means deleting a matter cannot leave a link pointing at nothing.

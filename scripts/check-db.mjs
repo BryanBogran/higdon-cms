@@ -52,16 +52,20 @@ async function get(path) {
  *   404 PGRST205  table is not there                     -> migration not run
  *   400 42703     table is there, the column is not      -> migration partial
  */
-async function probe(table, columns) {
+async function probe(table, columns, source = 'supabase/schema.sql') {
   const { status, body } = await get(`${table}?select=${columns.join(',')}&limit=1`);
 
+  // `source` names the file that creates this table, because "run
+  // schema.sql" is the wrong instruction for anything added by a later
+  // migration -- and a remediation that does not fix the problem wastes
+  // more time than no remediation at all.
   if (status === 404 || body?.code === 'PGRST205' || body?.code === '42P01') {
-    fail(`${table} — table does not exist (run supabase/schema.sql)`);
+    fail(`${table} — table does not exist (run ${source})`);
     return false;
   }
   if (body?.code === '42703') {
     const missing = /column "?([a-z_.]+)"? does not exist/i.exec(body.message || '');
-    fail(`${table} — missing column ${missing ? missing[1] : ''} (a migration has not been run)`);
+    fail(`${table} — missing column ${missing ? missing[1] : ''} (run ${source})`);
     return false;
   }
   if (status === 200 && Array.isArray(body) && body.length > 0) {
@@ -91,11 +95,20 @@ await probe('case_number_counter', ['year_yy', 'last_seq']);
 await probe('audit_event', ['id']);
 
 console.log('\nEmail migration (supabase/003_email.sql)');
-const emailCols = await probe('activity', ['id', 'meta', 'subject', 'dedupe_key']);
-const intake = await probe('matter', ['id', 'intake_slug']);
+const EMAIL_SQL = 'supabase/003_email.sql';
+const emailCols = await probe('activity', ['id', 'meta', 'subject', 'dedupe_key'], EMAIL_SQL);
+const intake = await probe('matter', ['id', 'intake_slug'], EMAIL_SQL);
 if (!emailCols || !intake) {
   warn('003_email.sql has not been run — email filing will fail until it is');
 }
+
+console.log('\nDocuments + Related Cases (004, 005)');
+const DOCS_SQL = 'supabase/004_documents.sql';
+const docTable = await probe('document', ['id', 'matter_id', 'provider', 'external_id', 'name', 'trashed'], DOCS_SQL);
+const reviewTable = await probe('drive_folder_review', ['folder_id', 'folder_name', 'candidates'], DOCS_SQL);
+if (!docTable || !reviewTable) warn('004_documents.sql has not been run — the Docs tab will be empty');
+const relTable = await probe('matter_relation', ['id', 'from_id', 'to_id', 'kind'], 'supabase/005_sections.sql');
+if (!relTable) warn('005_sections.sql has not been run — Related Cases cannot save');
 
 console.log('\nWrite protection');
 {

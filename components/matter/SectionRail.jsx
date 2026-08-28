@@ -10,12 +10,14 @@
 
 import Link from 'next/link';
 import * as Icons from 'lucide-react';
-import { SECTIONS } from '@/lib/sections/registry';
+// RAIL_SECTIONS, not SECTIONS: the rail is the firm's own ordered list, and
+// retired sections stay routable without appearing here.
+import { RAIL_SECTIONS } from '@/lib/sections/registry';
 
 export default function SectionRail({ matterId, activeSection }) {
   return (
     <nav className="py-2" aria-label="Matter sections">
-      {SECTIONS.map((s) => {
+      {RAIL_SECTIONS.map((s) => {
         const Icon = Icons[s.icon] || Icons.Circle;
         const active = s.key === activeSection;
         return (
