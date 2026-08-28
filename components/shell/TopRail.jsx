@@ -8,10 +8,12 @@
  * firm's requirements note asks for one by name. See docs/DECISIONS.md.
  */
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, CheckSquare, Zap, FolderOpen, Files } from 'lucide-react';
+import { LayoutDashboard, CheckSquare, Zap, FolderOpen, Files, Menu } from 'lucide-react';
 import GlobalSearch from './GlobalSearch';
+import MainMenu from './MainMenu';
 import SaveIndicator from './SaveIndicator';
 import UserMenu from './UserMenu';
 
@@ -25,6 +27,7 @@ const NAV = [
 
 export default function TopRail() {
   const pathname = usePathname() || '/';
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // The sign-in page is not part of the app shell -- showing nav to someone who
   // is not signed in advertises routes they cannot reach.
@@ -33,6 +36,15 @@ export default function TopRail() {
   return (
     <header className="sticky top-0 z-40 bg-slate-900 text-white">
       <div className="flex items-center gap-1 px-3 h-14">
+        <button
+          onClick={() => setMenuOpen(true)}
+          aria-label="Main menu"
+          aria-expanded={menuOpen}
+          className="p-2 mr-1 rounded hover:bg-white/10 shrink-0"
+        >
+          <Menu size={20} />
+        </button>
+
         <nav className="flex items-center gap-1 shrink-0">
           {NAV.map(({ href, label, icon: Icon, match }) => {
             const active = match(pathname);
@@ -69,6 +81,11 @@ export default function TopRail() {
           <UserMenu />
         </div>
       </div>
+      <MainMenu
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        onSearch={() => document.getElementById('global-search')?.focus()}
+      />
     </header>
   );
 }

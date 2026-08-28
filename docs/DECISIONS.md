@@ -631,3 +631,49 @@ instead of using what the store wrote.
 This removes the whole class of bug rather than the one field — any divergence
 between the optimistic card and the stored row is now impossible for this
 intent, because there is only one description of the row.
+
+---
+
+## A health check that cannot fail is worse than none
+
+**Date:** 2026-08-28
+
+`scripts/check-db.mjs` probes the live database with the **publishable** key —
+the same one the browser has — so it answers two questions at once: is the
+schema there, and can an anonymous caller read anything. A row coming back is a
+breach, not a pass.
+
+The first version reported **all checks passed** while one of its probes was
+incapable of failing: the storage check used `object/list`, which returns
+`200 []` both for "the bucket is not there" and for "you may not look at it".
+It could not tell a missing bucket from a protected one, and said "ok" either
+way.
+
+Two changes came out of that:
+
+- Bucket existence is probed with an **upload attempt**, which is refused
+  either way but with different errors — `403 AccessDenied` means the bucket
+  exists and RLS held; `404 NoSuchBucket` means it is not there.
+- The script now runs **negative controls** against a table, a column and a
+  bucket that definitely do not exist. If those do not report "missing",
+  nothing above them means anything.
+
+The general rule: a check that has never been observed to fail has not been
+tested, it has only been run. This one now tests itself on every run.
+
+## Unbuilt menu items are shown and labelled, not hidden
+
+**Date:** 2026-08-28
+
+Everywhere else in this app, a control that looks live and isn't gets deleted —
+three chrome icons came out of `TopRail` for exactly that. The main menu is the
+deliberate exception, because the risk there runs the other way.
+
+Someone opening the menu on day one is checking whether the thing they use
+every day still exists. If **Mailroom** is simply absent they conclude it is
+gone and quietly go back to their old workaround. Listed and marked "Not
+built", with one line on what it would do, they say so out loud — which is the
+feedback this project actually needs.
+
+They are `div`s, not buttons: not clickable, greyed, `cursor-not-allowed`. The
+gap is the message.

@@ -53,6 +53,9 @@ export default function GlobalSearch() {
       <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded px-3 py-1.5">
         <Search size={16} className="text-slate-400 shrink-0" />
         <input
+          // The main menu's Search item focuses this by id. A ref would have to
+          // be threaded through TopRail and the drawer for no extra safety.
+          id="global-search"
           value={q}
           onChange={(e) => {
             setQ(e.target.value);
