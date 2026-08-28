@@ -168,11 +168,44 @@ export default function DriveSyncPage() {
           </div>
         ) : null}
 
-        {plan && plan.counts.willLink === 0 && plan.folders === 0 ? (
-          <p className="mt-3 text-sm text-amber-700">
-            No folders found under the root. `GOOGLE_DRIVE_ROOT_FOLDER_ID` is probably pointing at
-            the wrong folder, or the impersonated user cannot see it.
-          </p>
+        {plan?.folders === 0 ? (
+          <div className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm">
+            <p className="font-semibold text-amber-900">No folders found under the root.</p>
+            {/*
+              Drive returns 404 for "does not exist" and for "you may not see
+              it" alike, and lists a folder you cannot see as empty. So the
+              server asks three follow-up questions and reports which cause it
+              actually is, rather than this page listing possibilities.
+            */}
+            <p className="mt-1 text-amber-800">
+              {plan.diagnosis?.diagnosis || 'Could not reach Drive to work out why.'}
+            </p>
+            {plan.diagnosis ? (
+              <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs text-amber-800">
+                <dt>Acting as</dt>
+                <dd className="font-mono break-all">{plan.diagnosis.actingAs}</dd>
+                <dt>Root folder id</dt>
+                <dd className="font-mono break-all">{plan.diagnosis.rootFolderId || '(not set)'}</dd>
+                <dt>Root visible</dt>
+                <dd>{plan.diagnosis.rootVisible ? `yes — “${plan.diagnosis.rootName}”` : 'no'}</dd>
+                <dt>Can see anything at all</dt>
+                <dd>
+                  {plan.diagnosis.canSeeAnything
+                    ? `yes (${plan.diagnosis.visibleSample.join(', ')})`
+                    : 'no — nothing is shared with this account'}
+                </dd>
+                {plan.diagnosis.rootVisible ? (
+                  <>
+                    <dt>Items inside</dt>
+                    <dd>
+                      {plan.diagnosis.childCount} ({plan.diagnosis.childFolders} folder
+                      {plan.diagnosis.childFolders === 1 ? '' : 's'})
+                    </dd>
+                  </>
+                ) : null}
+              </dl>
+            ) : null}
+          </div>
         ) : null}
       </section>
 

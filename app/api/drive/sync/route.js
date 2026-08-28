@@ -26,7 +26,7 @@ import {
   getSupabaseServerClient, getCurrentUser, isServerSupabaseConfigured,
 } from '@/lib/supabase/server';
 import {
-  isDriveConfigured, driveConfig, listChildFolders, listFilesRecursive,
+  isDriveConfigured, driveConfig, listChildFolders, listFilesRecursive, diagnoseDrive,
 } from '@/lib/google/drive';
 import { planSync } from '@/lib/domain/drive-match';
 
@@ -90,9 +90,14 @@ export async function GET() {
 
   const plan = planSync(listed.folders, loaded.matters);
 
+  // Zero folders has three quite different causes that look identical from
+  // here, so ask Drive rather than making the UI guess out loud.
+  const diagnosis = listed.folders.length === 0 ? await diagnoseDrive() : null;
+
   // Counts and a small sample, not the whole plan: a firm with 400 folders
   // does not need 400 rows in a preview to decide whether to press the button.
   return NextResponse.json({
+    diagnosis,
     ok: true,
     folders: listed.folders.length,
     counts: {
