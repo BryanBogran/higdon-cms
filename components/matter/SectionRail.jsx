@@ -30,10 +30,10 @@ export default function SectionRail({ matterId, activeSection }) {
           >
             <Icon size={17} className={active ? 'text-teal-700' : 'text-slate-400'} />
             <span className="truncate">{s.label}</span>
-            {s.kind === 'generic' ? (
+            {s.kind === 'generic' && !s.verified ? (
               <span
-                title="Generic section — structure will be refined from the Filevine export"
-                className="ml-auto w-1.5 h-1.5 rounded-full bg-slate-300"
+                title="Fields not yet confirmed against Filevine"
+                className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-400"
               />
             ) : null}
           </Link>

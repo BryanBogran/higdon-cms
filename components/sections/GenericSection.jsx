@@ -88,8 +88,9 @@ export default function GenericSection({ matterId, section }) {
                       {cols.map((c) => (
                         <td key={c.key} className="px-3 py-2 align-top min-w-[130px]">
                           <FieldInput
-                            field={c}
+                            field={{ ...c, inputs: section.collection?.calculated?.[c.key]?.inputs }}
                             value={row[c.key]}
+                            row={row}
                             onChange={(val) => updateSectionRow(matterId, section.key, row.id, { [c.key]: val })}
                           />
                         </td>
@@ -119,7 +120,11 @@ export default function GenericSection({ matterId, section }) {
               number, and had to add a blank row then fill the rest in the
               table. All columns now.
             */}
-            {cols.map((c) => (
+            {cols
+              // The add-row form skips derived and attachment columns:
+              // one is computed, the other needs a saved row to attach to.
+              .filter((c) => c.type !== 'calculated' && c.type !== 'attachments')
+              .map((c) => (
               <div key={c.key} className={c.type === 'textarea' ? 'min-w-[220px] flex-1' : 'min-w-[140px]'}>
                 <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">
                   {c.label}
@@ -140,10 +145,16 @@ export default function GenericSection({ matterId, section }) {
         </div>
       ) : null}
 
-      <p className="text-xs text-slate-400">
-        This is a generic section. Its fields are a first pass — they will be replaced with the
-        firm&apos;s real Filevine configuration once the template export is available.
-      </p>
+      {section.verified ? (
+        <p className="text-xs text-slate-400">
+          Fields captured from the firm&apos;s own Filevine configuration.
+        </p>
+      ) : (
+        <p className="text-xs text-amber-700">
+          These fields are a first pass, not yet confirmed against Filevine — capture a matter
+          that has data in this section and they can be replaced with the real ones.
+        </p>
+      )}
     </div>
   );
 }
