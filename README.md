@@ -2,9 +2,12 @@
 
 In-house replacement for Filevine. Texas personal-injury and litigation practice.
 
-**Status: Phase 1 complete.** The prototype renders in Next.js against a throwaway
-localStorage shim, proving the build. No database, no auth, no Filevine shell yet.
+**Status: backend built, awaiting a Supabase project.** The Filevine shell, the section
+registry, tested date math, the Postgres schema, auth, and the Supabase data layer are all in
+place. Follow [docs/SETUP.md](docs/SETUP.md) to point it at a real database — about 45 minutes.
+Until then the app runs on browser storage.
 
+- **▶ Start here — setup runbook: [docs/SETUP.md](docs/SETUP.md)**
 - **Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md)**
 - **Next up — backend, database, login: [docs/BACKEND_PLAN.md](docs/BACKEND_PLAN.md)**
 - Decisions and their reasoning: [docs/DECISIONS.md](docs/DECISIONS.md)
