@@ -104,6 +104,11 @@ if (!emailCols || !intake) {
 
 console.log('\nDocuments + Related Cases (004, 005)');
 const DOCS_SQL = 'supabase/004_documents.sql';
+// Probed by name because it is the one people hit first: the Drive sync reads
+// matter.drive_folder_id, and a missing column there reports as a bare
+// "column matter.drive_folder_id does not exist" with no hint which file
+// creates it.
+await probe('matter', ['id', 'drive_folder_id', 'drive_folder_name'], DOCS_SQL);
 const docTable = await probe('document', ['id', 'matter_id', 'provider', 'external_id', 'name', 'trashed'], DOCS_SQL);
 const reviewTable = await probe('drive_folder_review', ['folder_id', 'folder_name', 'candidates'], DOCS_SQL);
 if (!docTable || !reviewTable) warn('004_documents.sql has not been run — the Docs tab will be empty');
