@@ -17,14 +17,17 @@ There are two levels, and **you almost certainly only need the first one today.*
 
 | | Level 1 — read | Level 2 — write |
 |---|---|---|
-| What you get | Folders linked, files indexed, the whole Docs tab | Email attachments filing themselves into the case folder |
+| What you get | Browse and search every case's Drive folder | Upload from the app; create folders |
 | Admin console needed | **No** | Yes — domain-wide delegation |
 | Extra Workspace licence | **No** | Yes, for a `files@` account |
-| Setup | Share a folder with the service account, like sharing with a colleague | Steps 2 and 3 below |
+| Scope | full `drive`, self-granted — bounded by what is shared | full `drive`, acting as `files@` |
+| Setup | Share a folder with the service account, like sharing with a colleague | L2a–L2e below |
 
-Nothing in the app writes to Drive yet. So **start at level 1**: fewer permissions
-granted, nothing to explain to whoever audits this later, and it delivers what
-the firm actually asked for — index what exists, move nothing.
+**Start at level 1 unless you need uploading today.** No admin console, no extra
+licence, and it already gives you browsing and search across everything that
+exists — including the text inside PDFs and Docs.
+
+Level 2 is additive: nothing from level 1 is undone or redone.
 
 ## The trap at level 2, so it isn't a surprise later
 
@@ -41,7 +44,7 @@ in the deletion path.
 
 ---
 
-# Level 1 — indexing, ~15 minutes
+# Level 1 — reading, ~15 minutes
 
 ### 1. Create the Google Cloud project and service account
 
@@ -129,36 +132,114 @@ names differ from the client names in the app more than expected.
 
 ---
 
-# Level 2 — uploads, when you need them
+# Level 2 — uploading from the app
 
-Skip this until the app starts writing to Drive.
+Everything below is needed to upload. Reading works without it.
 
-### L2a. Create a durable account
+**About 20 minutes, and it costs one Workspace licence.**
 
-Admin console → Users → add `files@higdonlawyers.com`. A real Workspace user, so
-it costs a licence. Use it, not a person's account: every document the app
-creates will be owned by it.
+---
 
-Set `GOOGLE_IMPERSONATE_USER=files@higdonlawyers.com` and share the case folders
-with that account as **Editor**.
+## Why it cannot be avoided
 
-### L2b. Authorise domain-wide delegation
+**A service account owns no Drive storage.** It reads anything shared with it,
+but a file it would *own* is refused with `storageQuotaExceeded` — even though
+its Drive is empty. There is no setting that grants it quota.
 
-⚠️ This is the step that grants the app access to Drive as a user. Grant only
-the two scopes below — they are the least privilege that works.
+The way round is **domain-wide delegation**: the app acts as a real user, and
+files land owned by that person. Since the firm is not moving its case folders,
+this is the option that fits.
 
-1. <https://admin.google.com> → **Security → Access and data control → API
+## ⚠️ The scope has to be the broad one, and here is why
+
+`drive.file` looks like the right answer — per-file, least privilege — and it
+does not work. **It only ever covers files the app itself created.** Your case
+folders were made by people, years ago, so an app holding `drive.file` cannot
+see them, cannot list them, and cannot upload into them. It fails with *"File
+not found"* on a folder plainly visible in Drive.
+
+So the scope is:
+
+```
+https://www.googleapis.com/auth/drive
+```
+
+That is full access to whatever the impersonated account can reach — which is
+precisely why the next step matters more than it looks.
+
+## L2a. Create a dedicated account
+
+Admin console → **Directory → Users → Add new user**.
+
+```
+files@higdonlawyers.com
+```
+
+A real Workspace user, so it consumes a licence (~$14/month).
+
+**Do not impersonate a person.** Not yours, not Paul's. Two reasons, and both
+bite later:
+
+1. **Blast radius.** With the full `drive` scope the app can do anything that
+   account can. Impersonating an attorney hands it their entire Drive. `files@`
+   can reach only what you share with it — the scope is broad, the identity is
+   narrow, and that is the actual control.
+2. **Ownership.** Everything the app creates is owned by that account. If the
+   person leaves and IT deletes them, the firm's documents are in the deletion
+   path.
+
+## L2b. Share the case folders with `files@` as Editor
+
+Open the folder that **contains** your per-case folders → **Share** → add
+`files@higdonlawyers.com` → **Editor** → Send.
+
+Editor, not Viewer. Viewer is enough to read; uploading needs write.
+
+## L2c. Authorise domain-wide delegation
+
+1. Google Cloud console → your service account → **Details** → copy the
+   **Unique ID** (a long number).
+2. <https://admin.google.com> → **Security → Access and data control → API
    controls → Domain-wide delegation** → **Add new**.
-2. **Client ID:** the Unique ID from step 1.5.
-3. **OAuth scopes**, comma-separated, exactly these two:
+3. **Client ID:** the Unique ID from step 1.
+4. **OAuth scopes:**
 
 ```
-https://www.googleapis.com/auth/drive.readonly,https://www.googleapis.com/auth/drive.file
+https://www.googleapis.com/auth/drive
 ```
 
-`drive.readonly` lets it index what already exists. `drive.file` lets it create
-files, and can only ever see files **this app created** — it is not a second
-read grant.
+⚠️ If you set this up earlier with `drive.readonly` and `drive.file`, **edit
+that entry and replace the scopes** rather than adding a second one. Delegation
+matches on client id, and a stale entry with narrow scopes is a confusing way to
+fail.
+
+## L2d. Set the variable
+
+```
+GOOGLE_IMPERSONATE_USER="files@higdonlawyers.com"
+```
+
+In Vercel this is **Config**, not Secret — it is an email address, not a
+credential. Then redeploy: environment changes do not reach existing builds.
+
+## L2e. Check it
+
+Open any linked case → **Docs** → **Upload**, or drag a file onto the list.
+
+A progress bar appears and the file shows in the folder within a second or two
+of finishing. The bytes go from your browser straight to Google — they never
+pass through this app — because a serverless request body is capped at a few
+megabytes and a scanned record clears that easily.
+
+### If it refuses
+
+| Message | Cause |
+|---|---|
+| `Uploading needs GOOGLE_IMPERSONATE_USER` | L2d not done, or not redeployed. The app checks before asking you to pick a file. |
+| `storageQuotaExceeded` | The variable is set but delegation is not authorised, so the token is still the service account. Re-check L2c. |
+| `File not found` on a visible folder | The delegation scope is still `drive.file`. It only covers app-created files. Replace it with full `drive`. |
+| `insufficient permissions` | `files@` has Viewer, not Editor, on the folder. |
+| `unauthorized_client` | The client id in L2c does not match, or the scope string has a typo. It must match character for character. |
 
 ---
 

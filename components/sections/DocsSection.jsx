@@ -21,7 +21,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   Folder, FileText, ExternalLink, Search, ChevronRight, Loader2,
-  FolderPlus, AlertCircle, X, Eye,
+  FolderPlus, AlertCircle, X, Eye, Upload,
 } from 'lucide-react';
 import { useData } from '@/lib/data/DataProvider';
 
@@ -43,7 +43,12 @@ export default function DocsSection({ matterId, matter }) {
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
 
+  const [uploads, setUploads] = useState([]);   // [{ name, percent, error }]
+  const [dragging, setDragging] = useState(false);
+
   const cache = useRef(new Map());
+  const filePicker = useRef(null);
+  const dragDepth = useRef(0);
 
   const load = useCallback(
     async (target, { bustCache = false } = {}) => {
@@ -122,6 +127,58 @@ export default function DocsSection({ matterId, matter }) {
     }
   }
 
+  /**
+   * Send files straight to Google.
+   *
+   * The server mints a resumable session and the bytes go from the browser to
+   * Drive without passing through the app — a serverless request body is capped
+   * at a few megabytes, and a scanned record clears that easily.
+   *
+   * Sequential rather than parallel: dropping thirty files should not open
+   * thirty concurrent uploads and have the first timeout take the rest with it.
+   */
+  const uploadFiles = useCallback(
+    async (fileList) => {
+      const files = [...fileList];
+      if (!files.length) return;
+
+      setError('');
+      setUploads(files.map((f) => ({ name: f.name, percent: 0, error: null })));
+
+      for (const [i, file] of files.entries()) {
+        const mark = (patch) =>
+          setUploads((u) => u.map((row, j) => (j === i ? { ...row, ...patch } : row)));
+
+        try {
+          const res = await fetch('/api/drive/upload-url', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              matterId,
+              parentId: folderId || view?.rootId,
+              name: file.name,
+              mimeType: file.type || 'application/octet-stream',
+              sizeBytes: file.size,
+            }),
+          });
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) { mark({ error: body.error || `Upload refused (${res.status}).` }); continue; }
+
+          await putWithProgress(body.sessionUrl, file, (percent) => mark({ percent }));
+          mark({ percent: 100 });
+        } catch (err) {
+          mark({ error: err?.message || 'Upload failed.' });
+        }
+      }
+
+      await load(folderId, { bustCache: true });
+      // Successful rows clear; failures stay on screen until dismissed, because
+      // a file that did not upload is the one thing worth noticing.
+      setUploads((u) => u.filter((row) => row.error));
+    },
+    [matterId, folderId, view?.rootId, load]
+  );
+
   function open(target) {
     setFolderId(target);
     setResults(null);
@@ -161,7 +218,18 @@ export default function DocsSection({ matterId, matter }) {
   const trail = view?.trail || [];
 
   return (
-    <div className="space-y-4">
+    <div
+      className="space-y-4"
+      onDragEnter={(e) => { e.preventDefault(); dragDepth.current += 1; setDragging(true); }}
+      onDragLeave={() => { dragDepth.current -= 1; if (dragDepth.current <= 0) setDragging(false); }}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => {
+        e.preventDefault();
+        dragDepth.current = 0;
+        setDragging(false);
+        if (e.dataTransfer.files?.length) uploadFiles(e.dataTransfer.files);
+      }}
+    >
       <Card>
         {/* ---- breadcrumb + search ---- */}
         <div className="px-5 py-3 border-b border-slate-100 flex flex-wrap items-center gap-x-1 gap-y-2">
@@ -202,7 +270,49 @@ export default function DocsSection({ matterId, matter }) {
           >
             <FolderPlus size={16} />
           </button>
+          <button
+            onClick={() => filePicker.current?.click()}
+            title="Upload into this folder"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800"
+          >
+            <Upload size={14} /> Upload
+          </button>
+          <input
+            ref={filePicker}
+            type="file"
+            multiple
+            hidden
+            onChange={(e) => { uploadFiles(e.target.files); e.target.value = ''; }}
+          />
         </div>
+
+        {dragging ? (
+          <p className="px-5 py-6 text-center text-sm font-semibold text-teal-800 bg-teal-50 border-b border-teal-100">
+            Drop to upload into {trail.length ? trail[trail.length - 1].name : view?.rootName || 'this case'}
+          </p>
+        ) : null}
+
+        {uploads.length ? (
+          <ul className="px-5 py-2.5 border-b border-slate-100 space-y-1.5">
+            {uploads.map((u, i) => (
+              <li key={`${u.name}-${i}`} className="text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="truncate flex-1 text-slate-700">{u.name}</span>
+                  <span className={`text-xs shrink-0 ${u.error ? 'text-red-700' : 'text-slate-500'}`}>
+                    {u.error ? 'failed' : `${u.percent}%`}
+                  </span>
+                </div>
+                {u.error ? (
+                  <p className="text-xs text-red-700 mt-0.5">{u.error}</p>
+                ) : (
+                  <div className="mt-1 h-1 rounded bg-slate-100 overflow-hidden">
+                    <div className="h-full bg-teal-500 transition-all" style={{ width: `${u.percent}%` }} />
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : null}
 
         {creating ? (
           <div className="px-5 py-2.5 border-b border-slate-100 bg-slate-50/60 flex items-center gap-2">
@@ -261,6 +371,31 @@ export default function DocsSection({ matterId, matter }) {
 }
 
 /* ------------------------------------------------------------------ */
+
+/**
+ * PUT the file to a resumable session, reporting progress.
+ *
+ * XMLHttpRequest rather than fetch, for one reason: fetch has no upload
+ * progress event. On a 40 MB transcript a bar that moves is the difference
+ * between waiting and assuming it has hung.
+ */
+function putWithProgress(sessionUrl, file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', sessionUrl, true);
+    xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+    };
+    xhr.onload = () =>
+      xhr.status >= 200 && xhr.status < 300
+        ? resolve()
+        : reject(new Error(`Drive rejected the upload (${xhr.status}).`));
+    xhr.onerror = () => reject(new Error('Network error during upload.'));
+    xhr.send(file);
+  });
+}
 
 function Card({ children }) {
   return <div className="bg-white rounded-xl border border-slate-200 shadow-sm">{children}</div>;

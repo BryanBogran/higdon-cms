@@ -1064,3 +1064,51 @@ denied. "Not found" invites retrying with other ids.
 
 `isWithinTree` caps its walk at 20 hops. Drive should not produce a cycle;
 "should not" is not a termination condition.
+
+---
+
+## Uploads need the full `drive` scope, not `drive.file`
+
+**Date:** 2026-08-28
+
+`drive.file` is the scope you reach for — per-file, least privilege, what Google
+recommends. It does not work here, and the reason is easy to miss: **it only
+ever covers files the app itself created.**
+
+The firm's case folders were made by people, years ago. An app holding
+`drive.file` cannot see them, cannot list them, and cannot upload into them —
+it fails with *"File not found"* on a folder plainly visible in Drive.
+
+So `SCOPES` is now the single full `https://www.googleapis.com/auth/drive`.
+
+**The privilege is bounded by the IDENTITY, not the scope.** With delegation the
+token acts as whoever `GOOGLE_IMPERSONATE_USER` names, and full `drive` lets it
+do anything that person can. That is the whole argument for a dedicated
+`files@` account shared into the case-folders parent and nothing else:
+impersonating an attorney with this scope would hand the app their entire Drive.
+
+Caught before sending the firm into the Admin console, where a wrong scope means
+doing it twice — but only because the question was asked. I had documented
+`drive.readonly` + `drive.file` as correct.
+
+## Upload bytes never pass through the server
+
+**Date:** 2026-08-28
+
+A serverless request body is capped at a few megabytes — Vercel's is about
+4.5 MB — and a scanned medical record clears that without trying. Routing
+uploads through the app would fail on exactly the documents this firm handles
+most, with a generic 413 that explains nothing.
+
+So the server does only the part needing credentials: authorise, verify the
+folder is inside this case, ask Drive to open a **resumable session**, return
+the session URL. The browser PUTs the file straight to Google. The URL carries
+its own authorisation and expires, so no token reaches the client.
+
+Two things fall out for free: a dropped connection can resume rather than
+restart, which matters on a 40 MB deposition transcript; and the app's own
+bandwidth is unaffected by document size.
+
+`XMLHttpRequest`, not `fetch`, for the PUT — **fetch has no upload progress
+event**. On a large file a bar that moves is the difference between waiting and
+assuming it has hung.
