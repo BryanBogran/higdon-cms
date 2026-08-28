@@ -21,13 +21,22 @@ export default function DocsSection({ matterId, matter }) {
   const { documents, backend } = useData();
   const [q, setQ] = useState('');
 
-  const files = useMemo(() => {
-    const mine = Object.values(documents || {}).filter((d) => d.matterId === matterId);
-    const needle = q.trim().toLowerCase();
-    return mine
-      .filter((d) => (needle ? d.name.toLowerCase().includes(needle) : true))
-      .sort((a, b) => String(b.modifiedTime).localeCompare(String(a.modifiedTime)));
-  }, [documents, matterId, q]);
+  // Kept apart on purpose. "This case has no documents" and "your search
+  // matched none of them" are different facts, and collapsing them lets a
+  // filtered search render an empty-state about Drive configuration.
+  const allFiles = useMemo(
+    () =>
+      Object.values(documents || {})
+        .filter((d) => d.matterId === matterId)
+        .sort((a, b) => String(b.modifiedTime).localeCompare(String(a.modifiedTime))),
+    [documents, matterId]
+  );
+
+  const needle = q.trim().toLowerCase();
+  const files = useMemo(
+    () => (needle ? allFiles.filter((d) => d.name.toLowerCase().includes(needle)) : allFiles),
+    [allFiles, needle]
+  );
 
   const linked = Boolean(matter?.driveFolderId);
 
@@ -36,7 +45,7 @@ export default function DocsSection({ matterId, matter }) {
       <div className="px-5 py-3 border-b border-slate-100 flex flex-wrap items-center gap-3">
         <h2 className="font-semibold text-slate-900">Docs</h2>
         <span className="text-sm text-slate-500">
-          {files.length} file{files.length === 1 ? '' : 's'}
+          {needle ? `${files.length} of ${allFiles.length}` : `${allFiles.length} file${allFiles.length === 1 ? '' : 's'}`}
         </span>
         <div className="flex-1" />
         <div className="flex items-center gap-1.5 min-w-[180px]">
@@ -51,11 +60,26 @@ export default function DocsSection({ matterId, matter }) {
       </div>
 
       {/*
-        The three states are said apart, because an empty list looks identical
-        whether Drive is unconnected, this case has no folder, or the folder is
-        genuinely empty -- and only the third means "there are no documents".
+        FILES FIRST, unconditionally. This tab exists to show documents, so a
+        link flag that is stale, missing, or simply not mapped out of the
+        database must never hide files that are demonstrably indexed. That is
+        exactly what went wrong: the header counted the files while the body
+        said "no folder linked", because `driveFolderId` never reached the
+        client.
+
+        Only when there is nothing to show do the empty states matter, and
+        they are said apart because an empty list looks identical whether
+        Drive is unconnected, this case has no folder, or the folder is
+        genuinely empty -- and only the last means "there are no documents".
       */}
-      {backend !== 'supabase' ? (
+      {/* A search that matched nothing answers before any other empty state. */}
+      {allFiles.length > 0 && files.length === 0 ? (
+        <p className="px-5 py-10 text-center text-sm text-slate-400">
+          No files match “{q.trim()}”.
+        </p>
+      ) : null}
+
+      {allFiles.length > 0 ? null : backend !== 'supabase' ? (
         <p className="px-5 py-10 text-center text-sm text-slate-400">
           Drive indexing needs a server. Running on local storage.
         </p>
@@ -69,11 +93,14 @@ export default function DocsSection({ matterId, matter }) {
             <FolderSync size={14} /> Link it in Drive sync
           </Link>
         </div>
-      ) : files.length === 0 ? (
-        <p className="px-5 py-10 text-center text-sm text-slate-400">
-          {q ? 'No files match.' : `Nothing indexed yet in “${matter.driveFolderName}”. Run "Index files" in Drive sync.`}
-        </p>
       ) : (
+        <p className="px-5 py-10 text-center text-sm text-slate-400">
+          Nothing indexed yet in “{matter.driveFolderName || 'the linked folder'}”. Run
+          &ldquo;Index files&rdquo; in Drive sync.
+        </p>
+      )}
+
+      {files.length > 0 ? (
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50">
@@ -120,7 +147,7 @@ export default function DocsSection({ matterId, matter }) {
             ))}
           </tbody>
         </table>
-      )}
+      ) : null}
     </div>
   );
 }
