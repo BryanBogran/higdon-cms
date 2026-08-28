@@ -46,10 +46,7 @@ const ITEMS = [
     key: 'contacts', label: 'Contacts', icon: Contact,
     soon: 'One card per client, provider, adjuster and expert, reused across matters. Today parties are free text on each matter.',
   },
-  {
-    key: 'calendar', label: 'Calendar', icon: Calendar,
-    soon: 'Month view of deadlines and events, with Google/Outlook sync. The dates already exist — see the Tasks list.',
-  },
+  { key: 'calendar', label: 'Calendar', icon: Calendar, href: '/calendar' },
   { key: 'search', label: 'Search', icon: Search, action: 'search' },
   { key: 'new-project', label: 'New Project', icon: Plus, href: '/projects/new', accent: true },
   {

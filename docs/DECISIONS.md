@@ -696,3 +696,34 @@ rather than an accident of whichever file got read first.
 
 Per-deadline overrides stay available and stay used — written discovery already
 runs 30/14/7/3, because a 90-day warning on a 30-day deadline is noise.
+
+---
+
+## The calendar shows the date, not the task the date generated
+
+**Date:** 2026-08-28
+
+The deadline chain creates a "Trial" task due on the trial date. A calendar
+drawing both renders `Trial — Rivera` twice on one square, in two colours,
+which reads as a bug even though both rows are real records.
+
+The **date wins** and the auto task is hidden, for two reasons: the date is the
+fact and the task exists only because of it, and the date chip carries the
+urgency colour that makes an SOL findable at a glance. The task is untouched
+and still on the Tasks list, which is where completing it belongs.
+
+Only `source: 'auto'` tasks are ever suppressed, and only when the matter *and*
+the date both match. A task someone typed by hand for the trial date is a
+separate, deliberate intention and always shows.
+
+Found by looking at the rendered month, not by reading the code — the
+duplication is invisible in the data and obvious on screen.
+
+## Undated items are counted on the calendar, never placed
+
+**Date:** 2026-08-28
+
+`groupByDate` drops anything without a valid ISO date and returns how many it
+dropped, which the page renders as a link to the Tasks list. A task with no due
+date is not a task on the 1st of the month, and quietly placing it somewhere —
+or quietly omitting it — is how a calendar starts lying about the workload.
