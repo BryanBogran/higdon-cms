@@ -63,13 +63,17 @@ export default function ProjectHubPage() {
     q.trim() ? { label: `"${q.trim()}"`, clear: () => setQ('') } : null,
   ].filter(Boolean);
 
-  function addMatter() {
+  // createMatter is async — it may allocate a case number server-side — so the
+  // id has to be awaited before navigating. Destructuring it synchronously
+  // yields undefined and lands on a "no matter with that id" page.
+  async function addMatter() {
     const name = newName.trim();
-    if (!name) return;
-    const { id } = createMatter({ clientName: name, status: 'Open' });
+    if (!name || adding === 'busy') return;
+    setAdding('busy');
+    const result = await createMatter({ clientName: name, status: 'Open' });
     setNewName('');
     setAdding(false);
-    router.push(`/matters/${id}`);
+    if (result?.ok && result.id) router.push(`/matters/${result.id}`);
   }
 
   return (

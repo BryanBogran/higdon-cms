@@ -1,64 +1,38 @@
 'use client';
 
 /**
- * Client-side data layer.
+ * The data layer.
  *
- * The interface here is deliberately the PRODUCTION interface: per-record
- * intents, not whole-collection writes. See docs/DECISIONS.md, "Do NOT build a
- * storage-shaped adapter and swap its implementation."
+ * Twenty-one per-record intents — createMatter, updateMatterField,
+ * setChecklistItem, addSectionRow, and so on. Never whole-collection writes.
+ * See docs/DECISIONS.md, "Do NOT build a storage-shaped adapter and swap its
+ * implementation": preserving a `set(key, entireCollection)` shape would have
+ * made a per-keystroke full-blob write structural, and then swapping in HTTP
+ * would mean every keystroke POSTs every matter.
  *
- *   createMatter, updateMatterField, setChecklistItem, archiveMatter
- *   createTask, updateTask, setTaskComplete, deleteTask
- *   setSectionData, addSectionRow, updateSectionRow, deleteSectionRow
+ * Two stores implement the same interface:
+ *   lib/data/supabase-store.js — Postgres, used when configured
+ *   lib/data/local-store.js    — localStorage, the pre-Supabase fallback
  *
- * Today each of these persists by writing its collection to localStorage,
- * because there is no backend yet. That is an implementation detail of THIS
- * FILE. When the API lands, only the bodies change — no call site moves. The
- * prototype's `persistMatters(entireCollection)` shape is gone, which is what
- * kept a per-keystroke full-blob write from becoming a per-keystroke HTTP POST.
+ * No component, page, or route knows which is active.
  *
- * It also removes the prototype's stale-closure bug by construction: a mutation
- * that takes (matterId, fieldKey, patch) has no whole-collection object to
- * rebuild from a render closure.
+ * Writes are OPTIMISTIC: local state updates immediately so typing never waits
+ * on a round-trip, and the store call reports failure into `saveState`, which
+ * `SaveIndicator` renders. Errors are never swallowed — a silent save failure
+ * on a legal file is the one outcome this system must not have.
  */
 
-import { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import {
+  createContext, useContext, useEffect, useMemo, useRef, useState, useCallback,
+} from 'react';
 import { emptyValues, emptyDocValue, DOC_FIELDS } from '@/lib/domain/fields';
 import { generateChainTasks } from '@/lib/domain/chain';
 import { todayInFirmTz } from '@/lib/domain/dates';
-
-const KEYS = {
-  matters: 'case-records',
-  tasks: 'firm-tasks',
-  team: 'team-directory',
-  sections: 'matter-sections',
-  activity: 'matter-activity',
-};
+import { isSupabaseConfigured } from '@/lib/supabase/client';
+import { createLocalStore } from './local-store';
+import { createSupabaseStore } from './supabase-store';
 
 const DataContext = createContext(null);
-
-function read(key, fallback) {
-  if (typeof window === 'undefined') return fallback;
-  try {
-    const raw = window.localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function write(key, value) {
-  if (typeof window === 'undefined') return { ok: true };
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value));
-    return { ok: true };
-  } catch (err) {
-    // Errors are surfaced, never swallowed. The prototype had .catch(() => {})
-    // at every persist site, so "the paralegal marked Served done, it didn't
-    // save, and nobody found out" was a reachable state.
-    return { ok: false, error: err?.message || 'Save failed' };
-  }
-}
 
 const uuid = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID
@@ -72,286 +46,333 @@ export function DataProvider({ children }) {
   const [sections, setSections] = useState({});
   const [activity, setActivity] = useState({});
   const [loaded, setLoaded] = useState(false);
+  const [backend, setBackend] = useState('local');
   const [saveState, setSaveState] = useState({ status: 'idle', error: null });
 
-  // Always read the freshest collection when mutating, so two edits in one tick
-  // cannot lose each other.
-  const ref = useRef({ matters, tasks, team, sections, activity });
+  const storeRef = useRef(null);
+  if (!storeRef.current && typeof window !== 'undefined') {
+    const useSupabase = isSupabaseConfigured();
+    storeRef.current = useSupabase ? createSupabaseStore() : createLocalStore();
+  }
+
+  // Freshest collections, for mutations that need to read before writing.
+  // READS during render must come from state, not this ref -- the ref syncs in
+  // an effect that runs after render, so a render triggered by the initial load
+  // would see stale data with no second render to correct it.
+  const ref = useRef({ matters, tasks, sections, activity });
   useEffect(() => {
-    ref.current = { matters, tasks, team, sections, activity };
-  }, [matters, tasks, team, sections, activity]);
+    ref.current = { matters, tasks, sections, activity };
+  }, [matters, tasks, sections, activity]);
 
   useEffect(() => {
-    const m = read(KEYS.matters, {});
-    const t = read(KEYS.tasks, {});
-    setMatters(m);
-    setTasks(generateChainTasks(m, t));
-    setTeam(read(KEYS.team, {}));
-    setSections(read(KEYS.sections, {}));
-    setActivity(read(KEYS.activity, {}));
-    setLoaded(true);
+    let cancelled = false;
+    (async () => {
+      const store = storeRef.current;
+      if (!store) return;
+      setBackend(isSupabaseConfigured() ? 'supabase' : 'local');
+      try {
+        const data = await store.loadAll();
+        if (cancelled) return;
+        setMatters(data.matters || {});
+        setTasks(data.tasks || {});
+        setActivity(data.activity || {});
+        setSections(data.sections || {});
+        setTeam(data.team || {});
+      } catch (err) {
+        if (!cancelled) setSaveState({ status: 'error', error: err?.message || 'Could not load data' });
+      } finally {
+        if (!cancelled) setLoaded(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const report = useCallback((result) => {
-    if (result.ok) setSaveState({ status: 'saved', error: null });
-    else setSaveState({ status: 'error', error: result.error });
-    return result;
+  /** Run a store call and surface the outcome. Never swallows. */
+  const run = useCallback(async (fn) => {
+    setSaveState({ status: 'saving', error: null });
+    try {
+      const result = (await fn(storeRef.current)) || { ok: true };
+      setSaveState(
+        result.ok
+          ? { status: 'saved', error: null }
+          : { status: 'error', error: result.error || 'Save failed' }
+      );
+      return result;
+    } catch (err) {
+      const error = err?.message || 'Save failed';
+      setSaveState({ status: 'error', error });
+      return { ok: false, error };
+    }
   }, []);
 
-  /** Persist matters, then regenerate the chain from the SAME next-state. */
-  const commitMatters = useCallback(
-    (next) => {
-      setMatters(next);
-      const r1 = write(KEYS.matters, next);
-      const regenerated = generateChainTasks(next, ref.current.tasks);
-      setTasks(regenerated);
-      const r2 = write(KEYS.tasks, regenerated);
-      ref.current = { ...ref.current, matters: next, tasks: regenerated };
-      return report(r1.ok ? r2 : r1);
-    },
-    [report]
-  );
-
-  const commitTasks = useCallback(
-    (next) => {
-      setTasks(next);
-      ref.current = { ...ref.current, tasks: next };
-      return report(write(KEYS.tasks, next));
-    },
-    [report]
-  );
-
-  const commitSections = useCallback(
-    (next) => {
-      setSections(next);
-      ref.current = { ...ref.current, sections: next };
-      return report(write(KEYS.sections, next));
-    },
-    [report]
-  );
-
-  const commitActivity = useCallback(
-    (next) => {
-      setActivity(next);
-      ref.current = { ...ref.current, activity: next };
-      return report(write(KEYS.activity, next));
-    },
-    [report]
-  );
+  /** Optimistically update matters locally, then regenerate the chain locally. */
+  const applyMatters = useCallback((next) => {
+    setMatters(next);
+    const regenerated = generateChainTasks(next, ref.current.tasks);
+    setTasks(regenerated);
+    ref.current = { ...ref.current, matters: next, tasks: regenerated };
+  }, []);
 
   /* ---------------- Matter intents ---------------- */
 
   const createMatter = useCallback(
-    (input = {}) => {
-      const id = uuid();
+    async (input = {}) => {
+      const result = await run((s) => s.createMatter(input));
+      if (!result.ok) return result;
+
       const values = { ...emptyValues(), ...input };
+      if (result.caseNumber) values.caseNumber = result.caseNumber;
       if (!values.openDate) values.openDate = todayInFirmTz();
-      const next = {
+
+      applyMatters({
         ...ref.current.matters,
-        [id]: { values, createdAt: new Date().toISOString(), lastActivityAt: new Date().toISOString() },
-      };
-      commitMatters(next);
-      return { id, caseNumber: values.caseNumber || '' };
+        [result.id]: {
+          values,
+          createdAt: new Date().toISOString(),
+          lastActivityAt: new Date().toISOString(),
+        },
+      });
+      return result;
     },
-    [commitMatters]
+    [run, applyMatters]
   );
 
   const updateMatterField = useCallback(
     (matterId, fieldKey, value) => {
       const current = ref.current.matters[matterId];
-      if (!current) return { ok: false, error: 'No such matter' };
-      const next = {
+      if (!current) return Promise.resolve({ ok: false, error: 'No such matter' });
+
+      applyMatters({
         ...ref.current.matters,
         [matterId]: {
           ...current,
           values: { ...current.values, [fieldKey]: value },
           lastActivityAt: new Date().toISOString(),
         },
-      };
-      return commitMatters(next);
+      });
+      return run((s) => s.updateMatterField(matterId, fieldKey, value));
     },
-    [commitMatters]
+    [run, applyMatters]
   );
 
   const setChecklistItem = useCallback(
     (matterId, fieldKey, patch) => {
-      if (!DOC_FIELDS.has(fieldKey)) return { ok: false, error: `${fieldKey} is not a checklist item` };
+      if (!DOC_FIELDS.has(fieldKey)) {
+        return Promise.resolve({ ok: false, error: `${fieldKey} is not a checklist item` });
+      }
       const current = ref.current.matters[matterId];
-      if (!current) return { ok: false, error: 'No such matter' };
-      const existing = current.values[fieldKey] || emptyDocValue();
-      return updateMatterField(matterId, fieldKey, { ...existing, ...patch });
+      if (!current) return Promise.resolve({ ok: false, error: 'No such matter' });
+
+      const merged = { ...(current.values[fieldKey] || emptyDocValue()), ...patch };
+      applyMatters({
+        ...ref.current.matters,
+        [matterId]: {
+          ...current,
+          values: { ...current.values, [fieldKey]: merged },
+          lastActivityAt: new Date().toISOString(),
+        },
+      });
+      return run((s) => s.setChecklistItem(matterId, fieldKey, patch));
     },
-    [updateMatterField]
+    [run, applyMatters]
   );
 
   const archiveMatter = useCallback(
     (matterId) => {
       const current = ref.current.matters[matterId];
-      if (!current) return { ok: false, error: 'No such matter' };
-      const next = {
+      if (!current) return Promise.resolve({ ok: false, error: 'No such matter' });
+      applyMatters({
         ...ref.current.matters,
         [matterId]: { ...current, archivedAt: new Date().toISOString() },
-      };
-      return commitMatters(next);
+      });
+      return run((s) => s.archiveMatter(matterId));
     },
-    [commitMatters]
+    [run, applyMatters]
   );
 
   const unarchiveMatter = useCallback(
     (matterId) => {
       const current = ref.current.matters[matterId];
-      if (!current) return { ok: false, error: 'No such matter' };
+      if (!current) return Promise.resolve({ ok: false, error: 'No such matter' });
       const { archivedAt, ...rest } = current;
-      return commitMatters({ ...ref.current.matters, [matterId]: rest });
+      applyMatters({ ...ref.current.matters, [matterId]: rest });
+      return run((s) => s.unarchiveMatter(matterId));
     },
-    [commitMatters]
+    [run, applyMatters]
   );
 
   /* ---------------- Task intents ---------------- */
 
+  const applyTasks = useCallback((next) => {
+    setTasks(next);
+    ref.current = { ...ref.current, tasks: next };
+  }, []);
+
   const createTask = useCallback(
-    (input = {}) => {
-      const id = uuid();
-      const task = {
-        id,
-        matterId: input.matterId || null,
-        title: input.title || '',
-        note: input.note || '',
-        dueDate: input.dueDate || '',
-        autoDueDate: null,
-        manualOverride: false,
-        assignedTo: input.assignedTo || 'Unassigned',
-        completed: false,
-        calendarSynced: false,
-        source: 'manual',
-        createdAt: new Date().toISOString(),
-      };
-      commitTasks({ ...ref.current.tasks, [id]: task });
-      return { id };
+    async (input = {}) => {
+      const result = await run((s) => s.createTask(input));
+      if (!result.ok) return result;
+      applyTasks({
+        ...ref.current.tasks,
+        [result.id]: {
+          id: result.id,
+          matterId: input.matterId || null,
+          title: input.title || '',
+          note: input.note || '',
+          dueDate: input.dueDate || '',
+          autoDueDate: null,
+          manualOverride: false,
+          assignedTo: input.assignedTo || 'Unassigned',
+          completed: false,
+          calendarSynced: false,
+          source: 'manual',
+          createdAt: new Date().toISOString(),
+        },
+      });
+      return result;
     },
-    [commitTasks]
+    [run, applyTasks]
   );
 
   const updateTask = useCallback(
     (taskId, patch) => {
       const current = ref.current.tasks[taskId];
-      if (!current) return { ok: false, error: 'No such task' };
-      // Setting a date by hand on an auto task is the manualOverride path -- the
-      // flag the prototype read in three places and no UI ever set.
+      if (!current) return Promise.resolve({ ok: false, error: 'No such task' });
       const isOverride =
-        current.source === 'auto' && patch.dueDate !== undefined && patch.dueDate !== current.autoDueDate;
-      return commitTasks({
+        current.source === 'auto' &&
+        patch.dueDate !== undefined &&
+        patch.dueDate !== current.autoDueDate;
+      applyTasks({
         ...ref.current.tasks,
         [taskId]: { ...current, ...patch, manualOverride: isOverride || current.manualOverride },
       });
+      return run((s) => s.updateTask(taskId, patch));
     },
-    [commitTasks]
+    [run, applyTasks]
   );
 
   const setTaskComplete = useCallback(
-    (taskId, completed) =>
-      updateTask(taskId, {
-        completed,
-        completedAt: completed ? new Date().toISOString() : null,
-      }),
+    (taskId, completed) => updateTask(taskId, { completed }),
     [updateTask]
   );
 
   const clearTaskOverride = useCallback(
     (taskId) => {
       const current = ref.current.tasks[taskId];
-      if (!current) return { ok: false, error: 'No such task' };
-      return commitTasks({
+      if (!current) return Promise.resolve({ ok: false, error: 'No such task' });
+      applyTasks({
         ...ref.current.tasks,
         [taskId]: { ...current, manualOverride: false, dueDate: current.autoDueDate },
       });
+      return run((s) => s.clearTaskOverride(taskId));
     },
-    [commitTasks]
+    [run, applyTasks]
   );
 
   const deleteTask = useCallback(
     (taskId) => {
       const next = { ...ref.current.tasks };
       delete next[taskId];
-      return commitTasks(next);
+      applyTasks(next);
+      return run((s) => s.deleteTask(taskId));
     },
-    [commitTasks]
+    [run, applyTasks]
   );
 
   const bulkSetComplete = useCallback(
     (taskIds, completed) => {
       const next = { ...ref.current.tasks };
-      const stamp = completed ? new Date().toISOString() : null;
-      for (const id of taskIds) {
-        if (next[id]) next[id] = { ...next[id], completed, completedAt: stamp };
-      }
-      return commitTasks(next);
+      for (const id of taskIds) if (next[id]) next[id] = { ...next[id], completed };
+      applyTasks(next);
+      return run((s) => s.bulkSetComplete(taskIds, completed));
     },
-    [commitTasks]
+    [run, applyTasks]
   );
 
   /* ---------------- Generic section intents ---------------- */
 
-  /**
-   * READ path — must come from state, not from `ref`.
-   *
-   * `ref.current` is synced in an effect that runs AFTER render, so a component
-   * calling this during the render triggered by the initial load would read the
-   * pre-load `{}` and paint an empty section, with no further render to correct
-   * it. The ref exists only so MUTATIONS see the freshest collection.
-   */
+  // Reads from STATE, not the ref -- see the note on `ref` above.
   const sectionState = useCallback(
     (matterId, sectionKey) => sections?.[matterId]?.[sectionKey] || { fields: {}, rows: [] },
     [sections]
   );
 
-  const writeSection = useCallback(
-    (matterId, sectionKey, updater) => {
-      const all = ref.current.sections || {};
-      const forMatter = all[matterId] || {};
-      const current = forMatter[sectionKey] || { fields: {}, rows: [] };
-      return commitSections({
-        ...all,
-        [matterId]: { ...forMatter, [sectionKey]: updater(current) },
-      });
-    },
-    [commitSections]
-  );
+  const applySection = useCallback((matterId, sectionKey, updater) => {
+    const all = ref.current.sections || {};
+    const forMatter = all[matterId] || {};
+    const current = forMatter[sectionKey] || { fields: {}, rows: [] };
+    const next = { ...all, [matterId]: { ...forMatter, [sectionKey]: updater(current) } };
+    setSections(next);
+    ref.current = { ...ref.current, sections: next };
+  }, []);
 
   const setSectionField = useCallback(
-    (matterId, sectionKey, fieldKey, value) =>
-      writeSection(matterId, sectionKey, (s) => ({ ...s, fields: { ...s.fields, [fieldKey]: value } })),
-    [writeSection]
+    (matterId, sectionKey, fieldKey, value) => {
+      applySection(matterId, sectionKey, (s) => ({
+        ...s,
+        fields: { ...s.fields, [fieldKey]: value },
+      }));
+      return run((s) => s.setSectionField(matterId, sectionKey, fieldKey, value));
+    },
+    [run, applySection]
   );
 
   const addSectionRow = useCallback(
-    (matterId, sectionKey, row = {}) =>
-      writeSection(matterId, sectionKey, (s) => ({ ...s, rows: [...s.rows, { id: uuid(), ...row }] })),
-    [writeSection]
+    async (matterId, sectionKey, row = {}) => {
+      const optimisticId = uuid();
+      applySection(matterId, sectionKey, (s) => ({
+        ...s,
+        rows: [...s.rows, { id: optimisticId, ...row }],
+      }));
+      const result = await run((s) => s.addSectionRow(matterId, sectionKey, row));
+      // Reconcile the optimistic id with the one the store assigned.
+      if (result.ok && result.id && result.id !== optimisticId) {
+        applySection(matterId, sectionKey, (s) => ({
+          ...s,
+          rows: s.rows.map((r) => (r.id === optimisticId ? { ...r, id: result.id } : r)),
+        }));
+      }
+      return result;
+    },
+    [run, applySection]
   );
 
   const updateSectionRow = useCallback(
-    (matterId, sectionKey, rowId, patch) =>
-      writeSection(matterId, sectionKey, (s) => ({
+    (matterId, sectionKey, rowId, patch) => {
+      applySection(matterId, sectionKey, (s) => ({
         ...s,
         rows: s.rows.map((r) => (r.id === rowId ? { ...r, ...patch } : r)),
-      })),
-    [writeSection]
+      }));
+      return run((s) => s.updateSectionRow(matterId, sectionKey, rowId, patch));
+    },
+    [run, applySection]
   );
 
   const deleteSectionRow = useCallback(
-    (matterId, sectionKey, rowId) =>
-      writeSection(matterId, sectionKey, (s) => ({ ...s, rows: s.rows.filter((r) => r.id !== rowId) })),
-    [writeSection]
+    (matterId, sectionKey, rowId) => {
+      applySection(matterId, sectionKey, (s) => ({
+        ...s,
+        rows: s.rows.filter((r) => r.id !== rowId),
+      }));
+      return run((s) => s.deleteSectionRow(matterId, sectionKey, rowId));
+    },
+    [run, applySection]
   );
 
   /* ---------------- Activity intents ---------------- */
 
+  const applyActivity = useCallback((next) => {
+    setActivity(next);
+    ref.current = { ...ref.current, activity: next };
+  }, []);
+
   const addActivity = useCallback(
-    (input = {}) => {
-      const id = uuid();
+    async (input = {}) => {
+      const optimisticId = uuid();
       const entry = {
-        id,
+        id: optimisticId,
         matterId: input.matterId || null,
         kind: input.kind || 'note',
         body: input.body || '',
@@ -362,34 +383,44 @@ export function DataProvider({ children }) {
         assignedTo: input.assignedTo || null,
         dueDate: input.dueDate || null,
         completed: false,
-        source: input.source || 'ui',
+        source: 'ui',
         createdAt: new Date().toISOString(),
       };
-      commitActivity({ ...ref.current.activity, [id]: entry });
-      return { id };
+      applyActivity({ ...ref.current.activity, [optimisticId]: entry });
+
+      const result = await run((s) => s.addActivity(input));
+      if (result.ok && result.id && result.id !== optimisticId) {
+        const next = { ...ref.current.activity };
+        delete next[optimisticId];
+        next[result.id] = { ...entry, id: result.id };
+        applyActivity(next);
+      }
+      return result;
     },
-    [commitActivity]
+    [run, applyActivity]
   );
 
   const updateActivity = useCallback(
     (id, patch) => {
       const current = ref.current.activity[id];
-      if (!current) return { ok: false, error: 'No such entry' };
-      return commitActivity({ ...ref.current.activity, [id]: { ...current, ...patch } });
+      if (!current) return Promise.resolve({ ok: false, error: 'No such entry' });
+      applyActivity({ ...ref.current.activity, [id]: { ...current, ...patch } });
+      return run((s) => s.updateActivity(id, patch));
     },
-    [commitActivity]
+    [run, applyActivity]
   );
 
   const deleteActivity = useCallback(
     (id) => {
       const next = { ...ref.current.activity };
       delete next[id];
-      return commitActivity(next);
+      applyActivity(next);
+      return run((s) => s.deleteActivity(id));
     },
-    [commitActivity]
+    [run, applyActivity]
   );
 
-  /** "Assign as Task" — an UPDATE, not an INSERT. Filevine promotes in place. */
+  /** "Assign as Task" — an UPDATE, not an INSERT. Promotes the note in place. */
   const assignActivityAsTask = useCallback(
     (id, { assignedTo, dueDate }) => updateActivity(id, { kind: 'task', assignedTo, dueDate }),
     [updateActivity]
@@ -398,45 +429,21 @@ export function DataProvider({ children }) {
   const saveTeam = useCallback(
     (next) => {
       setTeam(next);
-      ref.current = { ...ref.current, team: next };
-      return report(write(KEYS.team, next));
+      return run((s) => s.saveTeam(next));
     },
-    [report]
+    [run]
   );
 
   const value = useMemo(
     () => ({
-      matters,
-      tasks,
-      team,
-      sections,
-      activity,
-      loaded,
-      saveState,
-      createMatter,
-      updateMatterField,
-      setChecklistItem,
-      archiveMatter,
-      unarchiveMatter,
-      createTask,
-      updateTask,
-      setTaskComplete,
-      clearTaskOverride,
-      deleteTask,
-      bulkSetComplete,
-      sectionState,
-      setSectionField,
-      addSectionRow,
-      updateSectionRow,
-      deleteSectionRow,
-      addActivity,
-      updateActivity,
-      deleteActivity,
-      assignActivityAsTask,
-      saveTeam,
+      matters, tasks, team, sections, activity, loaded, saveState, backend,
+      createMatter, updateMatterField, setChecklistItem, archiveMatter, unarchiveMatter,
+      createTask, updateTask, setTaskComplete, clearTaskOverride, deleteTask, bulkSetComplete,
+      sectionState, setSectionField, addSectionRow, updateSectionRow, deleteSectionRow,
+      addActivity, updateActivity, deleteActivity, assignActivityAsTask, saveTeam,
     }),
     [
-      matters, tasks, team, sections, activity, loaded, saveState,
+      matters, tasks, team, sections, activity, loaded, saveState, backend,
       createMatter, updateMatterField, setChecklistItem, archiveMatter, unarchiveMatter,
       createTask, updateTask, setTaskComplete, clearTaskOverride, deleteTask, bulkSetComplete,
       sectionState, setSectionField, addSectionRow, updateSectionRow, deleteSectionRow,
@@ -453,7 +460,7 @@ export function useData() {
   return ctx;
 }
 
-/** Convenience: one matter plus its derived bits. */
+/** Convenience: one matter plus its tasks. */
 export function useMatter(matterId) {
   const { matters, tasks } = useData();
   const matter = matters[matterId] || null;
