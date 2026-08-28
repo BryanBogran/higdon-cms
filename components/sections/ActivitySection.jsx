@@ -6,6 +6,7 @@ import { useMemo } from 'react';
 import { useData } from '@/lib/data/DataProvider';
 import ActivityCard from '@/components/activity/ActivityCard';
 import ActivityComposer from '@/components/activity/ActivityComposer';
+import EmailIntake, { EmailDropTarget } from '@/components/activity/EmailIntake';
 
 export default function ActivitySection({ matterId }) {
   const { activity } = useData();
@@ -18,7 +19,8 @@ export default function ActivitySection({ matterId }) {
   }, [activity, matterId]);
 
   return (
-    <div>
+    <EmailDropTarget matterId={matterId}>
+      <EmailIntake matterId={matterId} />
       <ActivityComposer matterId={matterId} />
 
       {pinned.length > 0 ? (
@@ -47,6 +49,6 @@ export default function ActivitySection({ matterId }) {
           No activity yet. Add a note above.
         </p>
       ) : null}
-    </div>
+    </EmailDropTarget>
   );
 }

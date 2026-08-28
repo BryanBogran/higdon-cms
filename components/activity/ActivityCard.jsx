@@ -18,6 +18,7 @@ import { Pin, MoreVertical, CheckCircle2, Circle, ListPlus, Paperclip, Trash2, P
 import { fmt, urgency } from '@/lib/domain/dates';
 import { matterTitle, avatarColor } from '@/lib/domain/matter';
 import { useData } from '@/lib/data/DataProvider';
+import EmailBody from './EmailBody';
 
 const KIND_ICON_BG = {
   note: 'bg-amber-400',
@@ -33,6 +34,7 @@ export default function ActivityCard({ entry, showMatter = true }) {
   const { matters, updateActivity, deleteActivity, assignActivityAsTask } = useData();
   const matter = entry.matterId ? matters[entry.matterId] : null;
   const isTask = entry.kind === 'task';
+  const isEmail = entry.kind === 'email';
   const due = isTask ? urgency(entry.dueDate) : null;
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -81,8 +83,17 @@ export default function ActivityCard({ entry, showMatter = true }) {
 
             <p className="text-xs text-slate-600 mt-0.5">
               <span className="font-semibold text-slate-800">{entry.author}</span>{' '}
-              {isTask ? 'created a task' : `created a ${entry.kind}`} ·{' '}
-              {new Date(entry.createdAt).toLocaleString('en-US', {
+              {isTask ? 'created a task' : isEmail ? 'filed an email' : `created a ${entry.kind}`}
+              {isEmail ? (
+                <>
+                  {' '}
+                  <span className="px-1.5 py-0.5 rounded border border-slate-300 text-slate-600 text-[11px]">
+                    {entry.meta?.direction === 'sent' ? 'Sent' : 'Received'}
+                  </span>
+                </>
+              ) : null}{' '}
+              ·{' '}
+              {new Date(entry.meta?.sentAt || entry.createdAt).toLocaleString('en-US', {
                 month: 'numeric',
                 day: 'numeric',
                 year: 'numeric',
@@ -159,10 +170,13 @@ export default function ActivityCard({ entry, showMatter = true }) {
                 ))}
               </span>
             ) : null}
-            {entry.title && !editing ? (
+            {isEmail ? (
+              <EmailBody entry={entry} />
+            ) : null}
+            {!isEmail && entry.title && !editing ? (
               <span className="block text-sm font-semibold text-slate-900">{entry.title}</span>
             ) : null}
-            {editing ? (
+            {!isEmail && editing ? (
               <div>
                 <textarea
                   autoFocus
@@ -189,11 +203,12 @@ export default function ActivityCard({ entry, showMatter = true }) {
                   </button>
                 </div>
               </div>
-            ) : (
+            ) : isEmail ? null : (
               <span className="text-sm text-slate-800 whitespace-pre-wrap break-words">{entry.body}</span>
             )}
 
-            {entry.attachments?.length ? (
+            {/* EmailBody renders its own attachment list, with signed URLs. */}
+            {!isEmail && entry.attachments?.length ? (
               <div className="mt-2 space-y-1">
                 {entry.attachments.map((a, i) => (
                   <a

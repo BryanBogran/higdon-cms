@@ -509,3 +509,125 @@ importer, which must call it instead of casting raw cells.
 **The wider lesson, worth keeping:** the verification step was worth more than the design it
 was checking. A claim this load-bearing should have been tested against a real database before
 being written into four documents as settled fact.
+
+---
+
+## Email is an activity entry, not a documents feature
+
+**Date:** 2026-08-28
+
+Filevine files email onto the case feed, not into the documents tab, and that
+turns out to be the load-bearing choice rather than a cosmetic one. Because an
+email is an `activity` row like any other, it gets pinning, the kebab menu,
+deletion, the global feed and **"Assign as Task"** for free — the last one being
+exactly what the screenshot shows staff doing with an incoming records request.
+Filing email as a document would have meant reimplementing all of it, and
+"Assign as Task" would have had nowhere to live.
+
+The cost is one JSONB column (`meta`) carrying the headers. That is the right
+place for them by the rule already applied to the section tables: no statutory
+date and no money lives in there, so nothing in `meta` can drive a deadline.
+`sentAt` is an instant rather than a date-only field, so it never touches the
+hazard that `002_date_guard.sql` exists to guard.
+
+## A .eml parser rather than `mailparser`
+
+**Date:** 2026-08-28
+
+`mailparser` is the obvious dependency and a poor fit: it is Node-only, so a
+dragged .eml could not be parsed in the browser and would need an upload
+round-trip before the user saw anything, and it pulls a large tree into a
+project with seven runtime dependencies.
+
+The subset of MIME that shows up in law-firm mail — multipart/alternative,
+multipart/mixed, base64, quoted-printable, RFC 2047 subjects — is small enough
+to own, and owning it is what lets the *same* function serve the drag-and-drop
+path and the inbound webhook. 25 tests, run in three timezones.
+
+Two things the parser gets right that a naive one does not, both found by
+writing the test first:
+
+- `"Rivera, Marcus" <v@x.com>` — a display name with a comma is how Outlook
+  formats a name, and `split(',')` breaks on the most common real input.
+- Bytes are read as latin1 via `String.fromCharCode`, **not** `TextDecoder`.
+  The Encoding Standard maps both `latin1` and `iso-8859-1` onto windows-1252,
+  which rewrites 0x80–0x9F. Fine for display, silently corrupting for a
+  round-trip, and a corrupted .eml is a corrupted piece of evidence.
+
+## Direction is decided by the sender, deviating from Filevine
+
+**Date:** 2026-08-28
+
+Filevine's badge says "Received" for every message the project mailbox took
+delivery of — including, in the screenshot the firm sent, an email Dana
+*sent* and CC'd in. That is accurate about mail flow and misleading on a case
+file, where the useful question is who sent it.
+
+Ours reads the From address against the firm's domains. **Flagged for Paul**,
+since the whole point of matching Filevine's layout is to avoid retraining, and
+this is a place where a familiar word means something different.
+
+## An intake address is a capability, and cannot authenticate a sender
+
+**Date:** 2026-08-28
+
+The webhook is on the public internet and cannot require a login, because the
+caller is a mail provider. Two consequences that are enforced rather than
+assumed:
+
+- **The caller** is authenticated by a shared secret, compared in constant
+  time. Unset means 503 — it fails closed, so a missing config cannot silently
+  open a write endpoint onto every case file.
+- **The sender cannot be authenticated at all.** SMTP has no meaningful
+  authentication and a From header is trivially forged, so a message reaching a
+  known intake address proves only that someone knew the address. Rather than
+  pretend otherwise, each row records the envelope sender and whether SPF/DKIM
+  passed, and `meta.verified` says which. The address's random half is twelve
+  hex characters from `gen_random_uuid`, not a sequence: a guessable address
+  would let anyone walk the firm's entire docket.
+
+`random()` would have been the wrong generator — it is seeded and predictable.
+`gen_random_bytes` would have been right but lives in pgcrypto, which may not be
+on this database's search_path; `gen_random_uuid` is built in from Postgres 13
+and draws on the same strong source.
+
+## Storage is private, and URLs are minted per click
+
+**Date:** 2026-08-28
+
+The `case-files` bucket is private and has **no UPDATE and no DELETE policy**.
+Correspondence on a legal file can be superseded, never quietly overwritten; a
+genuine deletion is a service-role operation with a reason recorded, not
+something a logged-in browser session can do by accident.
+
+Attachment rows store a **path, never a URL**. A signed URL is minted on click
+and expires in five minutes. This extends the existing rule that a `doc_url`
+must never reach `audit_event` — the URL *is* the credential — to cover email
+attachments, which is where most of them will now come from.
+
+## Files are uploaded before the row is written
+
+**Date:** 2026-08-28
+
+If an upload fails, no card appears and the user retries. Written the other way
+round, a failed upload leaves an email on the file whose attachments 404 —
+which reads as *the document was deleted*, not *the document was never stored*.
+On a legal file that is much the worse of the two failures.
+
+For the same reason `addEmail` is the one intent in `DataProvider` that is **not
+optimistic**. The others write a value the user just typed and can see; this one
+uploads files that may take seconds and may fail.
+
+## Stores return the row they stored, not just its id
+
+**Date:** 2026-08-28
+
+Found while verifying the drop path in a browser: the card on screen showed no
+attachment and no "not stored locally" warning, while the row in storage had
+both. `DataProvider` had rebuilt its own idea of the entry from the input
+instead of using what the store wrote.
+
+`addEmail` now returns `{ ok, id, entry }` and the provider renders `entry`.
+This removes the whole class of bug rather than the one field — any divergence
+between the optimistic card and the stored row is now impossible for this
+intent, because there is only one description of the row.

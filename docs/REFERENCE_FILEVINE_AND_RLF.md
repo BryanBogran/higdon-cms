@@ -522,3 +522,76 @@ grow into, and the tripwire in the RLS decision already names it.
 **Everything is reportable.** *"It's wonderful to track, but if you can't use it
 to inform decisions, kind of what's the point?"* Worth holding onto as sections
 get added.
+
+---
+
+# 9. Email on the activity feed
+
+**Source:** a screenshot of two email cards on a Filevine project feed,
+supplied 2026-08-28.
+
+## What the screenshot shows
+
+```
+[EA] Dana Whitfield sent an email to RiveraMarcusZ10000000 · Received · 8/25/2026 · 3:23 PM   ✓ ⋮
+     Re: HIPAA: Marcus Rivera
+     From: Dana Whitfield records@higdonlawyers.com
+     To:   Call Center info@northsideurgentcare.com…
+     ✉ Re_ HIPAA_ Marcus Rivera(2).eml   ⌄
+     ─────────────────────────────────────────
+     ≡ Assign as Task
+```
+
+Five things are readable from it, and all five shaped the build:
+
+1. **`RiveraMarcusZ10000000` is the project's own email address.** Client
+   name plus a numeric id. Staff CC or forward, and the message files itself.
+2. **The original `.eml` is attached to the card**, with a chevron to expand.
+   The parsed view is a convenience; the message is the record.
+3. **"Assign as Task" is on an email card**, identical to the one on a note.
+   Confirms an email is an activity entry, not a document.
+4. **The second card is authored by "Filevine System"** while the first is
+   authored by Dana. The sender is matched against staff; an external sender
+   falls back to the system.
+5. **Both cards say "Received"** — including the one Dana *sent*. The badge
+   describes the mailbox, not the sender.
+
+## What we built
+
+| | |
+|---|---|
+| `lib/domain/email.js` | RFC-822 parser. Framework-free, so the same function serves a dropped file and the webhook. |
+| `lib/domain/mailbox.js` | The per-matter address, and routing an inbound message to matters. |
+| `lib/data/email-ingest.js` | Reading a File, uploading, signing. Everything with a side effect. |
+| `components/activity/EmailBody.jsx` | The card body. The chrome around it is `ActivityCard`'s, unchanged. |
+| `components/activity/EmailIntake.jsx` | The address panel, and a drop target over the whole feed. |
+| `app/api/inbound-email/route.js` | The webhook. |
+| `supabase/003_email.sql` | `meta`, `subject`, `dedupe_key`, `intake_slug`, the private bucket. |
+
+29 tests covering the parser, addressing and routing, run in three timezones.
+
+## Deliberate deviations
+
+**The direction badge reads the sender, not the mailbox.** Filevine labels an
+email Dana sent as "Received" because the project mailbox took delivery of a
+CC. Accurate about mail flow, misleading on a case file. **Needs Paul's
+sign-off** — matching Filevine's layout is meant to avoid retraining, and this
+is a familiar word meaning something different.
+
+**Duplicates collapse.** A message CC'd to the case address, replied-to by the
+recipient, and later dragged on by hand is one card, keyed on Message-ID and
+scoped per matter. The feed in the screenshot shows both halves of a thread as
+separate cards, which is correct — different Message-IDs — but says nothing
+about what Filevine does with the same message twice.
+
+## Still not built, from this screenshot
+
+- **The ✓ button** on each card. Distinct from "Assign as Task", and its
+  meaning is not readable from a still. Probably marks correspondence reviewed.
+- **Sender-to-staff matching.** Ours attributes an email to the From display
+  name; Filevine resolves it to a user account, which is what puts the "EA"
+  avatar on the card. Needs the `profile` table populated with staff addresses.
+- **Threading.** `In-Reply-To` is captured and indexed, but nothing renders a
+  thread yet. Filevine shows a reply count on every card.
+- **Sending from inside the app.** Everything here is inbound. Composing a
+  reply on the case file is a larger piece, and needs a sending domain.

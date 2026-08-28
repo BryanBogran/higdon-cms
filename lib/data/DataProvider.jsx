@@ -31,6 +31,7 @@ import { todayInFirmTz } from '@/lib/domain/dates';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 import { createLocalStore } from './local-store';
 import { createSupabaseStore } from './supabase-store';
+import { readEmailFile } from '@/lib/data/email-ingest';
 
 const DataContext = createContext(null);
 
@@ -450,6 +451,45 @@ export function DataProvider({ children }) {
     [run, applyActivity]
   );
 
+  /**
+   * File an email on a matter from a dropped .eml.
+   *
+   * Deliberately NOT optimistic, unlike every other intent here. The others
+   * write a value the user just typed and can see; this one uploads files that
+   * may take seconds and may fail on size or network. Showing the card first
+   * would mean showing correspondence on a legal file that is not actually
+   * stored -- so the card appears when the upload has landed, and the drop zone
+   * shows progress in the meantime.
+   */
+  const addEmail = useCallback(
+    async (file, { matterId, author } = {}) => {
+      const read = await readEmailFile(file, { matterId });
+      if (!read.ok) return read;
+
+      const result = await run((s) =>
+        s.addEmail({
+          matterId,
+          parsed: read.parsed,
+          bytes: read.bytes,
+          normalized: read.normalized,
+          author: author || read.normalized.meta.from?.name || 'Mail',
+        })
+      );
+      if (!result.ok) return result;
+
+      // A duplicate leaves the existing row alone -- re-filing the same message
+      // must not overwrite whatever someone has already done to that card.
+      if (!result.duplicate && result.entry) {
+        applyActivity({ ...ref.current.activity, [result.id]: result.entry });
+      }
+      return result;
+    },
+    [run, applyActivity]
+  );
+
+  /** Short-lived read URL for a stored attachment. Minted per click. */
+  const signFile = useCallback((path) => run((s) => s.signFile(path)), [run]);
+
   const updateActivity = useCallback(
     (id, patch) => {
       const current = ref.current.activity[id];
@@ -490,14 +530,14 @@ export function DataProvider({ children }) {
       createMatter, updateMatterField, setChecklistItem, archiveMatter, unarchiveMatter,
       createTask, updateTask, setTaskComplete, clearTaskOverride, deleteTask, bulkSetComplete,
       sectionState, setSectionField, addSectionRow, updateSectionRow, deleteSectionRow,
-      addActivity, updateActivity, deleteActivity, assignActivityAsTask, saveTeam,
+      addActivity, addEmail, signFile, updateActivity, deleteActivity, assignActivityAsTask, saveTeam,
     }),
     [
       matters, tasks, team, sections, activity, loaded, saveState, backend, currentUser,
       createMatter, updateMatterField, setChecklistItem, archiveMatter, unarchiveMatter,
       createTask, updateTask, setTaskComplete, clearTaskOverride, deleteTask, bulkSetComplete,
       sectionState, setSectionField, addSectionRow, updateSectionRow, deleteSectionRow,
-      addActivity, updateActivity, deleteActivity, assignActivityAsTask, saveTeam,
+      addActivity, addEmail, signFile, updateActivity, deleteActivity, assignActivityAsTask, saveTeam,
     ]
   );
 
