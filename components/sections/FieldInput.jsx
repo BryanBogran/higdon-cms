@@ -30,6 +30,40 @@ export default function FieldInput({ field, value, onChange, row }) {
     );
   }
 
+  /**
+   * Yes / No / Unknown, as three buttons — Filevine's most common control by a
+   * distance, and NOT a checkbox.
+   *
+   * The distinction matters on a case file. A checkbox has two states and
+   * conflates "no" with "nobody has looked yet". These questions — was an
+   * ambulance called, was a police report filed — have a real "we do not know",
+   * and losing it means a blank field reads as a definite No.
+   *
+   * Unset is therefore its own state, and clicking the active button clears
+   * back to it.
+   */
+  if (field.type === 'yesnounknown') {
+    const current = value ?? '';
+    return (
+      <div className="inline-flex rounded-lg border border-slate-300 overflow-hidden">
+        {['Yes', 'No', 'Unknown'].map((opt) => (
+          <button
+            key={opt}
+            type="button"
+            onClick={() => onChange(current === opt ? '' : opt)}
+            className={`px-3 py-1.5 text-sm border-r border-slate-200 last:border-r-0 ${
+              current === opt
+                ? 'bg-slate-900 text-white font-semibold'
+                : 'bg-white text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            {opt}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
   if (field.type === 'select') {
     return (
       <select className="input" value={v} onChange={(e) => onChange(e.target.value)}>

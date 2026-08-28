@@ -595,3 +595,81 @@ about what Filevine does with the same message twice.
   thread yet. Filevine shows a reply count on every card.
 - **Sending from inside the app.** Everything here is inbound. Composing a
   reply on the case file is a larger piece, and needs a sending domain.
+
+---
+
+# 10. The real section configuration
+
+**Source:** twelve printed Filevine section sheets from the `JP Test 26-019`
+project, supplied 2026-08-28. A test matter with every field empty — so this is
+configuration with no client data attached, which is the ideal capture.
+
+This replaced guesswork in ten of the fifteen sections. What follows is what the
+sheets showed that the build did not have.
+
+## Structural findings
+
+**Sections have HEADED GROUPS, not a flat field list.** Intake alone has nine —
+Intake, Personal Info, Accident Information, Injuries, Priors, Economic Damages,
+Non Economic Damages, Wrap-Up, Additional Info. A paralegal navigates to a
+heading, not to the thirty-first field down an undifferentiated column. The
+generic engine now takes `groups: [{ title, fields }]`.
+
+**Yes / No / Unknown is the most common control by a distance**, and it is three
+buttons, not a checkbox. The distinction is load-bearing: a checkbox conflates
+"no" with "nobody has looked yet", and questions like *was an ambulance called*
+have a real "we do not know". Clicking the active option clears back to unset.
+
+**Two-column layout with deliberate pairs** — Bills ordered / Bills Received,
+Date treatment started / completed, Letter of Rep Sent / Notice Date Received.
+
+**`datedone` confirmed in the wild** — rendered as `Due [date] Done [date]` on
+Expenses' Pay By Date and Discovery's Response. This type was inferred from the
+API capture; the sheets confirm it.
+
+## Corrections to sections that were already built
+
+| Section | What was wrong |
+|---|---|
+| **Insurance** | Three separate adjuster slots — PD, BI, PIP — plus Liability and Policy Number. We had one insurer contact. |
+| **Liens** | Recovery Agency and Recovery Agent are contacts, and there are three dates: Letter of Rep Sent, Notice Received, Final Lien Received. |
+| **Lost Wages** | A single field group, not a collection. |
+| **Discovery** | Filevine calls it *Written Disc*, and the direction field is `In/Out`. |
+| **Depositions** | Has Red Flags and a Def Atty contact. |
+| **Meds** | Carries a Medical Records Request share link and the provider's account number. |
+
+## Settlement Calculator — materially different from what we built
+
+Filevine's deducts **Medical Bills**, not Liens:
+
+```
+Offer
+Attorney %   33.33
+Medical Bills            -$2,000.00
+Expenses                 -$1,000.00
+Total to Client
+```
+
+...with a line-item table under each, carrying **a reduction PERCENTAGE per
+line**, entered in the calculator rather than on the source row — a reduction is
+a negotiation outcome, not a property of the bill.
+
+Ours deducted liens. That is not a small difference: on a PI file the provider
+bills usually **are** the liens, so deducting both takes the same money off the
+client twice. Liens are now an explicit opt-in, off by default, and the labels
+match Filevine's words exactly.
+
+## Not built, and visible on the sheets
+
+- **DocGen** — every section has one. `Current Template: LOP-.docx` → Generate.
+  Also `PLAINTIFFS ORIGINAL PETITION.docx`, `DEPO NOTICE.docx`, `LOR-3rd
+  Party.docx`. This is document automation from Word templates.
+- **Taskflow trigger buttons** — `Approve Case Exp for Pymt`, `Send Disc
+  Requests to DEF`, `Follow up on DEF Disc Responses`, `Set Def Depo`,
+  `File Billing & Medical Affidavits`, `Medical Records Request Taskflow`.
+  Buttons that fire a task flow from inside a section row.
+- **DemandsAI** — Filevine's AI demand-letter generator, on Insurance.
+- **Settlement Scenarios** — the calculator supports several named scenarios
+  side by side.
+- **Related Cases** distinguishes **Linked Projects** (parent/child) from
+  **Related Projects** (manual links). Ours implements the second only.

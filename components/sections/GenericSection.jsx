@@ -136,6 +136,43 @@ function Collection({ matterId, sectionKey, collection }) {
   );
 }
 
+/**
+ * A headed run of fields.
+ *
+ * Filevine's real sections are not flat. Intake alone has eight of these —
+ * Personal Info, Accident Information, Injuries, Priors, Economic Damages,
+ * Non Economic Damages, Wrap-Up, Additional Info — and a paralegal navigates
+ * to a heading, not to the eleventh field down an undifferentiated list.
+ *
+ * `full: true` on a field makes it span both columns, which is what long text
+ * needs and what the printed sheets show.
+ */
+function FieldGroup({ matterId, sectionKey, title, fields, state, setSectionField }) {
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+      {title ? (
+        <div className="px-5 py-3 border-b border-slate-100">
+          <h2 className="font-semibold text-slate-900">{title}</h2>
+        </div>
+      ) : null}
+      <div className="p-5 grid gap-4 sm:grid-cols-2">
+        {fields.map((f) => (
+          <div key={f.key} className={f.type === 'textarea' || f.full ? 'sm:col-span-2' : ''}>
+            <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">
+              {f.label}
+            </label>
+            <FieldInput
+              field={f}
+              value={state.fields[f.key]}
+              onChange={(val) => setSectionField(matterId, sectionKey, f.key, val)}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function GenericSection({ matterId, matter, section }) {
   const { sectionState, setSectionField } = useData();
   const state = sectionState(matterId, section.key);
@@ -162,27 +199,29 @@ export default function GenericSection({ matterId, matter, section }) {
         />
       ) : null}
 
+      {/* `fields` is the flat shorthand; `groups` is the general form. */}
       {section.fields ? (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-          <div className="px-5 py-3 border-b border-slate-100">
-            <h2 className="font-semibold text-slate-900">{section.label}</h2>
-          </div>
-          <div className="p-5 grid gap-4 sm:grid-cols-2">
-            {section.fields.map((f) => (
-              <div key={f.key} className={f.type === 'textarea' ? 'sm:col-span-2' : ''}>
-                <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">
-                  {f.label}
-                </label>
-                <FieldInput
-                  field={f}
-                  value={state.fields[f.key]}
-                  onChange={(val) => setSectionField(matterId, section.key, f.key, val)}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
+        <FieldGroup
+          matterId={matterId}
+          sectionKey={section.key}
+          title={section.label}
+          fields={section.fields}
+          state={state}
+          setSectionField={setSectionField}
+        />
       ) : null}
+
+      {(section.groups || []).map((g) => (
+        <FieldGroup
+          key={g.title || 'main'}
+          matterId={matterId}
+          sectionKey={section.key}
+          title={g.title}
+          fields={g.fields}
+          state={state}
+          setSectionField={setSectionField}
+        />
+      ))}
 
       {collections.map((c) => (
         <Collection
