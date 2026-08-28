@@ -14,7 +14,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Search, ExternalLink, FileText } from 'lucide-react';
+import { Search, ExternalLink, FileText, FolderSync } from 'lucide-react';
 import RailLayout from '@/components/shell/RailLayout';
 import { useData } from '@/lib/data/DataProvider';
 import { matterTitle } from '@/lib/domain/matter';
@@ -25,12 +25,29 @@ import { fmt } from '@/lib/domain/dates';
 const LABEL_BY_KEY = Object.fromEntries(FIELDS.map((f) => [f.key, f.label]));
 
 export default function DocumentsPage() {
-  const { matters, sections, loaded } = useData();
+  const { matters, sections, documents, loaded, backend } = useData();
   const [title, setTitle] = useState('');
   const [project, setProject] = useState('');
+  const [source, setSource] = useState('');
 
   const docs = useMemo(() => {
     const out = [];
+
+    // Files indexed from Google Drive. These are the real document store; the
+    // pasted links below are what the app knew before Drive was connected.
+    for (const d of Object.values(documents || {})) {
+      out.push({
+        id: d.id,
+        title: d.name,
+        url: d.webViewLink,
+        date: (d.modifiedTime || '').slice(0, 10),
+        matterId: d.matterId,
+        folder: d.folderPath || 'Case folder',
+        source: 'drive',
+        mimeType: d.mimeType,
+        sizeBytes: d.sizeBytes,
+      });
+    }
 
     for (const [matterId, matter] of Object.entries(matters)) {
       // Checklist documents
@@ -44,6 +61,7 @@ export default function DocumentsPage() {
             date: item.date || '',
             matterId,
             folder: 'Litigation',
+            source: 'link',
           });
         }
       }
@@ -59,13 +77,16 @@ export default function DocumentsPage() {
               date: row.date || '',
               matterId,
               folder: SECTION_BY_KEY[sectionKey]?.label || sectionKey,
+              source: 'link',
             });
           }
         }
       }
     }
     return out.sort((a, b) => String(b.date).localeCompare(String(a.date)));
-  }, [matters, sections]);
+  }, [matters, sections, documents]);
+
+  const driveCount = docs.filter((d) => d.source === 'drive').length;
 
   const projects = useMemo(
     () => Object.entries(matters).map(([id, m]) => ({ id, title: matterTitle(m) })),
@@ -74,15 +95,29 @@ export default function DocumentsPage() {
 
   const filtered = docs
     .filter((d) => (title.trim() ? d.title.toLowerCase().includes(title.trim().toLowerCase()) : true))
-    .filter((d) => (project ? d.matterId === project : true));
+    .filter((d) => (project ? d.matterId === project : true))
+    .filter((d) => (source ? d.source === source : true));
 
   const rail = (
     <div className="px-5 space-y-5">
+      <Link
+        href="/documents/drive"
+        className="flex items-center gap-2 text-sm font-semibold text-teal-700 hover:underline"
+      >
+        <FolderSync size={15} /> Google Drive sync
+      </Link>
       <Facet label="Title Contains">
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Find in document title" className="input" />
       </Facet>
       <Facet label="Doc Contains">
         <input disabled placeholder="Full-text search — not built yet" className="input opacity-50 cursor-not-allowed" />
+      </Facet>
+      <Facet label="Source">
+        <select value={source} onChange={(e) => setSource(e.target.value)} className="input">
+          <option value="">Everything</option>
+          <option value="drive">Google Drive ({driveCount})</option>
+          <option value="link">Pasted links ({docs.length - driveCount})</option>
+        </select>
       </Facet>
       <Facet label="Projects">
         <select value={project} onChange={(e) => setProject(e.target.value)} className="input">
@@ -90,10 +125,23 @@ export default function DocumentsPage() {
           {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
         </select>
       </Facet>
-      {title || project ? (
-        <button onClick={() => { setTitle(''); setProject(''); }} className="text-sm text-teal-700 font-semibold hover:underline">
+      {title || project || source ? (
+        <button onClick={() => { setTitle(''); setProject(''); setSource(''); }} className="text-sm text-teal-700 font-semibold hover:underline">
           Clear filters
         </button>
+      ) : null}
+
+      {/*
+        Said plainly rather than left to be inferred from an empty list. A
+        Documents page showing nothing looks identical whether Drive is not
+        connected or the firm genuinely has no documents.
+      */}
+      {driveCount === 0 ? (
+        <p className="pt-4 mt-4 border-t border-slate-200 text-xs text-slate-500 leading-snug">
+          {backend === 'supabase'
+            ? 'No Drive files indexed yet. Connect Google Drive and run a sync — see docs/GOOGLE_DRIVE_SETUP.md.'
+            : 'Drive indexing needs a server. Running on local storage, so only pasted links appear.'}
+        </p>
       ) : null}
     </div>
   );
@@ -106,7 +154,7 @@ export default function DocumentsPage() {
         <div className="py-12 text-center">
           <p className="text-sm text-slate-400">
             {docs.length === 0
-              ? 'No documents yet. Paste a Google Drive link on a checklist item or a section row.'
+              ? 'No documents yet. Connect Google Drive, or paste a link on a checklist item or section row.'
               : 'No documents match these filters.'}
           </p>
         </div>
@@ -129,9 +177,17 @@ export default function DocumentsPage() {
                     <div className="flex items-center gap-2">
                       <FileText size={16} className="text-red-500 shrink-0" />
                       <span className="font-medium text-slate-900">{d.title}</span>
+                      {d.source === 'drive' ? (
+                        <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 text-[10px] uppercase tracking-wide">
+                          Drive
+                        </span>
+                      ) : null}
                     </div>
                     <p className="text-xs text-slate-500 mt-0.5 ml-6">
                       Higdon Lawyers / {matterTitle(matters[d.matterId])} / {d.folder}
+                      {/* Google Docs carry no byte size at all, so absent and
+                          zero must not render the same way. */}
+                      {d.sizeBytes ? ` · ${Math.max(1, Math.round(d.sizeBytes / 1024))} KB` : ''}
                     </p>
                   </td>
                   <td className="px-4 py-2.5 text-slate-600 whitespace-nowrap">{fmt(d.date)}</td>

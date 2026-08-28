@@ -809,3 +809,37 @@ Proposed split, and worth arguing with: **attachments to Drive, the raw `.eml`
 stays in Supabase.** The bucket has no UPDATE and no DELETE policy, so it is
 tamper-evident in a way Drive is not. The attachments are documents; the `.eml`
 is evidence that a message was received.
+
+---
+
+## Documents link out to Drive rather than streaming through the app
+
+**Date:** 2026-08-28
+
+The index stores Drive's `webViewLink`. Clicking a document opens Drive's own
+viewer, in Drive, as the person clicking.
+
+The alternative — proxying bytes through the app using the impersonated service
+account — would be more seamless and is the wrong trade twice over. It would
+hand every signed-in user everything the impersonated account can see,
+bypassing Drive's own permissions entirely; and it would erase Drive's record
+of who opened which file. On medical records, an access log is worth more than
+a smoother preview.
+
+The consequence to be aware of: the index can LIST a file that a given user
+cannot open, and they will see Drive's "Request access" screen. For this firm
+that is nearly moot — everyone already sees every matter, which is why RLS is a
+blanket policy — but it is a real behaviour, not an oversight.
+
+## A route without a database must say so, not 500
+
+**Date:** 2026-08-28
+
+Found by clicking Dry run in local mode: `createServerClient` with an undefined
+URL throws, and the page rendered "Request failed (500)." — which is precisely
+the uninformative failure this project criticises elsewhere.
+
+`isServerSupabaseConfigured()` is now checked FIRST in every Drive route,
+before any client is built, and returns 503 with a sentence explaining why.
+A missing environment variable is the single likeliest cause of this on a fresh
+deploy, and it is the one thing a bare 500 will never tell you.

@@ -22,7 +22,9 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getSupabaseServerClient, getCurrentUser } from '@/lib/supabase/server';
+import {
+  getSupabaseServerClient, getCurrentUser, isServerSupabaseConfigured,
+} from '@/lib/supabase/server';
 import {
   isDriveConfigured, driveConfig, listChildFolders, listFilesRecursive,
 } from '@/lib/google/drive';
@@ -50,6 +52,17 @@ async function loadMatters(db) {
 }
 
 async function guard() {
+  // Checked before anything else: without a database there is no session to
+  // read, and createServerClient would throw an unexplained 500.
+  if (!isServerSupabaseConfigured()) {
+    return {
+      ok: false,
+      res: NextResponse.json(
+        { error: 'The database is not configured. Running on local storage, so there is nothing to sync into.' },
+        { status: 503 }
+      ),
+    };
+  }
   const user = await getCurrentUser();
   if (!user) return { ok: false, res: NextResponse.json({ error: 'Sign in required.' }, { status: 401 }) };
   if (!isDriveConfigured()) {

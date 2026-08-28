@@ -46,6 +46,7 @@ export function DataProvider({ children }) {
   const [team, setTeam] = useState({});
   const [sections, setSections] = useState({});
   const [activity, setActivity] = useState({});
+  const [documents, setDocuments] = useState({});
   const [loaded, setLoaded] = useState(false);
   // Derived from the env on the first render, not after the load effect. It
   // used to start as 'local', so the user menu's first paint claimed "running
@@ -117,6 +118,7 @@ export function DataProvider({ children }) {
         setMatters(data.matters || {});
         setTasks(data.tasks || {});
         setActivity(data.activity || {});
+        setDocuments(data.documents || {});
         setSections(data.sections || {});
         setTeam(data.team || {});
       } catch (err) {
@@ -526,14 +528,14 @@ export function DataProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      matters, tasks, team, sections, activity, loaded, saveState, backend, currentUser,
+      matters, tasks, team, sections, activity, documents, loaded, saveState, backend, currentUser,
       createMatter, updateMatterField, setChecklistItem, archiveMatter, unarchiveMatter,
       createTask, updateTask, setTaskComplete, clearTaskOverride, deleteTask, bulkSetComplete,
       sectionState, setSectionField, addSectionRow, updateSectionRow, deleteSectionRow,
       addActivity, addEmail, signFile, updateActivity, deleteActivity, assignActivityAsTask, saveTeam,
     }),
     [
-      matters, tasks, team, sections, activity, loaded, saveState, backend, currentUser,
+      matters, tasks, team, sections, activity, documents, loaded, saveState, backend, currentUser,
       createMatter, updateMatterField, setChecklistItem, archiveMatter, unarchiveMatter,
       createTask, updateTask, setTaskComplete, clearTaskOverride, deleteTask, bulkSetComplete,
       sectionState, setSectionField, addSectionRow, updateSectionRow, deleteSectionRow,
