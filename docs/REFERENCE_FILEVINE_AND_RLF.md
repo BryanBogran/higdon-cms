@@ -444,3 +444,81 @@ So documents need: a **per-matter folder tree**, **tags**, **a date**, **last-op
 tracking**, and ideally **content search**. Full-text search over Drive-hosted files is
 possible via the Drive API but is a real piece of work — flag it as a scoped decision rather
 than an assumed feature.
+
+---
+
+## 8. The product walkthrough (fourth observation)
+
+An hour-long Filevine walkthrough of a PI matter, narrated by someone on their
+product team. Higher value than the screenshots, because it shows what things *do*.
+
+Source: <https://www.youtube.com/watch?v=zTi3ftvnsY0>
+
+### The finding that mattered: our Deadline Chain worked differently from theirs
+
+We named a feature after Filevine's and built a different mechanism. Both are
+legitimate; we only had one of them.
+
+| | Trigger | Behaviour |
+|---|---|---|
+| **Ours** (`chain.js`) | matter DATA | A rule watches the record. Mark Served with a date and Answer Due appears; clear it and Answer Due goes away. |
+| **Theirs** (demonstrated) | COMPLETION | Steps are a linked list. Completing step N schedules step N+1, measured from the day it actually completed. |
+
+From the transcript: complete Certificate of Interested Parties → Meet and Confer
+appears 25 days out → complete that → Rule 26 Disclosures 61 days out → Joint
+Report → Scheduling Conference. *"As you notice, just as we are normally
+completing these deadlines out, additional deadlines look to trigger."*
+
+Now built as `lib/domain/sequences.js`, alongside the data-triggered rules rather
+than replacing them. The behaviour that matters most: **a step completed late
+moves everything after it**, because the next date is measured from actual
+completion, not from what was due. A real docket needs that.
+
+Two more details taken verbatim:
+
+- **Completed deadlines stay visible.** *"As they are completed, they are marked
+  as done, but they do not disappear so that we have that audit log."* The list
+  is a record, not a to-do list that empties itself.
+- **Per-deadline reminder ladders**, defaulting to 90/60/30/15 days out, surfaced
+  in the activity feed and the global feed. Note this differs from the
+  120/90/60/30 in `pi-intake.jsx` and RLF — worth asking the firm which they want.
+
+### Phase-triggered task flows — the other automation engine
+
+Moving a matter from PNC to Treatment created *"Request medical records"* and
+*"Ensure all health insurance docs are uploaded"* with no one asking. The
+narrator's framing is the design goal:
+
+> "someone is not having to remember to say, ooh, did I ask Sarah to go ahead and
+> request those medical records?"
+
+Assignment is **by role**, not by person, so a flow survives staff changes. Built
+as `lib/domain/phases.js` with nine phases and seven flows. Two rules keep it from
+becoming noise: entering a phase twice creates nothing twice (idempotent by
+`flow:{matterId}:{phase}:{taskKey}`), and leaving a phase deletes nothing.
+
+### Everything else the video revealed, not yet built
+
+**Activity types we're missing:** text messages with a **per-case firm texting
+number** — *"not something where it needs to be an attorney or paralegal's
+personal numbers"* — with delivery status; **client portal messages**; faxes.
+Every note, task and portal message supports **threaded replies**.
+
+**Documents** is far deeper than our link list: admin-set default folder structure
+per project, folder tree view, version history **with restore**, document
+**locking while editing** (one editor at a time), an in-app **PDF editor**, send
+by **fax** from the app, copy a document to another project, and folder sharing
+with a password *and* **two-way upload** so an expert can send records back
+without email.
+
+**Per-project calendar**, with deadlines auto-calendared onto it, plus a global
+calendar with Google/Office 365 sync and per-source toggles.
+
+**Permissions by team**, with **protected sections** (edit / read / hidden per
+person) and **protected folders**. Roles are firm-defined and per-matter. We
+deferred per-matter ACLs for Milestone 1 — still right, but this is the shape to
+grow into, and the tripwire in the RLS decision already names it.
+
+**Everything is reportable.** *"It's wonderful to track, but if you can't use it
+to inform decisions, kind of what's the point?"* Worth holding onto as sections
+get added.
