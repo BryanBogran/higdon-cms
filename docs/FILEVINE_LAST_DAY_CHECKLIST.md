@@ -118,3 +118,102 @@ Everything lands in `/imports/` in this repo — **already gitignored**, verifie
 original filenames and the original folder structure; don't rename or flatten anything.
 
 A second copy somewhere outside this machine is worth the two minutes.
+
+---
+
+# Second capture — updated 2026-08-28, **days of access left**
+
+The first pass got 11 sections out of a HAR and made five of them `verified` in
+`lib/sections/registry.js`. This list is what we now know is *still* missing,
+in strict value order. **If you only do Part A, that is the important half.**
+
+Everything here is unrecoverable once the license lapses. The Google Drive
+documents are safe; none of this is in them.
+
+## Part A — 20 minutes, highest value
+
+### A1. A HAR from a matter that has data in the six empty sections
+
+Six sections came back with zero rows last time, so we have their names and
+nothing else:
+
+`call-log` · `intake` · `dco` · `lost-wages` · `liens` · `case-summary`
+
+**These are guesswork in our build right now.** A field list beats any amount
+of design discussion.
+
+The trick is picking the right matter. Find **one older, fully worked-up,
+preferably settled case** — those have every section filled. Then:
+
+1. DevTools → Network → tick **Preserve log** → **Clear**.
+2. Open the matter and **click every section in the left rail**, top to bottom.
+   Wait for each to finish loading before the next.
+3. Right-click in the Network list → **Save all as HAR with content**.
+4. Save into `imports/` — it is gitignored, so nothing leaks into the repo.
+5. Run: `node scripts/extract-sections.mjs imports/<file>.har`
+
+⚠️ **The extractor redacts values by allowlist**, so patient data does not get
+written into a markdown file. Do not disable that. Field *names* are the point;
+field *contents* are not.
+
+### A2. Screenshot the section rail, top to bottom
+
+One screenshot of the left-hand rail of an open matter, showing every section in
+order. We match section ORDER by guess today, and staff navigate that rail by
+position all day long. Cheapest possible fix.
+
+### A3. The phase list, in order
+
+**Project Hub → the Phase filter dropdown** shows every phase for the template.
+Screenshot it. Ours (`lib/domain/phases.js`) has nine invented ones — PNC,
+Intake, Treatment, Demand, Negotiation, Litigation, Settlement, Disbursement,
+Closed. Phase drives task automation, so a wrong list means wrong tasks fire.
+
+### A4. Vitals, in order
+
+Open a matter → the **Vitals flyout** → **Configure**. Screenshot the full list
+with its ordering. Vitals are the header summary fields; we have a fixed header
+and no equivalent, and this tells us which fields the firm actually reads first.
+
+## Part B — 10 minutes if there is time
+
+### B1. Deadline chain definitions
+
+**Setup → Deadline Chains** (or Advanced → Customs Editor → the template's
+deadline chains). Screenshot each chain's steps and day offsets. Our
+`lib/domain/sequences.js` has two chains reconstructed from a *marketing video*,
+using a federal case-management order that is very likely not the firm's.
+Getting this wrong produces confidently wrong dates on a docket.
+
+### B2. Task templates per phase
+
+Anywhere Filevine lists "when a project enters phase X, create these tasks".
+`lib/domain/phases.js` has seven flows invented from one worked example in the
+same video.
+
+### B3. Reminder settings
+
+Confirm the ladder is genuinely **90 / 60 / 30 / 15** — the firm has now said it
+is, and this is a two-second visual check that the setting agrees.
+
+### B4. Mailroom
+
+Screenshot the Mailroom list view: its columns, its filters, and what the
+actions on a message are. It is the next thing being built and we have only a
+one-line description of it from Filevine's public docs.
+
+## Part C — only if everything above is done
+
+- The saved reports the firm actually uses — names and columns.
+- Document folder structure on a worked-up matter.
+- Team/permission setup, if anyone has admin access.
+- Any auto-tag or auto-move field behaviour, which **appears in no export file**.
+
+---
+
+## What NOT to spend time on
+
+- **Documents.** Already on Google Drive.
+- **Case data.** The team's export covers it.
+- **Anything you can describe from memory.** Your description of a screen is
+  worth more than a rushed, half-loaded HAR of it.

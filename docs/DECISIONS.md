@@ -677,3 +677,22 @@ feedback this project actually needs.
 
 They are `div`s, not buttons: not clickable, greyed, `cursor-not-allowed`. The
 gap is the message.
+
+---
+
+## Reminder ladder: 90 / 60 / 30 / 15, confirmed by the firm
+
+**Date:** 2026-08-28
+
+The two source systems disagreed — Filevine's default and the walkthrough video
+use **90/60/30/15**, while the firm's own `pi-intake.jsx` and the RLF system
+both use 120/90/60/30. Carried as an open question since the sequences engine
+was written.
+
+**The firm has chosen 90/60/30/15.** `DEFAULT_REMINDERS` in
+`lib/domain/sequences.js` already matches, so no code changes; this entry exists
+so the question is not reopened, and so the next person knows it was a decision
+rather than an accident of whichever file got read first.
+
+Per-deadline overrides stay available and stay used — written discovery already
+runs 30/14/7/3, because a 90-day warning on a 30-day deadline is noise.
