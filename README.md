@@ -2,14 +2,34 @@
 
 In-house replacement for Filevine. Texas personal-injury and litigation practice.
 
-**Status: backend built, awaiting a Supabase project.** The Filevine shell, the section
-registry, tested date math, the Postgres schema, auth, and the Supabase data layer are all in
-place. Follow [docs/SETUP.md](docs/SETUP.md) to point it at a real database — about 45 minutes.
-Until then the app runs on browser storage.
+**Status: running on Supabase.** The Filevine shell, the 15-section rail, tested date and
+money math, the Postgres schema, auth, email-onto-the-case-file and the Google Drive document
+index are in place. With no Supabase project configured the app falls back to browser storage,
+so it runs anywhere without setup.
+
+Check a live database at any time:
+
+```bash
+node --env-file=.env.local scripts/check-db.mjs
+```
+
+It probes with the browser's own publishable key, so it answers two questions at once — is the
+schema there, and can an anonymous caller read anything. It also runs negative controls against
+a table, column and bucket that do not exist, because a check that has never been seen to fail
+has not been tested.
 
 - **▶ Start here — setup runbook: [docs/SETUP.md](docs/SETUP.md)**
 - **Feeding Filevine's behaviour into this project: [docs/FILEVINE_CAPTURE.md](docs/FILEVINE_CAPTURE.md)**
 - **Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md)**
+- **Google Drive as the document store: [docs/GOOGLE_DRIVE_SETUP.md](docs/GOOGLE_DRIVE_SETUP.md)**
+- **Email on the case file: [docs/EMAIL_SETUP.md](docs/EMAIL_SETUP.md)**
+- **Why things are the way they are: [docs/DECISIONS.md](docs/DECISIONS.md)**
+
+## Data in this repository is fictional
+
+Every name in the tests, the seed data and the docs is invented. No real client, provider or
+staff name belongs in version control — see the note at the top of `.gitignore`, and
+`supabase/seed_demo.sql`, which generates synthetic matters rather than importing any.
 - **Next up — backend, database, login: [docs/BACKEND_PLAN.md](docs/BACKEND_PLAN.md)**
 - Decisions and their reasoning: [docs/DECISIONS.md](docs/DECISIONS.md)
 - Reference study of Filevine and the RLF CMS: [docs/REFERENCE_FILEVINE_AND_RLF.md](docs/REFERENCE_FILEVINE_AND_RLF.md)
