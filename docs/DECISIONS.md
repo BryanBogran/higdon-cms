@@ -974,3 +974,38 @@ The lesson worth keeping: a comment claiming a property the code does not have
 is worse than no comment, because it stops the next person checking. This one
 survived a review, a browser verification and a commit message that repeated
 the claim.
+
+---
+
+## `.input` must live in @layer components
+
+**Date:** 2026-08-28
+
+Reported as "some UI overlapping" — the `$` sitting on top of a money value and
+a contact icon sitting on top of its placeholder. The cause was neither, and it
+was app-wide.
+
+Tailwind 4 puts every utility inside `@layer utilities`. In the CSS cascade,
+**unlayered rules beat layered ones**, regardless of specificity or source
+order. `.input` was plain unlayered CSS with a `padding` shorthand and
+`width: 100%`, so it silently defeated **thirteen** utilities written to adjust
+it:
+
+| Override | What it was for | What happened |
+|---|---|---|
+| `pl-6` | clear the `$` prefix | `$` rendered over the number |
+| `pl-8` | clear the contact icon | icon rendered over "Name" |
+| `w-20` | narrow reduction box | stretched full width |
+| `w-44`, `w-auto` | sized selects | stretched full width |
+| `min-h-[70px]` | taller textareas | one line tall |
+
+This was NOT a bug under Tailwind 3, where utilities were also unlayered and
+simply came later in the file. It arrived with the upgrade and stayed invisible
+because nothing fails — the wrong padding just renders, and every one of those
+class names still looks correct in the source.
+
+Moving the rule into `@layer components` fixed all thirteen at once.
+
+**The general rule for this codebase:** a hand-written class that utilities are
+expected to override belongs in `@layer components`. An unlayered rule is an
+override nobody can beat.

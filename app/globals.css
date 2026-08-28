@@ -9,15 +9,35 @@
  *
  * Real CSS instead. Do not reintroduce the injection block.
  */
-.input {
-  width: 100%;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  outline: none;
-  background: white;
-}
-.input:focus {
-  border-color: #0f172a;
+/*
+ * IN @layer components, AND THAT IS LOAD-BEARING.
+ *
+ * Tailwind 4 puts every utility inside `@layer utilities`, and in the CSS
+ * cascade UNLAYERED RULES BEAT LAYERED ONES — regardless of specificity or
+ * source order. So an unlayered `.input` silently defeated every utility
+ * written to adjust it: `pl-6` on the money field left the `$` sitting on top
+ * of the number, `pl-8` on a contact field put the person icon over the
+ * placeholder, `w-20` on the settlement reduction box stretched it full width,
+ * and `min-h-` on textareas did nothing. Thirteen overrides, all dead, no
+ * error anywhere.
+ *
+ * This was not a bug in Tailwind 3, where utilities were also unlayered and
+ * simply came later in the file. It appeared on the upgrade and stayed
+ * invisible because nothing fails — the wrong padding just renders.
+ *
+ * Inside `components`, utilities win, which is the whole point of the layer.
+ */
+@layer components {
+  .input {
+    width: 100%;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    outline: none;
+    background: white;
+  }
+  .input:focus {
+    border-color: #0f172a;
+  }
 }
