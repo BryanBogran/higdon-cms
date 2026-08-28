@@ -43,6 +43,7 @@ export default function DocsSection({ matterId, matter }) {
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
 
+  const [provisioning, setProvisioning] = useState(false);
   const [uploads, setUploads] = useState([]);   // [{ name, percent, error }]
   const [dragging, setDragging] = useState(false);
 
@@ -179,6 +180,29 @@ export default function DocsSection({ matterId, matter }) {
     [matterId, folderId, view?.rootId, load]
   );
 
+  async function provision() {
+    setProvisioning(true);
+    setError('');
+    try {
+      const res = await fetch('/api/drive/provision', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ matterId }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (body.ok) {
+        cache.current.clear();
+        await load(null, { bustCache: true });
+      } else {
+        setError(body.error || `Could not set up a folder (${body.reason || 'unknown'}).`);
+      }
+    } catch (err) {
+      setError(err?.message || 'Could not reach Drive.');
+    } finally {
+      setProvisioning(false);
+    }
+  }
+
   function open(target) {
     setFolderId(target);
     setResults(null);
@@ -202,13 +226,24 @@ export default function DocsSection({ matterId, matter }) {
     return (
       <Card>
         <div className="px-5 py-10 text-center">
-          <p className="text-sm text-slate-500">This case has no Drive folder linked yet.</p>
-          <Link
-            href="/documents/drive"
-            className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-teal-700 hover:underline"
-          >
-            Link it in Drive sync
-          </Link>
+          <p className="text-sm text-slate-500">This case has no Drive folder yet.</p>
+          <p className="mt-1 text-xs text-slate-400">
+            One will be created, or an existing folder of the same name adopted.
+          </p>
+          {error ? <p className="mt-2 text-sm text-amber-700">{error}</p> : null}
+          <div className="mt-3 flex items-center justify-center gap-3">
+            <button
+              onClick={provision}
+              disabled={provisioning}
+              className="flex items-center gap-1.5 px-4 py-2 rounded bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 disabled:opacity-50"
+            >
+              {provisioning ? <Loader2 size={14} className="animate-spin" /> : <FolderPlus size={14} />}
+              {provisioning ? 'Setting up…' : 'Create Drive folder'}
+            </button>
+            <Link href="/documents/drive" className="text-sm text-teal-700 hover:underline">
+              or link an existing one
+            </Link>
+          </div>
         </div>
       </Card>
     );

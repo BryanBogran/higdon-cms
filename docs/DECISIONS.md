@@ -1112,3 +1112,47 @@ bandwidth is unaffected by document size.
 `XMLHttpRequest`, not `fetch`, for the PUT — **fetch has no upload progress
 event**. On a large file a bar that moves is the difference between waiting and
 assuming it has hung.
+
+---
+
+## A new matter gets a Drive folder — adopting one if it already exists
+
+**Date:** 2026-08-28
+
+Creating a matter now provisions its Drive folder: `Rivera, Marcus 26-001`, with
+Medical Records, Pleadings, Discovery, Correspondence and Expenses inside.
+
+**Adopt before create.** Intake making the folder first and the matter being
+opened later is the normal order of events here, so provisioning looks for an
+unambiguous existing folder and links that. Creating a second folder with the
+same name is how a case ends up with half its documents in each, and nobody
+notices until someone cannot find a record.
+
+Adoption holds the same standard as the matcher: exactly one candidate, nothing
+else close, and nothing already linked to another case. Two folders called
+*Smith, John* means neither is adopted and a numbered one is created — which
+disambiguates rather than guessing.
+
+**The case number goes in the name**, even though existing folders are name-only.
+`caseNumberIn` already prefers a number over any name match, so a numbered
+folder is unambiguous forever. The cosmetic inconsistency with older folders is
+worth that.
+
+**Subfolders only on folders we create.** Imposing a structure on one somebody
+already organised is rearranging their filing cabinet.
+
+## Provisioning must never fail matter creation
+
+**Date:** 2026-08-28
+
+`/api/drive/provision` returns **200 with `ok: false` and a reason** for every
+failure — Drive unconfigured, unreachable, quota refused, folder already
+claimed. Never a 4xx or 5xx.
+
+Creating the case is the real action; the folder is a convenience. A firm that
+cannot open a file because Drive is down is a far worse outcome than a case
+without a folder, and the Docs tab offers a button to finish the job later.
+
+The call is awaited so the folder exists before anyone opens Docs, and wrapped
+in a `try` that swallows network failure entirely. Awaiting without swallowing
+would reintroduce the coupling the soft-failure design exists to prevent.

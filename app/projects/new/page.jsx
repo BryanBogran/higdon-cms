@@ -70,12 +70,32 @@ export default function NewProjectPage() {
       openDate: todayInFirmTz(),
     });
 
-    setBusy(false);
-
     if (!result?.ok || !result.id) {
+      setBusy(false);
       setError(result?.error || 'Could not create the project.');
       return;
     }
+
+    /*
+     * Give it a Drive folder, adopting one if intake already made it.
+     *
+     * Awaited so the folder exists before the Docs tab is first opened, but
+     * NEVER allowed to fail the creation: the matter is the real action and
+     * the folder is a convenience. The route returns 200 with a reason rather
+     * than an error status for exactly this — a firm that cannot open a file
+     * because Drive is down is a worse outcome than a missing folder.
+     */
+    try {
+      await fetch('/api/drive/provision', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ matterId: result.id }),
+      });
+    } catch {
+      // Offline, or Drive unreachable. The Docs tab offers a button.
+    }
+
+    setBusy(false);
     router.push(`/matters/${result.id}`);
   }
 
@@ -190,7 +210,7 @@ export default function NewProjectPage() {
             className="flex items-center gap-2 px-6 py-2 rounded bg-teal-600 text-white text-sm font-semibold hover:bg-teal-500 disabled:opacity-40"
           >
             {busy ? <Loader2 size={15} className="animate-spin" /> : null}
-            Create
+            {busy ? 'Creating…' : 'Create'}
           </button>
         </div>
       </form>
