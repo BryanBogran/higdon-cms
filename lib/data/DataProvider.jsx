@@ -69,7 +69,22 @@ export function DataProvider({ children }) {
     (async () => {
       const store = storeRef.current;
       if (!store) return;
-      setBackend(isSupabaseConfigured() ? 'supabase' : 'local');
+
+      const usingSupabase = isSupabaseConfigured();
+      setBackend(usingSupabase ? 'supabase' : 'local');
+
+      // Don't query while signed out. RLS would return nothing anyway, and the
+      // failed requests surfaced as a red "Not saved" on the login page, which
+      // reads as a broken app rather than an unauthenticated one.
+      if (usingSupabase) {
+        const { getSupabaseBrowserClient } = await import('@/lib/supabase/client');
+        const { data } = await getSupabaseBrowserClient().auth.getSession();
+        if (!data?.session) {
+          if (!cancelled) setLoaded(true);
+          return;
+        }
+      }
+
       try {
         const data = await store.loadAll();
         if (cancelled) return;
@@ -79,7 +94,17 @@ export function DataProvider({ children }) {
         setSections(data.sections || {});
         setTeam(data.team || {});
       } catch (err) {
-        if (!cancelled) setSaveState({ status: 'error', error: err?.message || 'Could not load data' });
+        if (cancelled) return;
+        // PGRST205 means the tables aren't there yet. That is a setup step, not
+        // a save failure, and saying so beats a generic error.
+        const raw = err?.message || 'Could not load data';
+        const needsSchema = /PGRST205|schema cache|does not exist/i.test(raw);
+        setSaveState({
+          status: 'error',
+          error: needsSchema
+            ? 'Database tables not found — run supabase/schema.sql in the Supabase SQL editor.'
+            : raw,
+        });
       } finally {
         if (!cancelled) setLoaded(true);
       }

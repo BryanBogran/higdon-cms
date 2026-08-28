@@ -51,7 +51,20 @@ The last query should return **zero rows** — that's every table confirming RLS
 
 ## 3. Connect the app · 5 min
 
-**Project Settings → API**, then create `.env.local` in the project root:
+**Project Settings → API**, then create `.env.local` in the project root — the same folder as
+`package.json`. It's gitignored, so it never leaves your machine.
+
+> **Copy the Project URL, not the REST endpoint.** The dashboard shows both, and they look
+> nearly identical. You want `https://xxxx.supabase.co` — if what you copied ends in
+> `/rest/v1/`, trim that off. The client appends `/rest/v1/...` itself, so the longer form
+> produces `PGRST125: Invalid path specified in request URL` on every query, with an error
+> message that points nowhere near the cause. (The app now trims this for you, but the URL is
+> clearer without it.)
+>
+> **Use the publishable key, never the secret key.** The publishable key respects Row Level
+> Security and is safe in a browser. The secret key bypasses RLS entirely — putting it behind
+> a `NEXT_PUBLIC_` prefix would inline it into the JavaScript bundle and hand every case in the
+> firm to anyone who views source.
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL="https://YOUR-PROJECT.supabase.co"

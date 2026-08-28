@@ -16,12 +16,17 @@ export default function SaveIndicator() {
   const { saveState } = useData();
 
   if (saveState.status === 'error') {
+    // A setup problem is not a save failure. Saying "Not saved" when the tables
+    // simply don't exist yet sends you looking in the wrong place.
+    const isSetup = /schema\.sql|tables not found/i.test(saveState.error || '');
     return (
       <span
         title={saveState.error || 'Save failed'}
-        className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-red-500 text-white text-xs font-semibold"
+        className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-white text-xs font-semibold ${
+          isSetup ? 'bg-amber-600' : 'bg-red-500'
+        }`}
       >
-        <AlertTriangle size={14} /> Not saved
+        <AlertTriangle size={14} /> {isSetup ? 'Setup needed' : 'Not saved'}
       </span>
     );
   }

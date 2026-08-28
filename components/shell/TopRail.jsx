@@ -28,6 +28,10 @@ const NAV = [
 export default function TopRail() {
   const pathname = usePathname() || '/';
 
+  // The sign-in page is not part of the app shell -- showing nav to someone who
+  // is not signed in advertises routes they cannot reach.
+  if (pathname.startsWith('/login')) return null;
+
   return (
     <header className="sticky top-0 z-40 bg-slate-900 text-white">
       <div className="flex items-center gap-1 px-3 h-14">
