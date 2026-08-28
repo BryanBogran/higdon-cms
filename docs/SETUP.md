@@ -133,51 +133,22 @@ select handle, display_name, email, role, is_role_account from profile order by 
 
 ## 5. Load demo data · 2 min
 
-So there's something to look at. SQL editor:
+SQL Editor → paste [`supabase/seed_demo.sql`](../supabase/seed_demo.sql) → **Run**.
+It returns `demo_matters: 25`, and it's safe to re-run — it clears its own rows first.
 
-```sql
--- 25 synthetic matters with realistic dates, plus a few deliberately awkward
--- ones: a missing SOL, a trial date on a weekend, a checklist item marked done
--- with no date. Those are the cases that broke the old system, and they should
--- be visible in any demo rather than hidden.
-insert into matter (client_name, case_number, attorney, status, phase,
-                    open_date, doa, sol, trial_date, dco, insurance_class)
-select
-  (array['Rivera, Marcus','Okafor, Chidi','Barton, Michael','Lindqvist, Anna',
-         'Perry, Darrell','Jamal, Farida','Okonkwo, Kendall','Marshall, Patrick',
-         'Sandoval, Juan','Morris-Brown, Raquel'])[1 + (i % 10)]
-    || ' ' || (i + 1),
-  '26-' || lpad((i + 1)::text, 3, '0'),
-  (array['Priya Raman','Alex Turner Jr.','Dana Whitfield'])[1 + (i % 3)],
-  (array['Open','Open','Open','Settled - Not Disbursed'])[1 + (i % 4)]::matter_status,
-  (array['Litigation','Litigation','Treatment','Settlement'])[1 + (i % 4)]::matter_phase,
-  current_date - (300 + i * 11),
-  current_date - (340 + i * 13),
-  case when i % 7 = 0 then null else current_date + (60 + i * 17) end,
-  case when i % 3 = 0 then current_date + (20 + i * 9) else null end,
-  case when i % 3 = 0 then current_date + (5 + i * 9) else null end,
-  (array['Personal Lines','Commercial','Unknown'])[1 + (i % 3)]::insurance_class
-from generate_series(0, 24) as i;
+The seed deliberately includes the cases that broke the old system, so they're visible rather
+than hidden behind tidy data:
 
--- Served, with a date, on two-thirds of them -- this is what generates deadlines.
-insert into matter_checklist_item (matter_id, field_key, done, occurred_on)
-select id, 'served', true, open_date + 45
-  from matter where (substring(case_number, 4)::int % 3) <> 0;
-
--- One matter marked done with NO date, so the "no deadline is being calculated"
--- warning is visible in the demo.
-insert into matter_checklist_item (matter_id, field_key, done, occurred_on, note)
-select id, 'defDiscoveryReceived', true, null, 'received per MA'
-  from matter where case_number = '26-005';
-
-select reseed_case_number_counter();
-```
+- a matter with **no SOL** → shows in the dashboard's Missing Key Dates panel
+- a trial date on a **Saturday** → shows the weekend warning on the Deadline Chain
+- `26-005` has a checklist item **done with no date** → shows *"no deadline is being
+  calculated"* on the Litigation tab
 
 Reload the app. Dashboard fills in; Project Hub lists 25 cases.
 
-**Deadlines appear when you open a matter**, because the chain is computed client-side and
-written back on the first edit. Open one, toggle a checklist item, and check the Deadline Chain
-section.
+**Deadlines appear when you open a matter.** The chain is computed client-side from the tested
+rules and written back on first edit, so open one and toggle a checklist item to see the
+Deadline Chain populate.
 
 ---
 
