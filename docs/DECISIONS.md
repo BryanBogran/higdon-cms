@@ -727,3 +727,85 @@ duplication is invisible in the data and obvious on screen.
 dropped, which the page renders as a link to the Tasks list. A task with no due
 date is not a task on the 1st of the month, and quietly placing it somewhere —
 or quietly omitting it — is how a calendar starts lying about the workload.
+
+---
+
+## Google Drive is the document store; Postgres holds an index
+
+**Date:** 2026-08-28
+
+The firm already keeps one Drive folder per case and works in Drive every day.
+Three options were real:
+
+| | |
+|---|---|
+| Mirror everything into Supabase Storage | Rejected. Duplicates hundreds of GB, creates two sources of truth, and takes staff out of the tool they already use. |
+| Link-only, as today | What exists — `docUrl` free text scattered across checklist items and section rows. Works, but the Documents page cannot search, filter or count. |
+| **Drive as record, Postgres as index** | Chosen. |
+
+The `document` table is explicitly **a cache**. Everything in it can be rebuilt
+by re-running a sync, and the day it disagrees with Drive, Drive is right. The
+single exception is `matter.drive_folder_id` — the link between a folder and a
+case is *our* knowledge and exists nowhere in Drive.
+
+Confirmed from public DNS rather than assumed: `higdonlawyers.com` MX points at
+`aspmx.l.google.com`, so the firm is on Google Workspace. That also retires the
+open question from the auth decision, where Google SSO was deferred because we
+did not know whether they had Workspace. They do.
+
+## Domain-wide delegation, not a Shared Drive
+
+**Date:** 2026-08-28
+
+A service account has **zero storage quota**: it reads anything shared with it,
+but uploading a file it would own fails with `storageQuotaExceeded` even though
+its Drive is empty. Two escapes — write into a Shared Drive, or impersonate a
+real user.
+
+Shared Drives would be the cleaner architecture in the abstract. Delegation
+wins here for one concrete reason: **the firm is not moving its folders.** A
+Shared Drive only owns storage for files inside it, so adopting one would mean
+migrating every existing case folder — moving files people have bookmarked,
+during a cutover. Delegation writes into the folders that already exist.
+
+The cost is that uploads are owned by the impersonated account, so it must be a
+durable one (`files@`) rather than a person who might leave.
+
+## Folder matching refuses to guess, and confirms only once
+
+**Date:** 2026-08-28
+
+Drive folders are named with the **client name only** — no case number. So the
+first match compares two human-typed strings entered years apart by different
+people, and it can be wrong.
+
+> Nothing auto-links unless exactly one matter matches **and nothing else is
+> even close.**
+
+Two clients called Smith: neither links. An exact match sitting beside a
+near-miss (`Smith, John` / `Smith, John Robert`): also review. The asymmetry is
+the argument — a folder of medical records attached to the wrong client is a
+privilege breach, and an unlinked folder is a dropdown.
+
+Once linked, the Drive id is stored and **name matching never runs for that
+matter again**. Renaming a client, fixing a typo, or a second Smith arriving
+next year cannot silently re-point an existing case at someone else's records.
+
+A found bug worth recording: apostrophes are deleted and hyphens become spaces,
+and the difference is load-bearing. Turning `'` into a space split `O'Connor`
+into two tokens while `OConnor` stayed one, so they never matched. Caught by a
+test, not by reading.
+
+## ⚠️ Open: email attachments are in the wrong place
+
+**Date:** 2026-08-28
+
+Email attachments land in Supabase Storage, built before the Drive decision. So
+a HIPAA authorisation arriving by email goes one place and the same document
+filed by hand goes another — two places to look, which is how documents get
+lost. Mine to fix once Drive is confirmed working.
+
+Proposed split, and worth arguing with: **attachments to Drive, the raw `.eml`
+stays in Supabase.** The bucket has no UPDATE and no DELETE policy, so it is
+tamper-evident in a way Drive is not. The attachments are documents; the `.eml`
+is evidence that a message was received.
