@@ -1,7 +1,11 @@
 'use client';
 
 /**
- * Google Drive sync — dry run, apply, then resolve what could not be decided.
+ * Google Drive sync — dry run, link, then resolve what could not be decided.
+ *
+ * There used to be a fourth step that walked every linked folder and copied a
+ * file index into Postgres. It is gone: documents are read live from Drive when
+ * someone opens a case, so there is no copy to keep current.
  *
  * The order on screen is the order the work happens in, and the dry run is
  * first because it is the one step that cannot do damage. "It silently
@@ -76,21 +80,6 @@ export default function DriveSyncPage() {
     loadReviews();
   }
 
-  async function indexFiles() {
-    const body = await call(
-      '/api/drive/sync',
-      { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ step: 'files', batchSize: 20 }) },
-      'files'
-    );
-    if (!body) return;
-    setNote(
-      `Indexed ${body.indexed} file${body.indexed === 1 ? '' : 's'} across ${body.matters} case${body.matters === 1 ? '' : 's'}.` +
-        (body.totalLinkedMatters > body.matters
-          ? ` ${body.totalLinkedMatters - body.matters} more linked case(s) — run again to continue.`
-          : '')
-    );
-  }
-
   async function resolve(folderId, folderName, matterId) {
     const body = await call(
       '/api/drive/review',
@@ -102,7 +91,7 @@ export default function DriveSyncPage() {
       folderId
     );
     if (body) {
-      setNote('Linked. Run "Index files" to pull its documents in.');
+      setNote("Linked. Its documents appear on the case's Docs tab straight away.");
       loadReviews();
     }
   }
@@ -129,8 +118,8 @@ export default function DriveSyncPage() {
 
       <h1 className="text-2xl font-bold text-slate-900">Google Drive sync</h1>
       <p className="mt-1 text-sm text-slate-600">
-        Links each case to its Drive folder, then indexes the files inside. Nothing is moved,
-        copied or renamed in Drive.
+        Links each case to its Drive folder. Documents themselves are read live from Drive when
+        a case is opened — nothing is copied, moved or renamed.
       </p>
 
       {error ? (
@@ -216,7 +205,7 @@ export default function DriveSyncPage() {
           Only where exactly one case matches and nothing else is close. Everything else drops into
           the queue below.
         </p>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3">
           <button
             onClick={applyLinks}
             disabled={Boolean(busy)}
@@ -225,19 +214,16 @@ export default function DriveSyncPage() {
             {busy === 'link' ? <Loader2 size={15} className="animate-spin" /> : <FolderSync size={15} />}
             Link folders
           </button>
-          <button
-            onClick={indexFiles}
-            disabled={Boolean(busy)}
-            className="flex items-center gap-2 px-4 py-2 rounded border border-slate-300 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-          >
-            {busy === 'files' ? <Loader2 size={15} className="animate-spin" /> : null}
-            Index files
-          </button>
         </div>
+        {/*
+          There used to be an "Index files" button here, and a batch that
+          walked twenty cases at a time. Both are gone: documents are read
+          live from Drive when someone opens them, so there is no copy to
+          keep current and nothing to press.
+        */}
         <p className="mt-2 text-xs text-slate-500">
-          Files are indexed 20 cases at a time — a few thousand documents will not finish inside one
-          request, and a job that times out while reporting success is worse than one that says how
-          many are left.
+          Linking is all that is needed. Documents themselves are read straight from Drive when
+          a case is opened, so nothing here can fall behind.
         </p>
       </section>
 

@@ -1,169 +1,124 @@
 'use client';
 
 /**
- * Documents -- a firm-wide index across every matter's sections.
+ * Documents — one search box across every case's Drive folder.
  *
- * The real Filevine Documents tab has a faceted filter rail (Title Contains, Doc
- * Contains, File Type, Doc Tags, Projects), a folder breadcrumb per row, and
- * full-text search inside file contents. Content search over Drive-hosted files
- * is a scoped decision rather than an assumed feature -- see the roadmap.
+ * This replaced a table of every indexed file. The index is gone: documents are
+ * read live from Drive now, which makes this search strictly better rather than
+ * worse. Drive's `fullText` matches text INSIDE PDFs and Docs, so a word that
+ * appears only on page four of a scanned record is findable — something a table
+ * of filenames could never do.
  *
- * Today this indexes every Drive link the app knows about: checklist documents
- * and any generic section row with a `docUrl`.
+ * Each hit says which case it belongs to, resolved by walking the file's Drive
+ * parents up to a linked case folder. A file that belongs to no case is shown
+ * as unfiled rather than attached to the nearest one.
  */
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-import { Search, ExternalLink, FileText, FolderSync } from 'lucide-react';
+import { Search, ExternalLink, FileText, FolderSync, Loader2, AlertCircle } from 'lucide-react';
 import RailLayout from '@/components/shell/RailLayout';
 import { useData } from '@/lib/data/DataProvider';
-import { matterTitle } from '@/lib/domain/matter';
-import { FIELDS, DOC_FIELDS } from '@/lib/domain/fields';
-import { SECTION_BY_KEY } from '@/lib/sections/registry';
-import { fmt } from '@/lib/domain/dates';
-
-const LABEL_BY_KEY = Object.fromEntries(FIELDS.map((f) => [f.key, f.label]));
 
 export default function DocumentsPage() {
-  const { matters, sections, documents, loaded, backend } = useData();
-  const [title, setTitle] = useState('');
-  const [project, setProject] = useState('');
-  const [source, setSource] = useState('');
+  const { backend } = useData();
+  const [term, setTerm] = useState('');
+  const [files, setFiles] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
 
-  const docs = useMemo(() => {
-    const out = [];
-
-    // Files indexed from Google Drive. These are the real document store; the
-    // pasted links below are what the app knew before Drive was connected.
-    for (const d of Object.values(documents || {})) {
-      out.push({
-        id: d.id,
-        title: d.name,
-        url: d.webViewLink,
-        date: (d.modifiedTime || '').slice(0, 10),
-        matterId: d.matterId,
-        folder: d.folderPath || 'Case folder',
-        source: 'drive',
-        mimeType: d.mimeType,
-        sizeBytes: d.sizeBytes,
-      });
+  async function search(e) {
+    e?.preventDefault();
+    const q = term.trim();
+    if (q.length < 2) return;
+    setBusy(true);
+    setError('');
+    try {
+      const url = new URL('/api/drive/search', window.location.origin);
+      url.searchParams.set('q', q);
+      const res = await fetch(url);
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(body.error || 'Search failed.'); setFiles(null); }
+      else setFiles(body.files || []);
+    } catch (err) {
+      setError(err?.message || 'Could not reach Drive.');
+    } finally {
+      setBusy(false);
     }
-
-    for (const [matterId, matter] of Object.entries(matters)) {
-      // Checklist documents
-      for (const key of DOC_FIELDS) {
-        const item = matter.values?.[key];
-        if (item?.docUrl) {
-          out.push({
-            id: `${matterId}:${key}`,
-            title: LABEL_BY_KEY[key] || key,
-            url: item.docUrl,
-            date: item.date || '',
-            matterId,
-            folder: 'Litigation',
-            source: 'link',
-          });
-        }
-      }
-      // Generic section rows carrying a docUrl
-      const forMatter = sections?.[matterId] || {};
-      for (const [sectionKey, state] of Object.entries(forMatter)) {
-        for (const row of state.rows || []) {
-          if (row.docUrl) {
-            out.push({
-              id: `${matterId}:${sectionKey}:${row.id}`,
-              title: row.title || row.description || row.provider || row.lienholder || 'Document',
-              url: row.docUrl,
-              date: row.date || '',
-              matterId,
-              folder: SECTION_BY_KEY[sectionKey]?.label || sectionKey,
-              source: 'link',
-            });
-          }
-        }
-      }
-    }
-    return out.sort((a, b) => String(b.date).localeCompare(String(a.date)));
-  }, [matters, sections, documents]);
-
-  const driveCount = docs.filter((d) => d.source === 'drive').length;
-
-  const projects = useMemo(
-    () => Object.entries(matters).map(([id, m]) => ({ id, title: matterTitle(m) })),
-    [matters]
-  );
-
-  const filtered = docs
-    .filter((d) => (title.trim() ? d.title.toLowerCase().includes(title.trim().toLowerCase()) : true))
-    .filter((d) => (project ? d.matterId === project : true))
-    .filter((d) => (source ? d.source === source : true));
+  }
 
   const rail = (
-    <div className="px-5 space-y-5">
+    <div className="px-5 space-y-4">
       <Link
         href="/documents/drive"
         className="flex items-center gap-2 text-sm font-semibold text-teal-700 hover:underline"
       >
         <FolderSync size={15} /> Google Drive sync
       </Link>
-      <Facet label="Title Contains">
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Find in document title" className="input" />
-      </Facet>
-      <Facet label="Doc Contains">
-        <input disabled placeholder="Full-text search — not built yet" className="input opacity-50 cursor-not-allowed" />
-      </Facet>
-      <Facet label="Source">
-        <select value={source} onChange={(e) => setSource(e.target.value)} className="input">
-          <option value="">Everything</option>
-          <option value="drive">Google Drive ({driveCount})</option>
-          <option value="link">Pasted links ({docs.length - driveCount})</option>
-        </select>
-      </Facet>
-      <Facet label="Projects">
-        <select value={project} onChange={(e) => setProject(e.target.value)} className="input">
-          <option value="">All projects</option>
-          {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
-        </select>
-      </Facet>
-      {title || project || source ? (
-        <button onClick={() => { setTitle(''); setProject(''); setSource(''); }} className="text-sm text-teal-700 font-semibold hover:underline">
-          Clear filters
-        </button>
-      ) : null}
-
-      {/*
-        Said plainly rather than left to be inferred from an empty list. A
-        Documents page showing nothing looks identical whether Drive is not
-        connected or the firm genuinely has no documents.
-      */}
-      {driveCount === 0 ? (
-        <p className="pt-4 mt-4 border-t border-slate-200 text-xs text-slate-500 leading-snug">
-          {backend === 'supabase'
-            ? 'No Drive files indexed yet. Connect Google Drive and run a sync — see docs/GOOGLE_DRIVE_SETUP.md.'
-            : 'Drive indexing needs a server. Running on local storage, so only pasted links appear.'}
+      <p className="text-xs text-slate-500 leading-snug">
+        Searches Drive directly — including the text inside PDFs and Google Docs, not only
+        filenames.
+      </p>
+      {backend !== 'supabase' ? (
+        <p className="text-xs text-amber-700 leading-snug">
+          Running on local storage, so there is no Drive to search.
         </p>
       ) : null}
     </div>
   );
 
   return (
-    <RailLayout title="Documents" count={filtered.length} rail={rail} wide>
-      {!loaded ? (
-        <p className="text-sm text-slate-500">Loading…</p>
-      ) : filtered.length === 0 ? (
-        <div className="py-12 text-center">
-          <p className="text-sm text-slate-400">
-            {docs.length === 0
-              ? 'No documents yet. Connect Google Drive, or paste a link on a checklist item or section row.'
-              : 'No documents match these filters.'}
-          </p>
+    <RailLayout title="Documents" count={files?.length} rail={rail} wide>
+      <form onSubmit={search} className="flex items-center gap-2 mb-5">
+        <div className="flex items-center gap-2 flex-1 bg-white border border-slate-300 rounded-lg px-3 py-2">
+          <Search size={16} className="text-slate-400 shrink-0" />
+          <input
+            autoFocus
+            className="flex-1 outline-none text-sm"
+            placeholder="Search every case — filenames and document contents"
+            value={term}
+            onChange={(e) => setTerm(e.target.value)}
+          />
         </div>
-      ) : (
+        <button
+          type="submit"
+          disabled={busy || term.trim().length < 2}
+          className="px-5 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold disabled:opacity-40 hover:bg-slate-800"
+        >
+          {busy ? <Loader2 size={15} className="animate-spin" /> : 'Search'}
+        </button>
+      </form>
+
+      {error ? (
+        <p className="flex items-start gap-1.5 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <AlertCircle size={15} className="mt-0.5 shrink-0" /> {error}
+        </p>
+      ) : null}
+
+      {/*
+        Three distinct states. "Nothing searched yet" and "searched, no hits"
+        look identical if you only check for an empty array, and telling a
+        paralegal there are no matching documents when they have not searched
+        is worse than saying nothing.
+      */}
+      {files === null && !error ? (
+        <p className="py-16 text-center text-sm text-slate-400">
+          Type at least two characters and press Search.
+        </p>
+      ) : null}
+
+      {files !== null && files.length === 0 ? (
+        <p className="py-16 text-center text-sm text-slate-400">
+          Nothing in Drive matches “{term.trim()}”.
+        </p>
+      ) : null}
+
+      {files?.length ? (
         <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
-                {['Title', 'Date', 'Project', ''].map((h) => (
+                {['Name', 'Case', 'Modified', ''].map((h) => (
                   <th key={h} className="text-left px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                     {h}
                   </th>
@@ -171,53 +126,52 @@ export default function DocumentsPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((d) => (
-                <tr key={d.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+              {files.map((f) => (
+                <tr key={f.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                   <td className="px-4 py-2.5">
-                    <div className="flex items-center gap-2">
-                      <FileText size={16} className="text-red-500 shrink-0" />
-                      <span className="font-medium text-slate-900">{d.title}</span>
-                      {d.source === 'drive' ? (
-                        <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 text-[10px] uppercase tracking-wide">
-                          Drive
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FileText size={15} className="text-slate-400 shrink-0" />
+                      <span className="font-medium text-slate-900 truncate">{f.name}</span>
+                      {f.sizeBytes ? (
+                        <span className="text-xs text-slate-400 shrink-0">
+                          {Math.max(1, Math.round(f.sizeBytes / 1024))} KB
                         </span>
                       ) : null}
                     </div>
-                    <p className="text-xs text-slate-500 mt-0.5 ml-6">
-                      Higdon Lawyers / {matterTitle(matters[d.matterId])} / {d.folder}
-                      {/* Google Docs carry no byte size at all, so absent and
-                          zero must not render the same way. */}
-                      {d.sizeBytes ? ` · ${Math.max(1, Math.round(d.sizeBytes / 1024))} KB` : ''}
-                    </p>
-                  </td>
-                  <td className="px-4 py-2.5 text-slate-600 whitespace-nowrap">{fmt(d.date)}</td>
-                  <td className="px-4 py-2.5">
-                    <Link href={`/matters/${d.matterId}`} className="text-teal-700 hover:underline">
-                      {matterTitle(matters[d.matterId])}
-                    </Link>
                   </td>
                   <td className="px-4 py-2.5">
-                    <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-teal-700 hover:text-teal-900" title="Open in Google Drive">
-                      <ExternalLink size={16} />
-                    </a>
+                    {f.matterId ? (
+                      <Link href={`/matters/${f.matterId}/docs`} className="text-teal-700 hover:underline">
+                        {f.matterLabel}
+                      </Link>
+                    ) : (
+                      <span className="text-slate-400" title="Not inside any linked case folder">
+                        Unfiled
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5 text-slate-500 whitespace-nowrap">
+                    {f.modifiedTime ? f.modifiedTime.slice(0, 10) : '—'}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    {f.webViewLink ? (
+                      <a
+                        href={f.webViewLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-teal-700 hover:text-teal-900"
+                        title="Open in Google Drive"
+                      >
+                        <ExternalLink size={16} />
+                      </a>
+                    ) : null}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      )}
+      ) : null}
     </RailLayout>
-  );
-}
-
-function Facet({ label, children }) {
-  return (
-    <div>
-      <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1.5">
-        {label}
-      </label>
-      {children}
-    </div>
   );
 }

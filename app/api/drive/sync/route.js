@@ -26,10 +26,9 @@ import {
   getSupabaseServerClient, getCurrentUser, isServerSupabaseConfigured,
 } from '@/lib/supabase/server';
 import {
-  isDriveConfigured, driveConfig, listChildFolders, listFilesRecursive, diagnoseDrive,
+  isDriveConfigured, driveConfig, listChildFolders, diagnoseDrive,
 } from '@/lib/google/drive';
 import { planSync } from '@/lib/domain/drive-match';
-import { indexOneMatter } from '../index-matter/route';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -123,11 +122,12 @@ export async function POST(request) {
   const g = await guard();
   if (!g.ok) return g.res;
 
-  const { step = 'link', batchSize = 20 } = await request.json().catch(() => ({}));
+  const { step = 'link' } = await request.json().catch(() => ({}));
   const db = await getSupabaseServerClient();
 
   if (step === 'link') return linkFolders(db, g.user);
-  if (step === 'files') return indexFiles(db, Math.min(Math.max(1, batchSize), 50));
+  // `step: 'files'` is gone. Documents are read live from Drive when someone
+  // opens them, so there is nothing to index and nothing to go stale.
   return NextResponse.json({ error: `Unknown step "${step}".` }, { status: 400 });
 }
 
@@ -187,49 +187,4 @@ async function linkFolders(db, user) {
   });
 }
 
-async function indexFiles(db, batchSize) {
-  // ORDER BY drive_indexed_at, NOT drive_linked_at.
-  //
-  // This used to order by drive_linked_at with a comment claiming it swept
-  // everything. It did not: drive_linked_at is set once and never changes, so
-  // pressing "Index files" re-indexed the same twenty matters forever and the
-  // twenty-first was never reached. `nullsFirst` puts never-indexed matters at
-  // the front, which is exactly the order that starves nothing.
-  const { data: matters, error } = await db
-    .from('matter')
-    .select('id, drive_folder_id, drive_folder_name, drive_indexed_at')
-    .not('drive_folder_id', 'is', null)
-    .is('deleted_at', null)
-    .order('drive_indexed_at', { ascending: true, nullsFirst: true })
-    .limit(batchSize);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  const results = [];
-  let indexed = 0;
-
-  for (const m of matters || []) {
-    // Same function the Docs tab calls. Two implementations of "index a
-    // matter" is two places to get the trashed-file reconciliation wrong.
-    const r = await indexOneMatter(db, m);
-    results.push(r);
-    if (r.ok) indexed += r.files;
-  }
-
-  // How many linked matters are still stale, so the UI can say "N to go"
-  // rather than leaving someone to guess whether pressing again does anything.
-  const { count: remaining } = await db
-    .from('matter')
-    .select('id', { count: 'exact', head: true })
-    .not('drive_folder_id', 'is', null)
-    .is('deleted_at', null)
-    .is('drive_indexed_at', null);
-
-  return NextResponse.json({
-    ok: results.every((r) => r.ok),
-    matters: results.length,
-    indexed,
-    neverIndexed: remaining ?? null,
-    results,
-  });
-}

@@ -1009,3 +1009,58 @@ Moving the rule into `@layer components` fixed all thirteen at once.
 **The general rule for this codebase:** a hand-written class that utilities are
 expected to override belongs in `@layer components`. An unlayered rule is an
 override nobody can beat.
+
+---
+
+## Documents are browsed live; the file index is retired
+
+**Date:** 2026-08-28
+
+**Reversing a decision from two sessions ago, and the reversal is the right
+call.** The Docs tab walked a case folder recursively — up to 5,000 files, eight
+levels — flattened it into a `document` table and rendered one list with the
+folder path demoted to a text column.
+
+That threw away the only organisation the files had. A firm filing under
+*Medical Records*, *Pleadings* and *Correspondence* got back an undifferentiated
+pile. It also imported a sync problem that need not exist: staleness,
+`drive_indexed_at`, a batch sweep, auto-index-on-open.
+
+Now one folder is read at a time, straight from Drive. The structure staff
+already built is the navigation, nothing is copied, and so nothing can be stale.
+
+**Dropping the index made search better, not worse.** Drive's `fullText` matches
+text *inside* PDFs and Docs — a word on page four of a scanned record is
+findable. A table of filenames could never do that, and keeping the table was
+what blocked it.
+
+What this should have been: asking what the Docs tab was *for* before deciding
+how to populate it. The index answered "how do we search filenames fast", which
+was never the question.
+
+**Nothing was dropped from the database.** `document`, `drive_indexed_at` and
+their indexes remain, unused. `check-db.mjs` reports them as retired rather than
+failing on them. Deleting tables is destructive and buys nothing.
+
+## The browse endpoint validates ancestry, and must keep doing so
+
+**Date:** 2026-08-28
+
+`/api/drive/browse` takes a folder id. Without a check, any signed-in user could
+list any folder the service account can see by passing its id — and the service
+account can see the parent that holds **every case in the firm**.
+
+Every request walks the requested folder's parents up to the matter's own root
+and refuses anything outside it. `/api/drive/folder` does the same before
+creating.
+
+Today the blast radius is genuinely small: everyone here sees every matter,
+which is why RLS is a blanket policy. **That is not the reason the check exists.**
+An endpoint whose safety depends on a policy staying permissive is a trap for
+whoever tightens it later, and they will not think to look here.
+
+Refused with **403, not 404** — the caller asked for something real and was
+denied. "Not found" invites retrying with other ids.
+
+`isWithinTree` caps its walk at 20 hops. Drive should not produce a cycle;
+"should not" is not a termination condition.

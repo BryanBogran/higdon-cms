@@ -102,22 +102,27 @@ if (!emailCols || !intake) {
   warn('003_email.sql has not been run — email filing will fail until it is');
 }
 
-console.log('\nDocuments + Related Cases (004, 005)');
-const DOCS_SQL = 'supabase/004_documents.sql';
-// Probed by name because it is the one people hit first: the Drive sync reads
-// matter.drive_folder_id, and a missing column there reports as a bare
-// "column matter.drive_folder_id does not exist" with no hint which file
-// creates it.
-await probe('matter', ['id', 'drive_folder_id', 'drive_folder_name'], DOCS_SQL);
-const docTable = await probe('document', ['id', 'matter_id', 'provider', 'external_id', 'name', 'trashed'], DOCS_SQL);
-const reviewTable = await probe('drive_folder_review', ['folder_id', 'folder_name', 'candidates'], DOCS_SQL);
-if (!docTable || !reviewTable) warn('004_documents.sql has not been run — the Docs tab will be empty');
-const relTable = await probe('matter_relation', ['id', 'from_id', 'to_id', 'kind'], 'supabase/005_sections.sql');
-// 006 is what makes the batch sweep reach past the first twenty matters, and
-// what lets the Docs tab decide whether a refresh is even needed.
-const indexedAt = await probe('matter', ['id', 'drive_indexed_at'], 'supabase/006_drive_index.sql');
-if (!indexedAt) warn('006 has not been run — indexing will re-do the same matters and never auto-refresh');
-if (!relTable) warn('005_sections.sql has not been run — Related Cases cannot save');
+console.log('\nRelated Cases (005)');
+await probe('matter_relation', ['id', 'from_id', 'to_id', 'kind'], 'supabase/005_sections.sql');
+
+console.log('\nDrive folder linking (004)');
+// The folder link itself is still live -- it is how a case finds its Drive
+// folder. Only the FILE index below it was retired.
+await probe('matter', ['id', 'drive_folder_id', 'drive_folder_name'], 'supabase/004_documents.sql');
+await probe('drive_folder_review', ['folder_id', 'folder_name', 'candidates'], 'supabase/004_documents.sql');
+
+console.log('\nRetired (present, unused — safe to leave)');
+{
+  // `document` and `drive_indexed_at` belonged to the file index, which was
+  // replaced by browsing Drive live. Reported rather than checked: their
+  // absence is no longer a fault, and their presence is not a problem.
+  const doc = await get('document?select=id&limit=1');
+  const gone = doc.status === 404 || doc.body?.code === 'PGRST205';
+  console.log(`  ${gone ? 'gone' : 'kept'}  document table — the retired file index`);
+  const col = await get('matter?select=drive_indexed_at&limit=1');
+  const colGone = col.body?.code === '42703';
+  console.log(`  ${colGone ? 'gone' : 'kept'}  matter.drive_indexed_at — retired with it`);
+}
 
 console.log('\nWrite protection');
 {
