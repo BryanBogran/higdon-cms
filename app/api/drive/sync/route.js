@@ -29,6 +29,7 @@ import {
   isDriveConfigured, driveConfig, listChildFolders, listFilesRecursive, diagnoseDrive,
 } from '@/lib/google/drive';
 import { planSync } from '@/lib/domain/drive-match';
+import { indexOneMatter } from '../index-matter/route';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -187,14 +188,19 @@ async function linkFolders(db, user) {
 }
 
 async function indexFiles(db, batchSize) {
-  // Oldest-indexed first, so repeated calls sweep everything rather than
-  // re-doing the same matters.
+  // ORDER BY drive_indexed_at, NOT drive_linked_at.
+  //
+  // This used to order by drive_linked_at with a comment claiming it swept
+  // everything. It did not: drive_linked_at is set once and never changes, so
+  // pressing "Index files" re-indexed the same twenty matters forever and the
+  // twenty-first was never reached. `nullsFirst` puts never-indexed matters at
+  // the front, which is exactly the order that starves nothing.
   const { data: matters, error } = await db
     .from('matter')
-    .select('id, drive_folder_id, drive_folder_name')
+    .select('id, drive_folder_id, drive_folder_name, drive_indexed_at')
     .not('drive_folder_id', 'is', null)
     .is('deleted_at', null)
-    .order('drive_linked_at', { ascending: true, nullsFirst: true })
+    .order('drive_indexed_at', { ascending: true, nullsFirst: true })
     .limit(batchSize);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -203,62 +209,27 @@ async function indexFiles(db, batchSize) {
   let indexed = 0;
 
   for (const m of matters || []) {
-    const listed = await listFilesRecursive(m.drive_folder_id);
-    if (!listed.ok) {
-      results.push({ matterId: m.id, error: listed.error });
-      continue;
-    }
-
-    const rows = listed.files.map((f) => ({
-      matter_id: m.id,
-      provider: 'drive',
-      external_id: f.id,
-      name: f.name,
-      mime_type: f.mimeType || null,
-      // Drive returns size as a STRING, and only for binary files -- a Google
-      // Doc has no byte size at all. Number('') is 0, which would report every
-      // Doc as an empty file, so the absent case stays null.
-      size_bytes: f.size != null ? Number(f.size) : null,
-      folder_path: f.folderPath || '',
-      web_view_link: f.webViewLink || null,
-      created_time: f.createdTime || null,
-      modified_time: f.modifiedTime || null,
-      trashed: false,
-      indexed_at: new Date().toISOString(),
-    }));
-
-    if (rows.length) {
-      const { error: upsertError } = await db
-        .from('document')
-        .upsert(rows, { onConflict: 'provider,external_id' });
-      if (upsertError) {
-        results.push({ matterId: m.id, error: upsertError.message });
-        continue;
-      }
-    }
-
-    // A file deleted in Drive must stop appearing here. Marked trashed rather
-    // than deleted, so the row survives as evidence that it once existed --
-    // "this document used to be on the file" is a question that gets asked.
-    const seen = rows.map((r) => r.external_id);
-    const stale = db.from('document').update({ trashed: true }).eq('matter_id', m.id).eq('provider', 'drive');
-    await (seen.length ? stale.not('external_id', 'in', `(${seen.map((s) => `"${s}"`).join(',')})`) : stale);
-
-    indexed += rows.length;
-    results.push({ matterId: m.id, folder: m.drive_folder_name, files: rows.length, truncated: listed.truncated });
+    // Same function the Docs tab calls. Two implementations of "index a
+    // matter" is two places to get the trashed-file reconciliation wrong.
+    const r = await indexOneMatter(db, m);
+    results.push(r);
+    if (r.ok) indexed += r.files;
   }
 
+  // How many linked matters are still stale, so the UI can say "N to go"
+  // rather than leaving someone to guess whether pressing again does anything.
   const { count: remaining } = await db
     .from('matter')
     .select('id', { count: 'exact', head: true })
     .not('drive_folder_id', 'is', null)
-    .is('deleted_at', null);
+    .is('deleted_at', null)
+    .is('drive_indexed_at', null);
 
   return NextResponse.json({
-    ok: true,
+    ok: results.every((r) => r.ok),
     matters: results.length,
     indexed,
-    totalLinkedMatters: remaining ?? null,
+    neverIndexed: remaining ?? null,
     results,
   });
 }

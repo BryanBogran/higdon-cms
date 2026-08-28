@@ -113,6 +113,10 @@ const docTable = await probe('document', ['id', 'matter_id', 'provider', 'extern
 const reviewTable = await probe('drive_folder_review', ['folder_id', 'folder_name', 'candidates'], DOCS_SQL);
 if (!docTable || !reviewTable) warn('004_documents.sql has not been run — the Docs tab will be empty');
 const relTable = await probe('matter_relation', ['id', 'from_id', 'to_id', 'kind'], 'supabase/005_sections.sql');
+// 006 is what makes the batch sweep reach past the first twenty matters, and
+// what lets the Docs tab decide whether a refresh is even needed.
+const indexedAt = await probe('matter', ['id', 'drive_indexed_at'], 'supabase/006_drive_index.sql');
+if (!indexedAt) warn('006 has not been run — indexing will re-do the same matters and never auto-refresh');
 if (!relTable) warn('005_sections.sql has not been run — Related Cases cannot save');
 
 console.log('\nWrite protection');

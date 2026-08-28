@@ -12,14 +12,75 @@
  * See docs/DECISIONS.md.
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ExternalLink, FileText, FolderSync, Search } from 'lucide-react';
+import { ExternalLink, FileText, FolderSync, Search, RefreshCw, Loader2 } from 'lucide-react';
 import { useData } from '@/lib/data/DataProvider';
 
 export default function DocsSection({ matterId, matter }) {
-  const { documents, backend } = useData();
+  const { documents, backend, refreshDocuments } = useData();
   const [q, setQ] = useState('');
+  const [indexing, setIndexing] = useState(false);
+  const [indexError, setIndexError] = useState('');
+  // Once per matter per mount. Without this, every re-render from typing in
+  // the search box would fire another index.
+  const asked = useRef(null);
+
+  /**
+   * Index this matter's folder when the tab opens.
+   *
+   * STALE-WHILE-REVALIDATE. The cached rows are already on screen by the time
+   * this runs; the refresh happens behind them and the list updates if
+   * anything changed. Nobody waits on a Drive round-trip to see documents the
+   * app already knows about.
+   *
+   * The server decides whether the work is actually needed — it skips a matter
+   * indexed within the last ten minutes — so flipping between tabs costs one
+   * cheap request rather than a folder walk each time.
+   */
+  useEffect(() => {
+    if (backend !== 'supabase' || !matterId || asked.current === matterId) return;
+    asked.current = matterId;
+
+    let cancelled = false;
+    (async () => {
+      setIndexError('');
+      setIndexing(true);
+      try {
+        const res = await fetch('/api/drive/index-matter', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ matterId }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        // A folder that fetched fresh files is the only case worth re-reading
+        // the index for. "Fresh" and "not configured" change nothing.
+        if (body.ok && body.files !== undefined) await refreshDocuments();
+        else if (!body.ok && body.error) setIndexError(body.error);
+      } catch (err) {
+        if (!cancelled) setIndexError(err?.message || 'Could not reach Drive.');
+      } finally {
+        if (!cancelled) setIndexing(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [matterId, backend, refreshDocuments]);
+
+  async function reindex() {
+    setIndexing(true);
+    setIndexError('');
+    const res = await fetch('/api/drive/index-matter', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ matterId, force: true }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (body.ok) await refreshDocuments();
+    else setIndexError(body.error || 'Could not refresh from Drive.');
+    setIndexing(false);
+  }
 
   // Kept apart on purpose. "This case has no documents" and "your search
   // matched none of them" are different facts, and collapsing them lets a
@@ -48,6 +109,22 @@ export default function DocsSection({ matterId, matter }) {
           {needle ? `${files.length} of ${allFiles.length}` : `${allFiles.length} file${allFiles.length === 1 ? '' : 's'}`}
         </span>
         <div className="flex-1" />
+        {/*
+          Present but quiet. The tab indexes itself on open, so this is for
+          "I just dropped a file into Drive and want it now" -- not something
+          anyone has to remember to press.
+        */}
+        {backend === 'supabase' && matter?.driveFolderId ? (
+          <button
+            onClick={reindex}
+            disabled={indexing}
+            title="Check Drive for changes now"
+            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 disabled:opacity-50"
+          >
+            {indexing ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+            {indexing ? 'Checking Drive…' : 'Refresh'}
+          </button>
+        ) : null}
         <div className="flex items-center gap-1.5 min-w-[180px]">
           <Search size={14} className="text-slate-400 shrink-0" />
           <input
@@ -72,6 +149,12 @@ export default function DocsSection({ matterId, matter }) {
         Drive is unconnected, this case has no folder, or the folder is
         genuinely empty -- and only the last means "there are no documents".
       */}
+      {indexError ? (
+        <p className="px-5 py-2 text-xs text-amber-700 border-b border-slate-100">
+          Could not refresh from Drive: {indexError}
+        </p>
+      ) : null}
+
       {/* A search that matched nothing answers before any other empty state. */}
       {allFiles.length > 0 && files.length === 0 ? (
         <p className="px-5 py-10 text-center text-sm text-slate-400">

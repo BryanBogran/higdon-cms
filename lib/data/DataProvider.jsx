@@ -508,6 +508,20 @@ export function DataProvider({ children }) {
     [run]
   );
 
+  /**
+   * Reload only the Drive index.
+   *
+   * Deliberately not a full `loadAll`: the Docs tab refreshes itself in the
+   * background, and re-fetching every matter, task and activity row to pick up
+   * a few document rows would make an invisible background action the most
+   * expensive request in the app.
+   */
+  const refreshDocuments = useCallback(async () => {
+    const result = await storeRef.current.loadDocuments();
+    if (result.ok) setDocuments(result.documents);
+    return result;
+  }, []);
+
   /** Short-lived read URL for a stored attachment. Minted per click. */
   const signFile = useCallback((path) => run((s) => s.signFile(path)), [run]);
 
@@ -551,14 +565,14 @@ export function DataProvider({ children }) {
       createMatter, updateMatterField, setChecklistItem, archiveMatter, unarchiveMatter,
       createTask, updateTask, setTaskComplete, clearTaskOverride, deleteTask, bulkSetComplete,
       sectionState, setSectionField, addSectionRow, updateSectionRow, deleteSectionRow,
-      addActivity, addEmail, signFile, addRelation, removeRelation, updateActivity, deleteActivity, assignActivityAsTask, saveTeam,
+      addActivity, addEmail, signFile, addRelation, removeRelation, refreshDocuments, updateActivity, deleteActivity, assignActivityAsTask, saveTeam,
     }),
     [
       matters, tasks, team, sections, activity, documents, relations, loaded, saveState, backend, currentUser,
       createMatter, updateMatterField, setChecklistItem, archiveMatter, unarchiveMatter,
       createTask, updateTask, setTaskComplete, clearTaskOverride, deleteTask, bulkSetComplete,
       sectionState, setSectionField, addSectionRow, updateSectionRow, deleteSectionRow,
-      addActivity, addEmail, signFile, addRelation, removeRelation, updateActivity, deleteActivity, assignActivityAsTask, saveTeam,
+      addActivity, addEmail, signFile, addRelation, removeRelation, refreshDocuments, updateActivity, deleteActivity, assignActivityAsTask, saveTeam,
     ]
   );
 

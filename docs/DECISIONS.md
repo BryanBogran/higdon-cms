@@ -930,3 +930,47 @@ that each render on both cases.
 
 A table rather than ids in JSONB, for referential integrity: `on delete cascade`
 means deleting a matter cannot leave a link pointing at nothing.
+
+---
+
+## Indexing happens on open, not on a button
+
+**Date:** 2026-08-28
+
+The Docs tab indexes its own matter when it opens. Cached rows render first and
+the refresh happens behind them — stale-while-revalidate — so nobody waits on a
+Drive round-trip to see documents the app already knows about.
+
+Two things keep it from hammering Drive: the server skips any matter indexed in
+the last ten minutes, and it is one matter rather than a sweep, so the cost is
+proportional to what someone is actually looking at.
+
+A manual **Refresh** remains, deliberately quiet. It is for "I just dropped a
+file into Drive and want it now", not something anyone must remember.
+
+**The gap, stated plainly:** a case nobody opens never refreshes, so the
+firm-wide Documents page can lag behind Drive. The right fix is Drive's
+`changes` API — one call returns everything that changed since a token, O(changes)
+rather than O(files), and it catches files added to folders nobody has visited.
+That is the follow-up; on-open indexing is not a substitute for it.
+
+## A comment that asserted a property the code did not have
+
+**Date:** 2026-08-28
+
+The batch indexer ordered by `drive_linked_at` under a comment reading
+*"Oldest-indexed first, so repeated calls sweep everything rather than re-doing
+the same matters."*
+
+It did the opposite. `drive_linked_at` is set once when a folder is linked and
+never changes, so pressing **Index files** re-indexed **the same twenty matters
+forever** and never reached the twenty-first. The user noticed the symptom —
+"it will index 20 random cases" — before I noticed the bug.
+
+Fixed by adding `matter.drive_indexed_at`, written after each index and ordered
+by with `nulls first`, which puts never-indexed matters at the front.
+
+The lesson worth keeping: a comment claiming a property the code does not have
+is worse than no comment, because it stops the next person checking. This one
+survived a review, a browser verification and a commit message that repeated
+the claim.
