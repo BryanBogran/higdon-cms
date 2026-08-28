@@ -11,22 +11,37 @@ includes Shared Drives.
 
 ---
 
-## The one thing that trips everyone up
+## Do the smaller half first
+
+There are two levels, and **you almost certainly only need the first one today.**
+
+| | Level 1 — read | Level 2 — write |
+|---|---|---|
+| What you get | Folders linked, files indexed, the whole Docs tab | Email attachments filing themselves into the case folder |
+| Admin console needed | **No** | Yes — domain-wide delegation |
+| Extra Workspace licence | **No** | Yes, for a `files@` account |
+| Setup | Share a folder with the service account, like sharing with a colleague | Steps 2 and 3 below |
+
+Nothing in the app writes to Drive yet. So **start at level 1**: fewer permissions
+granted, nothing to explain to whoever audits this later, and it delivers what
+the firm actually asked for — index what exists, move nothing.
+
+## The trap at level 2, so it isn't a surprise later
 
 **A service account has zero storage quota.** It can read anything shared with
-it, but a file it would *own* fails to upload with `storageQuotaExceeded` —
-even though its Drive is completely empty. There are exactly two ways round it:
+it, but a file it would *own* fails to upload with `storageQuotaExceeded` — even
+though its Drive is completely empty. Two ways round it: write into a Shared
+Drive, or impersonate a real user.
 
-1. Write into a **Shared Drive**, where the organisation owns the storage.
-2. Use **domain-wide delegation** so the account acts as a real user.
-
-Because the case folders are staying where they are, this setup uses **option
-2**. The app impersonates a real user, and new files land in the existing
-folders, owned by the firm.
+Because the case folders are staying where they are, level 2 uses
+impersonation. `GOOGLE_IMPERSONATE_USER` is which real person the robot acts as,
+and it must be a **durable** account — never an individual's, because everything
+the app creates would be owned by them and offboarding puts the firm's documents
+in the deletion path.
 
 ---
 
-## Setup — about 30 minutes, all of it yours to do
+# Level 1 — indexing, ~15 minutes
 
 ### 1. Create the Google Cloud project and service account
 
@@ -42,31 +57,24 @@ folders, owned by the firm.
 5. On the service account's **Details** tab, copy the **Unique ID** (a long
    number). This is its OAuth client id, needed in step 2.
 
-### 2. Authorise domain-wide delegation
+### 2. Share the case folders with the service account
 
-⚠️ This is the step that grants the app access to Drive as a user. Grant only
-the two scopes below — they are the least privilege that works.
+Open the Drive folder that **contains** the per-case folders → **Share** → paste
+the service account's email (`...@higdon-cms.iam.gserviceaccount.com`) →
+**Viewer** → Send.
 
-1. <https://admin.google.com> → **Security → Access and data control → API
-   controls → Domain-wide delegation** → **Add new**.
-2. **Client ID:** the Unique ID from step 1.5.
-3. **OAuth scopes**, comma-separated, exactly these two:
+That is the whole grant. It works exactly like sharing with a colleague: no
+admin console, no delegation, no licence, and the app can see nothing else in
+anyone's Drive.
 
-```
-https://www.googleapis.com/auth/drive.readonly,https://www.googleapis.com/auth/drive.file
-```
+Then set `GOOGLE_IMPERSONATE_USER=""` — empty. The code omits the impersonation
+claim and authenticates as the service account itself, which is all a read
+needs.
 
-`drive.readonly` lets it index what already exists. `drive.file` lets it create
-files, and can only ever see files **this app created** — it is not a second
-read grant.
+### 3. Find the root folder id
 
-### 3. Pick the user to act as, and the root folder
-
-- **Impersonated user:** whoever owns the case folders today, or a dedicated
-  `files@higdonlawyers.com`. Everything the app creates will be owned by this
-  account, so a departing employee's account is the wrong choice.
-- **Root folder:** open the folder in Drive that *contains* the per-case
-  folders. The id is the last part of the URL:
+Open the folder in Drive that *contains* the per-case folders. The id is the
+last part of the URL:
 
 ```
 https://drive.google.com/drive/folders/1AbCdEfGhIjKlMnOpQrStUvWxYz
@@ -83,8 +91,10 @@ In Netlify → Site settings → Environment variables, and in `.env.local`:
 ```
 GOOGLE_SERVICE_ACCOUNT_EMAIL="higdon-cms-drive@higdon-cms.iam.gserviceaccount.com"
 GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----END PRIVATE KEY-----\n"
-GOOGLE_IMPERSONATE_USER="files@higdonlawyers.com"
 GOOGLE_DRIVE_ROOT_FOLDER_ID="1AbCdEfGhIjKlMnOpQrStUvWxYz"
+
+# Empty at level 1. Only set at level 2, and only to a durable account.
+GOOGLE_IMPERSONATE_USER=""
 ```
 
 Both come out of the JSON key file (`client_email` and `private_key`).
@@ -99,21 +109,56 @@ real line breaks produces a signature error that says nothing about newlines.
 
 ### 5. Run the migration
 
-`supabase/004_documents.sql` in the Supabase SQL editor.
+`supabase/004_documents.sql` in the Supabase SQL editor. Confirm with:
+
+```bash
+node --env-file=.env.local scripts/check-db.mjs
+```
 
 ### 6. Dry run first
 
-```bash
-curl -s https://<your-site>/api/drive/sync --cookie "<your session>" | jq
-```
-
-Or from the app once the Documents page is wired. It reads Drive, matches
-folders to cases, and **writes nothing**. You get four numbers: already linked,
-will link, needs review, unmatched.
+Open **Documents → Google Drive sync** and press **Dry run**. It reads Drive,
+matches folders to cases, and **writes nothing**. You get four numbers: already
+linked, will link, needs review, unmatched.
 
 **Read those numbers before applying.** If "will link" is near zero, the root
 folder id is probably wrong. If "needs review" is most of them, the folder
 names differ from the client names in the app more than expected.
+
+---
+
+---
+
+# Level 2 — uploads, when you need them
+
+Skip this until the app starts writing to Drive.
+
+### L2a. Create a durable account
+
+Admin console → Users → add `files@higdonlawyers.com`. A real Workspace user, so
+it costs a licence. Use it, not a person's account: every document the app
+creates will be owned by it.
+
+Set `GOOGLE_IMPERSONATE_USER=files@higdonlawyers.com` and share the case folders
+with that account as **Editor**.
+
+### L2b. Authorise domain-wide delegation
+
+⚠️ This is the step that grants the app access to Drive as a user. Grant only
+the two scopes below — they are the least privilege that works.
+
+1. <https://admin.google.com> → **Security → Access and data control → API
+   controls → Domain-wide delegation** → **Add new**.
+2. **Client ID:** the Unique ID from step 1.5.
+3. **OAuth scopes**, comma-separated, exactly these two:
+
+```
+https://www.googleapis.com/auth/drive.readonly,https://www.googleapis.com/auth/drive.file
+```
+
+`drive.readonly` lets it index what already exists. `drive.file` lets it create
+files, and can only ever see files **this app created** — it is not a second
+read grant.
 
 ---
 
@@ -175,7 +220,8 @@ That is a judgement call and worth disagreeing with.
 |---|---|
 | `unauthorized_client` | Delegation not authorised for this client id, or a scope typo. Re-check step 2 — the scope string must match exactly. |
 | `invalid_grant` | The impersonated user does not exist, or the server clock is skewed. |
-| `storageQuotaExceeded` | `GOOGLE_IMPERSONATE_USER` is unset, so the service account is trying to own the file. |
+| `storageQuotaExceeded` | An upload at level 1. Expected — reads work, writes need level 2. |
+| Dry run finds 0 folders, and you are at level 1 | The parent folder is not shared with the service account's email. That is the level-1 grant. |
 | Dry run finds 0 folders | Wrong root folder id, or the impersonated user cannot see it. |
 | A Shared Drive folder returns nothing | Every call already sends `supportsAllDrives`; check the impersonated user is a member of that Shared Drive. |
 | `Could not sign the token` | `GOOGLE_PRIVATE_KEY` newlines. See step 4. |
