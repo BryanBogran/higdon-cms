@@ -84,11 +84,18 @@ export default function UserMenu() {
             ) : null}
           </div>
 
-          {backend !== 'supabase' ? (
-            <p className="px-4 py-2 text-xs text-amber-700 bg-amber-50 border-b border-amber-100">
-              Running on browser storage — this data is on this device only.
+          {/* State the connection positively as well as negatively -- an absent
+              warning is not the same as a visible confirmation. */}
+          {backend === 'supabase' ? (
+            <p className="px-4 py-2 text-xs text-teal-800 bg-teal-50 border-b border-teal-100">
+              Connected to the shared database.
             </p>
-          ) : null}
+          ) : (
+            <p className="px-4 py-2 text-xs text-amber-800 bg-amber-50 border-b border-amber-100">
+              Running on browser storage — this data is on this device only, and
+              is not saved to the database.
+            </p>
+          )}
 
           <button
             onClick={signOut}

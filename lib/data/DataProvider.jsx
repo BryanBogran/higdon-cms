@@ -46,7 +46,13 @@ export function DataProvider({ children }) {
   const [sections, setSections] = useState({});
   const [activity, setActivity] = useState({});
   const [loaded, setLoaded] = useState(false);
-  const [backend, setBackend] = useState('local');
+  // Derived from the env on the first render, not after the load effect. It
+  // used to start as 'local', so the user menu's first paint claimed "running
+  // on browser storage" even when Supabase was configured -- which reads as
+  // "the database isn't linked".
+  const [backend, setBackend] = useState(() =>
+    typeof window !== 'undefined' && isSupabaseConfigured() ? 'supabase' : 'local'
+  );
   const [currentUser, setCurrentUser] = useState(null);
   const [saveState, setSaveState] = useState({ status: 'idle', error: null });
 

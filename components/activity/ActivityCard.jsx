@@ -159,6 +159,9 @@ export default function ActivityCard({ entry, showMatter = true }) {
                 ))}
               </span>
             ) : null}
+            {entry.title && !editing ? (
+              <span className="block text-sm font-semibold text-slate-900">{entry.title}</span>
+            ) : null}
             {editing ? (
               <div>
                 <textarea
