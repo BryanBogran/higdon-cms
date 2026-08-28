@@ -23,6 +23,7 @@ Wait for provisioning (~2 min).
 1. In the Supabase dashboard: **SQL Editor** → New query.
 2. Paste the entire contents of [`supabase/schema.sql`](../supabase/schema.sql) and **Run**.
 3. Expect `Success. No rows returned.`
+4. New query → paste [`supabase/002_date_guard.sql`](../supabase/002_date_guard.sql) → **Run**.
 
 If it errors, copy the message to me — the file is idempotent, so re-running after a fix is
 safe.
@@ -30,22 +31,32 @@ safe.
 ### Then prove it works · 2 min
 
 New query, paste [`supabase/verify.sql`](../supabase/verify.sql), Run, and read the
-**Messages** tab. You want six `PASS` notices:
+**Messages** tab:
 
 ```
-PASS 1: bad date rejected          ← the important one
-PASS 2: sol_after_doa enforced
-PASS 3: case_number_format enforced
-PASS 4: case number uniqueness enforced
-PASS 5: activity_auto_rule_uq enforced
-PASS 6: audit_event is append-only
+PASS 1a: non-date text rejected
+PASS 1b: impossible calendar date rejected
+NOTE:    Postgres read '3/1/24' as 2024-03-01 (DateStyle=ISO, MDY)
+PASS 1d: parse_iso_date refuses ambiguous input
+PASS 1e: parse_iso_date accepts real ISO dates
+PASS 2:  sol_after_doa enforced
+PASS 3:  case_number_format enforced
+PASS 4:  case number uniqueness enforced
+PASS 5:  activity_auto_rule_uq enforced
+PASS 6:  audit_event is append-only
 ```
 
-**PASS 1 is the one that matters.** It proves the database rejects `'3/1/24'` in an SOL field
-rather than storing something wrong. That single behaviour is why this is Postgres and not
-Firestore, and it's the thing your old spreadsheet import could never do.
+**Read the NOTE line — it is the important one, and it corrects something I got wrong
+earlier.** A `date` column does *not* reject `'3/1/24'`. Postgres's default DateStyle is
+`ISO, MDY`, so it accepts that string and decides it means March 1st. Given `'13/1/24'` it
+silently switches to day-first instead.
 
-The last query should return **zero rows** — that's every table confirming RLS is on.
+So the database's real protection is: it rejects `TBD`, `n/a`, blanks, and impossible dates
+like Feb 30, and it enforces the range and `sol_after_doa` checks. It cannot disambiguate
+`3/1/24`, and no database can — only a human knows which the firm meant. **That is why
+`parse_iso_date()` exists and why the importer must never cast raw spreadsheet cells.**
+
+The last query should return **zero rows** — every table confirming RLS is on.
 
 ---
 

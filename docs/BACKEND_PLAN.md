@@ -52,11 +52,13 @@ part-time maintainer who needs the ecosystem to still exist in three years.
 
 ## Step 1 — Local Postgres, Drizzle, the whole schema in one migration · 5–7 evenings
 
-**Done when** `drizzle-kit migrate` runs clean locally, the seed loads ~250 synthetic matters,
-and `INSERT INTO matter (sol) VALUES ('3/1/24')` **fails**.
+**Done when** migrations run clean, the seed loads ~250 synthetic matters, and
+`INSERT INTO matter (sol) VALUES ('TBD')` **fails**.
 
-That last check is the entire schema strategy in one line: the database refusing bad data is
-what the prototype could never do.
+Note the corrected example. `'3/1/24'` does *not* fail — Postgres's default DateStyle is
+`ISO, MDY`, so it accepts that and reads March 1st. The database rejects unparseable text and
+impossible calendar dates, and enforces the range and ordering checks; disambiguating an
+`M/D` vs `D/M` string is the importer's job, via `parse_iso_date()`.
 
 **Files:** `docker-compose.yml` · `drizzle.config.ts` · `lib/db/schema.ts` · `lib/db/index.ts`
 · `drizzle/0000_init.sql` (generated) · `drizzle/0001_constraints.sql` (**hand-written**) ·

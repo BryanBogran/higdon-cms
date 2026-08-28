@@ -1,18 +1,56 @@
 -- =====================================================================
--- Run this AFTER schema.sql. Every block should behave as its comment says.
--- Takes under a minute and proves the database is doing its job.
+-- Run AFTER schema.sql and 002_date_guard.sql.
+-- Read the MESSAGES tab. Takes under a minute.
+--
+-- Corrected 2026-08-27: an earlier version of test 1 asserted that a
+-- `date` column rejects '3/1/24'. It does not -- Postgres's default
+-- DateStyle is 'ISO, MDY', so that string is a valid literal meaning
+-- 2024-03-01. The test now checks what is actually true, and test 1b
+-- demonstrates the accept-and-guess behaviour explicitly, because a
+-- surprise you can see is worth more than a claim that isn't so.
 -- =====================================================================
 
--- 1. THE HEADLINE CHECK. A messy spreadsheet date must be REJECTED, not
---    silently coerced or stored. This is the whole reason for Postgres.
---    Expect: ERROR  invalid input syntax for type date: "3/1/24"
+-- 1. Genuinely unparseable values are rejected.
 do $$ begin
   begin
-    insert into matter (client_name, sol) values ('CONSTRAINT TEST', '3/1/24');
-    raise exception 'FAIL: a bad date was accepted';
+    insert into matter (client_name, sol) values ('CONSTRAINT TEST', 'TBD');
+    raise exception 'FAIL: TBD was accepted as a date';
   exception when invalid_datetime_format then
-    raise notice 'PASS 1: bad date rejected';
+    raise notice 'PASS 1a: non-date text rejected';
   end;
+
+  begin
+    insert into matter (client_name, sol) values ('CONSTRAINT TEST', '2024-02-30');
+    raise exception 'FAIL: Feb 30 was accepted';
+  exception when datetime_field_overflow or invalid_datetime_format then
+    raise notice 'PASS 1b: impossible calendar date rejected';
+  end;
+end $$;
+
+-- 1c. THE IMPORTANT CAVEAT, demonstrated rather than asserted.
+--     Postgres accepts '3/1/24' and picks March 1. This is why the
+--     importer must call parse_iso_date() instead of casting raw cells.
+do $$
+declare v date; begin
+  insert into matter (client_name, sol) values ('DATESTYLE DEMO', '3/1/24')
+    returning sol into v;
+  raise notice 'NOTE: Postgres read ''3/1/24'' as % (DateStyle=%). A date column does NOT disambiguate -- parse_iso_date() is the guard.',
+    v, current_setting('DateStyle');
+  delete from matter where client_name = 'DATESTYLE DEMO';
+end $$;
+
+-- 1d. parse_iso_date() is the guard that actually refuses.
+do $$ begin
+  begin
+    perform parse_iso_date('3/1/24');
+    raise exception 'FAIL: parse_iso_date accepted an ambiguous date';
+  exception when invalid_datetime_format then
+    raise notice 'PASS 1d: parse_iso_date refuses ambiguous input';
+  end;
+  if parse_iso_date('2026-03-01') <> date '2026-03-01' then
+    raise exception 'FAIL: parse_iso_date mangled a valid ISO date';
+  end if;
+  raise notice 'PASS 1e: parse_iso_date accepts real ISO dates';
 end $$;
 
 -- 2. SOL cannot precede the date of accident.
@@ -26,7 +64,7 @@ do $$ begin
   end;
 end $$;
 
--- 3. Case-number format is enforced.
+-- 3. Case-number format.
 do $$ begin
   begin
     insert into matter (client_name, case_number) values ('CONSTRAINT TEST', '26-42');
@@ -36,10 +74,9 @@ do $$ begin
   end;
 end $$;
 
--- 4. Case numbers are unique among live matters.
-do $$
-declare v1 uuid; begin
-  insert into matter (client_name, case_number) values ('DUP A', '99-001') returning id into v1;
+-- 4. Case numbers unique among live matters.
+do $$ begin
+  insert into matter (client_name, case_number) values ('DUP A', '99-001');
   begin
     insert into matter (client_name, case_number) values ('DUP B', '99-001');
     raise exception 'FAIL: duplicate case number accepted';
@@ -65,23 +102,23 @@ declare m uuid; begin
   delete from matter where id = m;
 end $$;
 
--- 6. The audit table is append-only, even for the owner.
+-- 6. Audit table is append-only.
 do $$ begin
   begin
     update audit_event set actor_id = null where id = (select min(id) from audit_event);
-    raise exception 'FAIL: audit_event was mutable';
-  exception when raise_exception then
+    raise notice 'FAIL: audit_event was mutable';
+  exception when others then
     raise notice 'PASS 6: audit_event is append-only';
   end;
 end $$;
 
 -- 7. Case numbers allocate sequentially and reset per year.
-select allocate_case_number('99') as first,   -- expect 99-001
-       allocate_case_number('99') as second,  -- expect 99-002
-       allocate_case_number('98') as other_year;  -- expect 98-001
+select allocate_case_number('99') as first,
+       allocate_case_number('99') as second,
+       allocate_case_number('98') as other_year;
 
--- 8. Every table has RLS on. Expect zero rows.
-select tablename
+-- 8. Every table has RLS on. MUST return zero rows.
+select tablename as "TABLES MISSING RLS"
   from pg_tables
  where schemaname = 'public'
    and tablename in ('matter','matter_checklist_item','activity',
@@ -89,6 +126,7 @@ select tablename
                      'profile','audit_event','case_number_counter')
    and not rowsecurity;
 
--- Clean up test rows and counters.
-delete from matter where client_name in ('CONSTRAINT TEST','DUP A','DUP B','CHAIN TEST');
+-- Cleanup.
+delete from matter where client_name in
+  ('CONSTRAINT TEST','DUP A','DUP B','CHAIN TEST','DATESTYLE DEMO');
 delete from case_number_counter where year_yy in ('98','99');

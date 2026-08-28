@@ -479,3 +479,33 @@ Also from the hub, cheap and worth having:
 - **Matters can be pinned** ("Pinned only" toggle) and **archived** ("Show archived"),
   confirming the soft-delete decision.
 - **253 projects**, paginated 100 at a time. Consistent with the earlier estimate.
+
+
+---
+
+## 2026-08-27 · CORRECTION: a `date` column does not reject `'3/1/24'`
+
+Several entries above claim that a typed `date` column "physically cannot accept `'3/1/24'`",
+and that this is the decisive argument for Postgres over Firestore. **The claim is wrong**, and
+running `verify.sql` against the real database proved it: the insert succeeded.
+
+Postgres's default `DateStyle` is `ISO, MDY`, so `'3/1/24'` is a valid literal meaning
+2024-03-01. It is also heuristic — given `'13/1/24'` it notices 13 cannot be a month and
+silently switches to day-first. So the column accepts ambiguous input and *picks an
+interpretation without telling anyone*, which is worse than rejecting.
+
+**What survives of the argument**, and it is still substantial:
+
+- The column rejects `TBD`, `n/a`, `see file`, blanks, and impossible dates like `2024-02-30`.
+  Firestore would store every one of those as a string.
+- The range CHECKs and `sol_after_doa` catch a whole class of wrong-but-parseable dates.
+- Money is `numeric`, enums are enums, and the relational constraints hold.
+
+**What has to move to the input boundary:** disambiguation. `parse_iso_date()` in
+`002_date_guard.sql` accepts `^\d{4}-\d{2}-\d{2}$` and raises on anything else. The UI is
+already safe — an `<input type="date">` cannot emit anything but ISO — so this exists for the
+importer, which must call it instead of casting raw cells.
+
+**The wider lesson, worth keeping:** the verification step was worth more than the design it
+was checking. A claim this load-bearing should have been tested against a real database before
+being written into four documents as settled fact.

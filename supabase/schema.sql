@@ -4,11 +4,21 @@
 -- Run once, whole file, in the Supabase SQL editor.
 -- Safe to re-run: every statement is idempotent.
 --
--- The governing idea: THE DATABASE REFUSES BAD DATA. That is the one
--- property the prototype could never have, and the reason this is
--- Postgres rather than Firestore. A `date` column physically cannot
--- store '3/1/24', so a bad import throws at the boundary instead of
--- silently vanishing from a dashboard three months later.
+-- The governing idea: THE DATABASE REFUSES BAD DATA -- with one
+-- important limit, stated up front because an earlier version of this
+-- comment got it wrong.
+--
+-- A `date` column rejects 'TBD', 'n/a', '', and impossible calendar
+-- dates like 2024-02-30, and the CHECKs below reject out-of-range years
+-- and an SOL before the DOA. All of that is real protection the
+-- prototype never had.
+--
+-- What it does NOT do is disambiguate. Postgres's default DateStyle is
+-- 'ISO, MDY', so '3/1/24' is a valid literal meaning 2024-03-01, and
+-- given '13/1/24' it silently switches to DMY. No database can solve
+-- that -- only a human knows which the firm meant. So the importer must
+-- call parse_iso_date() (see 002_date_guard.sql) rather than casting
+-- raw spreadsheet cells.
 -- =====================================================================
 
 create extension if not exists pgcrypto;
