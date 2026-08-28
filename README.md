@@ -6,6 +6,7 @@ In-house replacement for Filevine. Texas personal-injury and litigation practice
 localStorage shim, proving the build. No database, no auth, no Filevine shell yet.
 
 - **Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md)**
+- **Next up — backend, database, login: [docs/BACKEND_PLAN.md](docs/BACKEND_PLAN.md)**
 - Decisions and their reasoning: [docs/DECISIONS.md](docs/DECISIONS.md)
 - Reference study of Filevine and the RLF CMS: [docs/REFERENCE_FILEVINE_AND_RLF.md](docs/REFERENCE_FILEVINE_AND_RLF.md)
 - The original prototype README: [docs/ORIGINAL_PROTOTYPE_README.md](docs/ORIGINAL_PROTOTYPE_README.md)
