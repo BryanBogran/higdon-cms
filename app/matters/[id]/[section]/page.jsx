@@ -11,7 +11,8 @@
 import { use } from 'react';
 import { notFound } from 'next/navigation';
 import { useData } from '@/lib/data/DataProvider';
-import { SECTION_BY_KEY, isSectionKey } from '@/lib/sections/registry';
+import { useRouter } from 'next/navigation';
+import { SECTIONS, SECTION_BY_KEY, isSectionKey } from '@/lib/sections/registry';
 import MatterHeader from '@/components/matter/MatterHeader';
 import SectionRail from '@/components/matter/SectionRail';
 import ActivitySection from '@/components/sections/ActivitySection';
@@ -30,6 +31,7 @@ const CUSTOM = {
 export default function MatterSectionPage({ params }) {
   const { id, section } = use(params);
   const { matters, loaded } = useData();
+  const router = useRouter();
 
   if (!isSectionKey(section)) notFound();
 
@@ -54,12 +56,29 @@ export default function MatterSectionPage({ params }) {
   return (
     <div>
       <MatterHeader matterId={id} matter={matter} />
+      {/*
+        On a phone the rail was `hidden lg:block` with no replacement, so there
+        was no way to reach any section at all. This select is the same
+        registry, rendered for small screens.
+      */}
+      <div className="lg:hidden px-4 py-2 bg-white border-b border-slate-200">
+        <select
+          value={section}
+          onChange={(e) => router.push(`/matters/${id}/${e.target.value}`)}
+          className="input"
+          aria-label="Matter section"
+        >
+          {SECTIONS.map((sec) => (
+            <option key={sec.key} value={sec.key}>{sec.label}</option>
+          ))}
+        </select>
+      </div>
+
       <div className="flex min-h-[calc(100vh-3.5rem-6.5rem)]">
         <aside className="w-56 shrink-0 border-r border-slate-200 bg-white hidden lg:block">
           <SectionRail matterId={id} activeSection={section} />
         </aside>
         <main className="flex-1 min-w-0 p-4 sm:p-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-4 lg:hidden">{def.label}</h2>
           {Custom ? (
             <Custom matterId={id} matter={matter} />
           ) : (

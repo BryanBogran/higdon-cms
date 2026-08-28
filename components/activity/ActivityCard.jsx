@@ -12,8 +12,9 @@
  * a note in place, and it would have been awkward across two tables.
  */
 
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Pin, MoreVertical, CheckCircle2, Circle, ListPlus, Paperclip } from 'lucide-react';
+import { Pin, MoreVertical, CheckCircle2, Circle, ListPlus, Paperclip, Trash2, Pencil, Check, X } from 'lucide-react';
 import { fmt, urgency } from '@/lib/domain/dates';
 import { matterTitle, avatarColor } from '@/lib/domain/matter';
 import { useData } from '@/lib/data/DataProvider';
@@ -29,10 +30,28 @@ const KIND_ICON_BG = {
 };
 
 export default function ActivityCard({ entry, showMatter = true }) {
-  const { matters, updateActivity, assignActivityAsTask } = useData();
+  const { matters, updateActivity, deleteActivity, assignActivityAsTask } = useData();
   const matter = entry.matterId ? matters[entry.matterId] : null;
   const isTask = entry.kind === 'task';
   const due = isTask ? urgency(entry.dueDate) : null;
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(entry.body || '');
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    function onDocClick(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    }
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, []);
+
+  function saveEdit() {
+    updateActivity(entry.id, { body: draft });
+    setEditing(false);
+  }
 
   return (
     <article
@@ -88,9 +107,40 @@ export default function ActivityCard({ entry, showMatter = true }) {
             >
               <Pin size={15} fill={entry.pinned ? 'currentColor' : 'none'} />
             </button>
-            <button className="p-1.5 text-slate-300 hover:text-slate-600" title="More">
-              <MoreVertical size={15} />
-            </button>
+            <div ref={menuRef} className="relative">
+              <button
+                onClick={() => setMenuOpen((v) => !v)}
+                className="p-1.5 text-slate-300 hover:text-slate-600"
+                title="More"
+              >
+                <MoreVertical size={15} />
+              </button>
+              {menuOpen ? (
+                <div className="absolute right-0 mt-1 w-44 bg-white rounded-lg shadow-xl border border-slate-200 overflow-hidden z-50">
+                  <button
+                    onClick={() => { setDraft(entry.body || ''); setEditing(true); setMenuOpen(false); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-slate-50"
+                  >
+                    <Pencil size={14} className="text-slate-400" /> Edit
+                  </button>
+                  <button
+                    onClick={() => { updateActivity(entry.id, { pinned: !entry.pinned }); setMenuOpen(false); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-slate-50"
+                  >
+                    <Pin size={14} className="text-slate-400" /> {entry.pinned ? 'Unpin' : 'Pin'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm('Delete this entry? This cannot be undone.')) deleteActivity(entry.id);
+                      setMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-red-700 hover:bg-red-50 border-t border-slate-100"
+                  >
+                    <Trash2 size={14} /> Delete
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
 
@@ -109,7 +159,36 @@ export default function ActivityCard({ entry, showMatter = true }) {
                 ))}
               </span>
             ) : null}
-            <span className="text-sm text-slate-800 whitespace-pre-wrap break-words">{entry.body}</span>
+            {editing ? (
+              <div>
+                <textarea
+                  autoFocus
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) saveEdit();
+                    if (e.key === 'Escape') setEditing(false);
+                  }}
+                  className="input min-h-[70px]"
+                />
+                <div className="flex items-center gap-2 mt-1.5">
+                  <button
+                    onClick={saveEdit}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-900 text-white text-xs font-semibold"
+                  >
+                    <Check size={13} /> Save
+                  </button>
+                  <button
+                    onClick={() => setEditing(false)}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded border border-slate-300 text-xs text-slate-600"
+                  >
+                    <X size={13} /> Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <span className="text-sm text-slate-800 whitespace-pre-wrap break-words">{entry.body}</span>
+            )}
 
             {entry.attachments?.length ? (
               <div className="mt-2 space-y-1">

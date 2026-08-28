@@ -10,16 +10,26 @@
  */
 
 import Link from 'next/link';
-import { Phone, Mail, IdCard, ChevronDown } from 'lucide-react';
+import { Phone, Mail, IdCard, Archive } from 'lucide-react';
 import { matterTitle, initials, avatarColor } from '@/lib/domain/matter';
+import { FIELD_BY_KEY } from '@/lib/domain/fields';
+import { useData } from '@/lib/data/DataProvider';
+import MatterActions from './MatterActions';
 
 export default function MatterHeader({ matterId, matter }) {
+  const { updateMatterField } = useData();
   const v = matter?.values || {};
   const phone = v.clientPhone || '';
   const email = v.clientEmail || '';
 
   return (
     <div className="bg-white border-b border-slate-200">
+      {matter?.archivedAt ? (
+        <div className="flex items-center gap-2 px-5 py-2 bg-amber-50 border-b border-amber-200 text-sm text-amber-800">
+          <Archive size={15} />
+          This matter is archived — it does not appear in the case list, task list or dashboard.
+        </div>
+      ) : null}
       <div className="px-5 py-4 flex items-start gap-4 flex-wrap">
         <div
           className={`w-14 h-14 rounded-full ${avatarColor(matterId)} grid place-items-center text-white text-lg font-bold shrink-0`}
@@ -59,16 +69,25 @@ export default function MatterHeader({ matterId, matter }) {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <div className="flex items-center gap-2 border border-slate-300 rounded px-3 py-2 text-sm text-slate-700">
-            {v.commercial || 'Unknown'}
-            <ChevronDown size={15} className="text-slate-400" />
-          </div>
+          {/* Was a static div styled to look like a select. Now it is one. */}
+          <select
+            value={v.commercial || ''}
+            onChange={(e) => updateMatterField(matterId, 'commercial', e.target.value)}
+            className="border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 bg-white"
+            title="Coverage type"
+          >
+            <option value="">Coverage — not set</option>
+            {(FIELD_BY_KEY.commercial.options || []).map((o) => (
+              <option key={o} value={o}>{o}</option>
+            ))}
+          </select>
           <Link
             href={`/matters/${matterId}/case-info`}
             className="px-3 py-2 rounded bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700"
           >
             Case Info
           </Link>
+          <MatterActions matterId={matterId} matter={matter} />
         </div>
       </div>
     </div>

@@ -13,7 +13,8 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { CalendarDays, AlertCircle, ListChecks, X, CheckCircle2, Circle } from 'lucide-react';
+import { CalendarDays, AlertCircle, ListChecks, X, CheckCircle2, Circle, Plus, Trash2 } from 'lucide-react';
+import AddTaskDialog from '@/components/tasks/AddTaskDialog';
 import RailLayout, { RailItem } from '@/components/shell/RailLayout';
 import { useData } from '@/lib/data/DataProvider';
 import { matterTitle } from '@/lib/domain/matter';
@@ -38,7 +39,8 @@ const LEVEL = {
 };
 
 export default function TasksPage() {
-  const { tasks, matters, loaded, setTaskComplete, bulkSetComplete } = useData();
+  const { tasks, matters, loaded, setTaskComplete, bulkSetComplete, deleteTask } = useData();
+  const [adding, setAdding] = useState(false);
   const [bucket, setBucket] = useState('all');
   const [showCompleted, setShowCompleted] = useState(false);
   const [assignee, setAssignee] = useState('');
@@ -127,20 +129,54 @@ export default function TasksPage() {
             >
               Complete
             </button>
+            <button
+              onClick={() => {
+                // Only manual tasks can be deleted. An auto task is regenerated
+                // from matter data, so deleting one would just make it reappear
+                // -- confusing, and it would look like the delete failed.
+                const manual = [...selected].filter((id) => tasks[id]?.source !== 'auto');
+                const autoCount = selected.size - manual.length;
+                const msg = autoCount
+                  ? `Delete ${manual.length} task(s)? ${autoCount} generated deadline(s) will be skipped — those come from case data.`
+                  : `Delete ${manual.length} task(s)?`;
+                if (manual.length && confirm(msg)) manual.forEach((id) => deleteTask(id));
+                setSelected(new Set());
+              }}
+              className="flex items-center gap-1 px-3 py-1.5 rounded border border-red-200 text-red-700 font-semibold hover:bg-red-50"
+            >
+              <Trash2 size={14} /> Delete
+            </button>
             <button onClick={() => setSelected(new Set())} className="p-1.5 text-slate-400 hover:text-slate-700">
               <X size={16} />
             </button>
           </div>
-        ) : null}
+        ) : (
+          <button
+            onClick={() => setAdding(true)}
+            className="ml-auto flex items-center gap-1.5 px-4 py-1.5 rounded bg-teal-600 text-white font-semibold hover:bg-teal-700"
+          >
+            <Plus size={15} /> Add Task
+          </button>
+        )}
       </div>
+
+      <AddTaskDialog open={adding} onClose={() => setAdding(false)} />
 
       {!loaded ? (
         <p className="text-sm text-slate-500">Loading…</p>
       ) : pageRows.length === 0 ? (
-        <p className="py-12 text-center text-sm text-slate-400">
-          Nothing here. Deadlines appear automatically once a matter has an SOL, a trial date, or a
-          dated checklist item.
-        </p>
+        <div className="py-12 text-center">
+          <p className="text-sm text-slate-400">
+            Nothing here. Deadlines appear automatically once a matter has an SOL, a trial date, or
+            a dated checklist item.
+          </p>
+          <button
+            onClick={() => setAdding(true)}
+            className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            <Plus size={15} /> Add a task
+          </button>
+        </div>
       ) : (
         <>
           {pageRows.map((t) => {

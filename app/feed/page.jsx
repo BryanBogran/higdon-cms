@@ -13,6 +13,7 @@ import { useMemo, useState } from 'react';
 import { Zap, FileText, MessageSquare, Mail, Printer, Phone, MessageCircle, CheckSquare, Bell } from 'lucide-react';
 import RailLayout, { RailItem } from '@/components/shell/RailLayout';
 import ActivityCard from '@/components/activity/ActivityCard';
+import ActivityComposer from '@/components/activity/ActivityComposer';
 import { useData } from '@/lib/data/DataProvider';
 import { todayInFirmTz } from '@/lib/domain/dates';
 
@@ -67,6 +68,13 @@ export default function FeedPage() {
 
   return (
     <RailLayout title="Feed" count={filtered.length} rail={rail} wide>
+      {/*
+        A firm-wide note with no matter attached. Useful for practice-level
+        reminders, and it means the Feed is not read-only -- previously the
+        only way to add anything was to open a matter first.
+      */}
+      <ActivityComposer matterId={null} />
+
       {!loaded ? (
         <p className="text-sm text-slate-500">Loading…</p>
       ) : filtered.length === 0 ? (

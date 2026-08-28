@@ -113,8 +113,14 @@ export default function GenericSection({ matterId, section }) {
           )}
 
           <div className="px-5 py-3 border-t border-slate-100 bg-slate-50/60 flex flex-wrap items-end gap-3">
-            {cols.slice(0, 3).map((c) => (
-              <div key={c.key} className="min-w-[140px]">
+            {/*
+              Was cols.slice(0, 3) -- so on Insurance you could enter carrier,
+              coverage and policy number but not limits, adjuster or claim
+              number, and had to add a blank row then fill the rest in the
+              table. All columns now.
+            */}
+            {cols.map((c) => (
+              <div key={c.key} className={c.type === 'textarea' ? 'min-w-[220px] flex-1' : 'min-w-[140px]'}>
                 <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">
                   {c.label}
                 </label>

@@ -8,7 +8,7 @@ import { useData } from '@/lib/data/DataProvider';
 const KINDS = ['note', 'call', 'text', 'email', 'task'];
 
 export default function ActivityComposer({ matterId }) {
-  const { addActivity } = useData();
+  const { addActivity, currentUser, team } = useData();
   const [body, setBody] = useState('');
   const [kind, setKind] = useState('note');
   const [open, setOpen] = useState(false);
@@ -17,7 +17,16 @@ export default function ActivityComposer({ matterId }) {
     const text = body.trim();
     if (!text) return;
     const mentions = [...text.matchAll(/@([A-Za-z0-9_.-]+)/g)].map((m) => m[1]);
-    addActivity({ matterId, kind, body: text, mentions, author: 'You' });
+    // Attribute to the signed-in user. Every note used to be authored by the
+    // literal string "You", which is meaningless the moment a second person
+    // logs in -- and authorship on a case note is a record, not a label.
+    addActivity({
+      matterId,
+      kind,
+      body: text,
+      mentions,
+      author: currentUser?.displayName || currentUser?.email || 'Unknown',
+    });
     setBody('');
     setOpen(false);
   }
@@ -52,7 +61,9 @@ export default function ActivityComposer({ matterId }) {
             <option key={k} value={k}>{k}</option>
           ))}
         </select>
-        <span className="text-xs text-slate-400 hidden sm:inline">⌘↵ to save</span>
+        <span className="text-xs text-slate-400 hidden sm:inline">
+          {currentUser?.displayName ? `as ${currentUser.displayName} · ` : ''}⌘↵ to save
+        </span>
         <div className="flex-1" />
         <button onClick={() => setOpen(false)} className="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900">
           Cancel

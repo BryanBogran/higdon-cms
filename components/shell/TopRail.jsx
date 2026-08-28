@@ -10,12 +10,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  LayoutDashboard, CheckSquare, Zap, FolderOpen, Files,
-  Menu, HelpCircle, Layers, FilePlus2,
-} from 'lucide-react';
+import { LayoutDashboard, CheckSquare, Zap, FolderOpen, Files } from 'lucide-react';
 import GlobalSearch from './GlobalSearch';
 import SaveIndicator from './SaveIndicator';
+import UserMenu from './UserMenu';
 
 const NAV = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard, match: (p) => p === '/' },
@@ -35,10 +33,6 @@ export default function TopRail() {
   return (
     <header className="sticky top-0 z-40 bg-slate-900 text-white">
       <div className="flex items-center gap-1 px-3 h-14">
-        <button className="p-2 rounded hover:bg-white/10 shrink-0" aria-label="Menu">
-          <Menu size={20} />
-        </button>
-
         <nav className="flex items-center gap-1 shrink-0">
           {NAV.map(({ href, label, icon: Icon, match }) => {
             const active = match(pathname);
@@ -64,20 +58,15 @@ export default function TopRail() {
           <GlobalSearch />
         </div>
 
+        {/*
+          Filevine has three more icons here (new document, stacks, help). They
+          were copied in as chrome and did nothing -- a button that looks live
+          and isn't is worse than an absent one, so they are gone until the
+          features behind them exist.
+        */}
         <div className="flex items-center gap-1 shrink-0">
           <SaveIndicator />
-          <button className="p-2 rounded hover:bg-white/10 hidden sm:block" aria-label="New document">
-            <FilePlus2 size={19} />
-          </button>
-          <button className="p-2 rounded hover:bg-white/10 hidden sm:block text-orange-400" aria-label="Stacks">
-            <Layers size={19} />
-          </button>
-          <button className="p-2 rounded hover:bg-white/10 hidden sm:block" aria-label="Help">
-            <HelpCircle size={19} />
-          </button>
-          <div className="w-8 h-8 rounded-full bg-orange-500 grid place-items-center text-sm font-semibold ml-1">
-            H
-          </div>
+          <UserMenu />
         </div>
       </div>
     </header>

@@ -47,6 +47,7 @@ export function DataProvider({ children }) {
   const [activity, setActivity] = useState({});
   const [loaded, setLoaded] = useState(false);
   const [backend, setBackend] = useState('local');
+  const [currentUser, setCurrentUser] = useState(null);
   const [saveState, setSaveState] = useState({ status: 'idle', error: null });
 
   const storeRef = useRef(null);
@@ -78,10 +79,28 @@ export function DataProvider({ children }) {
       // reads as a broken app rather than an unauthenticated one.
       if (usingSupabase) {
         const { getSupabaseBrowserClient } = await import('@/lib/supabase/client');
-        const { data } = await getSupabaseBrowserClient().auth.getSession();
+        const db = getSupabaseBrowserClient();
+        const { data } = await db.auth.getSession();
         if (!data?.session) {
           if (!cancelled) setLoaded(true);
           return;
+        }
+        // Who is signed in. Needed for the user menu, for stamping note
+        // authorship, and for @mention resolution.
+        const authUser = data.session.user;
+        const { data: prof } = await db
+          .from('profile')
+          .select('*')
+          .eq('id', authUser.id)
+          .maybeSingle();
+        if (!cancelled) {
+          setCurrentUser({
+            id: authUser.id,
+            email: authUser.email,
+            handle: prof?.handle || authUser.email?.split('@')[0],
+            displayName: prof?.display_name || authUser.email?.split('@')[0],
+            role: prof?.role || 'paralegal',
+          });
         }
       }
 
@@ -461,14 +480,14 @@ export function DataProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      matters, tasks, team, sections, activity, loaded, saveState, backend,
+      matters, tasks, team, sections, activity, loaded, saveState, backend, currentUser,
       createMatter, updateMatterField, setChecklistItem, archiveMatter, unarchiveMatter,
       createTask, updateTask, setTaskComplete, clearTaskOverride, deleteTask, bulkSetComplete,
       sectionState, setSectionField, addSectionRow, updateSectionRow, deleteSectionRow,
       addActivity, updateActivity, deleteActivity, assignActivityAsTask, saveTeam,
     }),
     [
-      matters, tasks, team, sections, activity, loaded, saveState, backend,
+      matters, tasks, team, sections, activity, loaded, saveState, backend, currentUser,
       createMatter, updateMatterField, setChecklistItem, archiveMatter, unarchiveMatter,
       createTask, updateTask, setTaskComplete, clearTaskOverride, deleteTask, bulkSetComplete,
       sectionState, setSectionField, addSectionRow, updateSectionRow, deleteSectionRow,
