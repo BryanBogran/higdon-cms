@@ -47,6 +47,7 @@ export function DataProvider({ children }) {
   const [sections, setSections] = useState({});
   const [activity, setActivity] = useState({});
   const [relations, setRelations] = useState([]);
+  const [contacts, setContacts] = useState({});
   const [loaded, setLoaded] = useState(false);
   // Derived from the env on the first render, not after the load effect. It
   // used to start as 'local', so the user menu's first paint claimed "running
@@ -121,6 +122,7 @@ export function DataProvider({ children }) {
         setRelations(data.relations || []);
         setSections(data.sections || {});
         setTeam(data.team || {});
+        setContacts(data.contacts || {});
       } catch (err) {
         if (cancelled) return;
         // PGRST205 means the tables aren't there yet. That is a setup step, not
@@ -213,6 +215,7 @@ export function DataProvider({ children }) {
         setRelations(data.relations || []);
         setSections(data.sections || {});
         setTeam(data.team || {});
+        setContacts(data.contacts || {});
         ref.current = { ...ref.current, matters: data.matters || {}, tasks: data.tasks || {} };
       } catch (err) {
         return { ...result, ok: false, error: `Imported, but could not reload: ${err?.message || err}` };
@@ -221,6 +224,39 @@ export function DataProvider({ children }) {
     },
     [run]
   );
+
+  /* ---------------- Contacts ---------------- */
+
+  const createContact = useCallback(async (contact) => {
+    const result = await run((s) => s.createContact(contact));
+    if (result.ok && result.contact) {
+      setContacts((prev) => ({ ...prev, [result.id]: result.contact }));
+    }
+    return result;
+  }, [run]);
+
+  const updateContact = useCallback(async (id, patch) => {
+    const result = await run((s) => s.updateContact(id, patch));
+    if (result.ok && result.contact) {
+      setContacts((prev) => ({ ...prev, [id]: result.contact }));
+    }
+    return result;
+  }, [run]);
+
+  const linkClientContact = useCallback(async (matterId, contactId, displayName) => {
+    const current = ref.current.matters[matterId];
+    if (current) {
+      applyMatters({
+        ...ref.current.matters,
+        [matterId]: {
+          ...current,
+          clientContactId: contactId || '',
+          values: { ...current.values, ...(displayName ? { clientName: displayName } : {}) },
+        },
+      });
+    }
+    return run((s) => s.linkClientContact(matterId, contactId, displayName));
+  }, [run, applyMatters]);
 
   const updateMatterField = useCallback(
     (matterId, fieldKey, value) => {
@@ -575,15 +611,17 @@ export function DataProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      matters, tasks, team, sections, activity, relations, loaded, saveState, backend, currentUser,
+      matters, tasks, team, sections, activity, relations, contacts, loaded, saveState, backend, currentUser,
       createMatter, importMatters, updateMatterField, setChecklistItem, archiveMatter, unarchiveMatter,
+      createContact, updateContact, linkClientContact,
       createTask, updateTask, setTaskComplete, clearTaskOverride, deleteTask, bulkSetComplete,
       sectionState, setSectionField, addSectionRow, updateSectionRow, deleteSectionRow,
       addActivity, addEmail, signFile, addRelation, removeRelation, updateActivity, deleteActivity, assignActivityAsTask, saveTeam,
     }),
     [
-      matters, tasks, team, sections, activity, relations, loaded, saveState, backend, currentUser,
+      matters, tasks, team, sections, activity, relations, contacts, loaded, saveState, backend, currentUser,
       createMatter, importMatters, updateMatterField, setChecklistItem, archiveMatter, unarchiveMatter,
+      createContact, updateContact, linkClientContact,
       createTask, updateTask, setTaskComplete, clearTaskOverride, deleteTask, bulkSetComplete,
       sectionState, setSectionField, addSectionRow, updateSectionRow, deleteSectionRow,
       addActivity, addEmail, signFile, addRelation, removeRelation, updateActivity, deleteActivity, assignActivityAsTask, saveTeam,

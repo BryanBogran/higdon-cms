@@ -11,25 +11,23 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Search, Plus, X, ChevronDown } from 'lucide-react';
 import { useData } from '@/lib/data/DataProvider';
+import CreateProjectPanel from '@/components/projects/CreateProjectPanel';
 import { matterTitle, initials, avatarColor, daysSinceActivity } from '@/lib/domain/matter';
 import { FIELD_BY_KEY } from '@/lib/domain/fields';
 
 const PAGE_SIZE = 50;
 
 export default function ProjectHubPage() {
-  const { matters, loaded, createMatter } = useData();
-  const router = useRouter();
+  const { matters, loaded } = useData();
 
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('');
   const [attorney, setAttorney] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [page, setPage] = useState(0);
-  const [newName, setNewName] = useState('');
-  const [adding, setAdding] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   const attorneys = useMemo(
     () => [...new Set(Object.values(matters).map((m) => m.values?.attorney).filter(Boolean))].sort(),
@@ -63,19 +61,6 @@ export default function ProjectHubPage() {
     q.trim() ? { label: `"${q.trim()}"`, clear: () => setQ('') } : null,
   ].filter(Boolean);
 
-  // createMatter is async — it may allocate a case number server-side — so the
-  // id has to be awaited before navigating. Destructuring it synchronously
-  // yields undefined and lands on a "no matter with that id" page.
-  async function addMatter() {
-    const name = newName.trim();
-    if (!name || adding === 'busy') return;
-    setAdding('busy');
-    const result = await createMatter({ clientName: name, status: 'Open' });
-    setNewName('');
-    setAdding(false);
-    if (result?.ok && result.id) router.push(`/matters/${result.id}`);
-  }
-
   return (
     <div className="p-4 sm:p-6">
       <div className="flex items-center gap-3 flex-wrap mb-4">
@@ -95,31 +80,12 @@ export default function ProjectHubPage() {
             </button>
           ) : null}
         </div>
-        {adding ? (
-          <div className="flex items-center gap-1.5">
-            <input
-              autoFocus
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') addMatter();
-                if (e.key === 'Escape') setAdding(false);
-              }}
-              placeholder="Client name"
-              className="input w-44"
-            />
-            <button onClick={addMatter} className="px-3 py-2 rounded bg-teal-600 text-white text-sm font-semibold">
-              Add
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setAdding(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700"
-          >
-            <Plus size={16} /> Project
-          </button>
-        )}
+        <button
+          onClick={() => setCreating(true)}
+          className="flex items-center gap-1.5 px-4 py-2 rounded bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700"
+        >
+          <Plus size={16} /> Project
+        </button>
       </div>
 
       <div className="flex items-center gap-3 flex-wrap mb-3 text-sm">
@@ -224,6 +190,7 @@ export default function ProjectHubPage() {
           </div>
         ) : null}
       </div>
+      <CreateProjectPanel open={creating} onClose={() => setCreating(false)} />
     </div>
   );
 }

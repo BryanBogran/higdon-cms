@@ -17,10 +17,21 @@ import { useData } from '@/lib/data/DataProvider';
 import MatterActions from './MatterActions';
 
 export default function MatterHeader({ matterId, matter }) {
-  const { updateMatterField } = useData();
+  const { updateMatterField, contacts } = useData();
   const v = matter?.values || {};
-  const phone = v.clientPhone || '';
-  const email = v.clientEmail || '';
+
+  /*
+   * Prefer the linked contact. Entering a phone number on the client's record
+   * and then reading "no phone on file" on their case is the exact failure
+   * contacts exist to end -- the record is only one record if the places
+   * people look actually read it.
+   *
+   * The matter's own columns remain the fallback, because every case imported
+   * or created before contacts existed has those and no contact.
+   */
+  const contact = matter?.clientContactId ? contacts?.[matter.clientContactId] : null;
+  const phone = contact?.phones?.[0]?.value || v.clientPhone || '';
+  const email = contact?.emails?.[0]?.value || v.clientEmail || '';
 
   return (
     <div className="bg-white border-b border-slate-200">
