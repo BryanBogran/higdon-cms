@@ -9,7 +9,7 @@
  * Activity.
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Search, Plus, X, ChevronDown } from 'lucide-react';
 import { useData } from '@/lib/data/DataProvider';
@@ -28,6 +28,23 @@ export default function ProjectHubPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [page, setPage] = useState(0);
   const [creating, setCreating] = useState(false);
+
+  /*
+   * /projects/new redirects here with ?new=1 so there is one create form
+   * rather than two that drift.
+   *
+   * Read off `window.location` rather than with `useSearchParams`, which opts
+   * the whole page out of prerendering unless it is wrapped in Suspense --
+   * this page is static otherwise, and a Suspense boundary around the entire
+   * case list to read one flag is the wrong trade.
+   *
+   * The parameter is stripped once used, or the panel reopens on Back.
+   */
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('new') !== '1') return;
+    setCreating(true);
+    window.history.replaceState(null, '', '/projects');
+  }, []);
 
   const attorneys = useMemo(
     () => [...new Set(Object.values(matters).map((m) => m.values?.attorney).filter(Boolean))].sort(),

@@ -17,9 +17,10 @@ import { X, Plus, AlertTriangle } from 'lucide-react';
 import { useData } from '@/lib/data/DataProvider';
 import { matterTitle } from '@/lib/domain/matter';
 import { checkBadDate, fmt, nextBusinessDay, todayInFirmTz } from '@/lib/domain/dates';
+import { assigneeOptions, UNASSIGNED } from '@/lib/domain/team';
 
 export default function AddTaskDialog({ open, onClose, matterId: fixedMatterId }) {
-  const { matters, team, currentUser, createTask } = useData();
+  const { matters, team, currentUser, activity, createTask } = useData();
   const [title, setTitle] = useState('');
   const [note, setNote] = useState('');
   const [dueDate, setDueDate] = useState('');
@@ -36,11 +37,15 @@ export default function AddTaskDialog({ open, onClose, matterId: fixedMatterId }
     [matters]
   );
 
-  const assignees = useMemo(() => {
-    const names = new Set(Object.keys(team || {}));
-    if (currentUser?.displayName) names.add(currentUser.displayName);
-    return [...names].sort();
-  }, [team, currentUser]);
+  /*
+   * Shared with the Activity card's "Assign as Task", so the same names appear
+   * in both places. It also folds in names already carried by a task, which is
+   * what keeps somebody who was typed in before they had a login selectable.
+   */
+  const assignees = useMemo(
+    () => assigneeOptions({ team, currentUser, activity }),
+    [team, currentUser, activity],
+  );
 
   if (!open) return null;
 
@@ -55,7 +60,7 @@ export default function AddTaskDialog({ open, onClose, matterId: fixedMatterId }
       note: note.trim(),
       dueDate: dueDate || '',
       matterId: matterId || null,
-      assignedTo: assignedTo || 'Unassigned',
+      assignedTo: assignedTo || UNASSIGNED,
     });
     setBusy(false);
     setTitle('');
@@ -153,11 +158,16 @@ export default function AddTaskDialog({ open, onClose, matterId: fixedMatterId }
                 Assigned to
               </label>
               <select className="input" value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)}>
-                <option value="">Unassigned</option>
+                <option value="">{UNASSIGNED}</option>
                 {assignees.map((a) => (
                   <option key={a} value={a}>{a}</option>
                 ))}
               </select>
+              {!assignees.length ? (
+                <p className="mt-1 text-[11px] text-amber-700">
+                  Nobody to assign to yet — staff appear here once they have signed in.
+                </p>
+              ) : null}
             </div>
           </div>
 

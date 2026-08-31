@@ -18,6 +18,7 @@ import { useData } from '@/lib/data/DataProvider';
 import {
   emptyContact, displayName, validateContact, duplicateCandidates, pruneEntries,
   PHONE_LABELS, EMAIL_LABELS, ADDRESS_LABELS,
+  CONTACT_ROLES, rolesOf, toggleRole,
 } from '@/lib/domain/contact';
 import { matterTitle } from '@/lib/domain/matter';
 
@@ -70,10 +71,36 @@ export default function ContactEditor({ contact: initial, onSaved, onCancel }) {
             <h2 className="text-xl font-bold text-slate-900">
               {c.id ? 'Edit Contact' : 'New Contact'}
             </h2>
-            <div className="mt-1.5 flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 rounded border border-teal-600 px-1.5 py-0.5 text-xs text-teal-700">
-                Client
-              </span>
+            {/*
+              This chip used to read "Client", hard-coded, on every contact --
+              including the orthopaedic clinic and the carrier. The directory
+              is only useful if it can tell them apart, so the roles are real
+              and editable here.
+
+              Several at once on purpose: the treating doctor who later
+              testifies is one person. See lib/domain/contact.js.
+            */}
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              {CONTACT_ROLES.map((role) => {
+                const on = rolesOf(c).includes(role);
+                return (
+                  <button
+                    key={role}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => setC((prev) => toggleRole(prev, role, !rolesOf(prev).includes(role)))}
+                    className={`rounded border px-1.5 py-0.5 text-xs ${
+                      on
+                        ? 'border-teal-600 bg-teal-50 text-teal-700 font-medium'
+                        : 'border-slate-200 text-slate-400 hover:border-slate-400 hover:text-slate-600'
+                    }`}
+                  >
+                    {role}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-1.5">
               <button
                 type="button"
                 onClick={() => set({ kind: c.kind === 'company' ? 'person' : 'company' })}
@@ -369,7 +396,23 @@ function Associated({ linked, isNew }) {
     return <p className="text-sm text-slate-500">Save this contact and it can be added to a case.</p>;
   }
   if (!linked.length) {
-    return <p className="text-sm text-slate-500">This contact is not the client on any case yet.</p>;
+    return (
+      <div className="space-y-2 text-sm text-slate-500">
+        <p>This contact is not the client on any case.</p>
+        {/*
+          Say what is NOT being counted. A provider on thirty cases would also
+          land here, and "no cases" would read as an answer when it is really
+          "the question cannot be asked yet": a case's provider and adjuster
+          rows store a NAME, not a link to this record. Only the client link is
+          a real reference. Same rule as the Drive review queue -- never render
+          "we could not ask" as "the answer is none".
+        */}
+        <p className="text-xs text-slate-400">
+          Only the client link is counted. A provider, adjuster or defence firm named on a case is
+          stored as text on that row, so it cannot be traced back here yet.
+        </p>
+      </div>
+    );
   }
   return (
     <ul className="divide-y divide-slate-100">

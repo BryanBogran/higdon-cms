@@ -2,9 +2,12 @@
 
 /** One control, driven by a field definition. Shared by every section. */
 
+import { useId, useMemo } from 'react';
 import { checkBadDate, fmt } from '@/lib/domain/dates';
 import { AlertTriangle, ExternalLink, User, Paperclip, Check } from 'lucide-react';
 import DriveDrop from './DriveDrop';
+import { useData } from '@/lib/data/DataProvider';
+import { displayName } from '@/lib/domain/contact';
 
 export default function FieldInput({ field, value, onChange, row, matterId, uploadFolder }) {
   const v = value ?? '';
@@ -137,28 +140,26 @@ export default function FieldInput({ field, value, onChange, row, matterId, uplo
   }
 
   /**
-   * A LINKED PERSON, not a string.
+   * A person or company, suggested from the Contacts directory.
    *
-   * Filevine resolves provider / payee / insurer / driver / party to one shared
-   * contact record. We don't have that entity yet, so this stores a name and
-   * flags itself — when Parties becomes a real table this becomes a picker and
-   * the stored text becomes the fallback display name. Storing a string now
-   * means nothing has to be re-entered later.
+   * ⚠️ IT STILL STORES A STRING, and that is a deliberate limit.
+   *
+   * Section rows are jsonb, so storing `{ id, name }` would be possible
+   * without a migration -- but every reader of these values expects text: the
+   * settlement calculator totals by provider name, the exporter writes them
+   * into CSV cells, and thousands of rows already hold plain strings. Changing
+   * the shape means changing all of that at once, and getting it half-right
+   * would mean a provider row that renders as [object Object].
+   *
+   * What the directory buys today is CONSISTENCY, which is most of the value:
+   * the list offers "Northside Orthopaedics" so it is not typed six ways, and
+   * six spellings is what stops the firm from asking which clinics it uses.
+   *
+   * A datalist rather than a select, because the answer is not always on the
+   * list -- a provider met once should not require a directory entry first.
    */
   if (field.type === 'contact') {
-    return (
-      <div className="relative">
-        <User size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input
-          type="text"
-          className="input pl-8"
-          placeholder="Name"
-          title="Will become a contact picker once Parties is a real entity"
-          value={typeof v === 'object' ? v?.fullname || '' : v}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      </div>
-    );
+    return <ContactField value={v} onChange={onChange} />;
   }
 
   /** `{ dateValue, doneDate }` — a deadline with a completion stamp. */
@@ -256,3 +257,45 @@ export default function FieldInput({ field, value, onChange, row, matterId, uplo
 }
 
 export { fmt };
+
+/**
+ * Split out because it needs hooks, and FieldInput returns before reaching
+ * this branch for most field types -- calling useData above those early
+ * returns would run it for every cell in every table.
+ */
+function ContactField({ value, onChange }) {
+  const { contacts } = useData();
+  const listId = useId();
+
+  const names = useMemo(() => {
+    const seen = new Set();
+    for (const c of Object.values(contacts || {})) {
+      if (!c || c.deletedAt) continue;
+      const name = displayName(c);
+      if (name) seen.add(name);
+    }
+    return [...seen].sort((a, b) => a.localeCompare(b));
+  }, [contacts]);
+
+  return (
+    <div className="relative">
+      <User size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+      <input
+        type="text"
+        className="input pl-8"
+        placeholder="Name"
+        list={names.length ? listId : undefined}
+        title={names.length
+          ? 'Suggestions come from Contacts. A name that is not there can still be typed.'
+          : 'No contacts yet — add providers and carriers on the Contacts page and they will be suggested here.'}
+        value={typeof value === 'object' ? value?.fullname || '' : value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {names.length ? (
+        <datalist id={listId}>
+          {names.map((n) => <option key={n} value={n} />)}
+        </datalist>
+      ) : null}
+    </div>
+  );
+}

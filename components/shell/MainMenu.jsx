@@ -42,10 +42,7 @@ const ITEMS = [
     key: 'mailroom', label: 'Mailroom', icon: Inbox,
     soon: 'Firm-wide inbox for mail that arrives without a case address. The parser and webhook it needs are already built — this is the queue on top of them.',
   },
-  {
-    key: 'contacts', label: 'Contacts', icon: Contact,
-    soon: 'One card per client, provider, adjuster and expert, reused across matters. Today parties are free text on each matter.',
-  },
+  { key: 'contacts', label: 'Contacts', icon: Contact, href: '/contacts' },
   { key: 'calendar', label: 'Calendar', icon: Calendar, href: '/calendar' },
   { key: 'search', label: 'Search', icon: Search, action: 'search' },
   { key: 'new-project', label: 'New Project', icon: Plus, href: '/projects/new', accent: true },

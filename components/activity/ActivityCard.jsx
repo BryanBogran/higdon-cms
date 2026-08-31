@@ -10,14 +10,27 @@
  *
  * "Assign as Task" is an UPDATE, not an INSERT. That is why Filevine can promote
  * a note in place, and it would have been awkward across two tables.
+ *
+ * ── The promotion has to ASK ──────────────────────────────────────────────
+ *
+ * It used to send `{ assignedTo: 'Unassigned', dueDate: '' }` -- hard-coded,
+ * no prompt -- so the two things that make a note a task were the two things
+ * you could not set. The result was a task with nobody on it and no date,
+ * which is a note with a different icon. Worse, the footer of a task rendered
+ * the assignee and the due date as plain text, so there was no second chance
+ * either: once promoted, it could not be assigned at all.
+ *
+ * Both are fields now. Promotion opens a small form, and an existing task's
+ * assignee and due date are editable in place.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Pin, MoreVertical, CheckCircle2, Circle, ListPlus, Paperclip, Trash2, Pencil, Check, X } from 'lucide-react';
-import { fmt, urgency } from '@/lib/domain/dates';
+import { Pin, MoreVertical, CheckCircle2, Circle, ListPlus, Paperclip, Trash2, Pencil, Check, X, AlertTriangle } from 'lucide-react';
+import { fmt, urgency, nextBusinessDay, todayInFirmTz, checkBadDate } from '@/lib/domain/dates';
 import { matterTitle, avatarColor } from '@/lib/domain/matter';
 import { useData } from '@/lib/data/DataProvider';
+import { assigneeOptions, UNASSIGNED } from '@/lib/domain/team';
 import EmailBody from './EmailBody';
 
 const KIND_ICON_BG = {
@@ -30,8 +43,61 @@ const KIND_ICON_BG = {
   system: 'bg-slate-300',
 };
 
+/** The assignee picker. One control, used by the promote form and the footer. */
+function AssigneeSelect({ value, onChange, options, id }) {
+  return (
+    <select
+      id={id}
+      className="rounded border border-slate-300 px-2 py-1 text-sm bg-white"
+      value={value || ''}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      <option value="">{UNASSIGNED}</option>
+      {options.map((name) => (
+        <option key={name} value={name}>{name}</option>
+      ))}
+      {/*
+        A name that is on the task but not in the roster still has to render,
+        or opening the card would silently reassign it to Unassigned on the
+        next save. assigneeOptions folds task history in, so this is a
+        belt-and-braces case -- a name arriving from an import, say.
+      */}
+      {value && value !== UNASSIGNED && !options.includes(value)
+        ? <option value={value}>{value}</option>
+        : null}
+    </select>
+  );
+}
+
+/** A due date with the two shortcuts people actually use, and the weekend warning. */
+function DueDateInput({ value, onChange, id }) {
+  const bad = checkBadDate(value);
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      <input
+        id={id}
+        type="date"
+        className="rounded border border-slate-300 px-2 py-1 text-sm bg-white"
+        value={value || ''}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <button type="button" onClick={() => onChange(todayInFirmTz())}
+        className="text-[11px] text-teal-700 hover:underline">Today</button>
+      <button type="button" onClick={() => onChange(nextBusinessDay(todayInFirmTz()))}
+        className="text-[11px] text-teal-700 hover:underline">Next business day</button>
+      {bad ? (
+        <span className="flex items-center gap-1 text-[11px] text-amber-700">
+          <AlertTriangle size={12} /> Falls on a {bad}.
+          <button type="button" onClick={() => onChange(nextBusinessDay(value))}
+            className="underline font-semibold">Move to {fmt(nextBusinessDay(value))}</button>
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 export default function ActivityCard({ entry, showMatter = true }) {
-  const { matters, updateActivity, deleteActivity, assignActivityAsTask } = useData();
+  const { matters, activity, team, currentUser, updateActivity, deleteActivity, assignActivityAsTask } = useData();
   const matter = entry.matterId ? matters[entry.matterId] : null;
   const isTask = entry.kind === 'task';
   const isEmail = entry.kind === 'email';
@@ -41,6 +107,32 @@ export default function ActivityCard({ entry, showMatter = true }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(entry.body || '');
   const menuRef = useRef(null);
+
+  // Promotion form state. Defaults to you and the next business day, because
+  // the overwhelmingly common case is "I am writing this down so I do it", and
+  // a default you have to clear beats a blank you have to remember to fill.
+  const [promoting, setPromoting] = useState(false);
+  const [assignTo, setAssignTo] = useState('');
+  const [assignDue, setAssignDue] = useState('');
+
+  const roster = useMemo(
+    () => assigneeOptions({ team, currentUser, activity }),
+    [team, currentUser, activity],
+  );
+
+  function openPromote() {
+    setAssignTo(currentUser?.displayName || '');
+    setAssignDue(nextBusinessDay(todayInFirmTz()));
+    setPromoting(true);
+  }
+
+  function confirmPromote() {
+    assignActivityAsTask(entry.id, {
+      assignedTo: assignTo.trim() || UNASSIGNED,
+      dueDate: assignDue || '',
+    });
+    setPromoting(false);
+  }
 
   useEffect(() => {
     function onDocClick(e) {
@@ -227,16 +319,32 @@ export default function ActivityCard({ entry, showMatter = true }) {
         </div>
       </div>
 
-      <div className="px-4 py-2.5 border-t border-dashed border-slate-200 flex items-center gap-4 flex-wrap text-sm">
+      <div className="px-4 py-2.5 border-t border-dashed border-slate-200 flex items-center gap-x-4 gap-y-2 flex-wrap text-sm">
         {isTask ? (
           <>
-            <span className="text-slate-600">
-              Assigned to{' '}
-              <span className="font-semibold text-slate-900">{entry.assignedTo || 'Unassigned'}</span>
-            </span>
-            <span className="text-slate-600">
-              Due <span className="font-semibold text-slate-900">{fmt(entry.dueDate)}</span>
-            </span>
+            {/*
+              Editable, not printed. A task whose assignee is a label cannot be
+              handed to anyone -- which is what "assign" means -- and work moves
+              between people constantly. Saved on change: there is no Save
+              button on any other control on this card either.
+            */}
+            <label className="flex items-center gap-1.5 text-slate-600">
+              Assigned to
+              <AssigneeSelect
+                id={`assignee-${entry.id}`}
+                value={entry.assignedTo === UNASSIGNED ? '' : entry.assignedTo}
+                options={roster}
+                onChange={(name) => updateActivity(entry.id, { assignedTo: name || UNASSIGNED })}
+              />
+            </label>
+            <label className="flex items-center gap-1.5 text-slate-600">
+              Due
+              <DueDateInput
+                id={`due-${entry.id}`}
+                value={entry.dueDate}
+                onChange={(date) => updateActivity(entry.id, { dueDate: date })}
+              />
+            </label>
             <button
               onClick={() => updateActivity(entry.id, { completed: !entry.completed })}
               className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-slate-300 text-slate-700 text-sm hover:bg-slate-50"
@@ -249,9 +357,50 @@ export default function ActivityCard({ entry, showMatter = true }) {
               {entry.completed ? 'Completed' : 'Complete Task'}
             </button>
           </>
+        ) : promoting ? (
+          <div className="w-full space-y-2">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <label className="flex items-center gap-1.5 text-slate-600">
+                Assign to
+                <AssigneeSelect
+                  id={`promote-assignee-${entry.id}`}
+                  value={assignTo}
+                  options={roster}
+                  onChange={setAssignTo}
+                />
+              </label>
+              <label className="flex items-center gap-1.5 text-slate-600">
+                Due
+                <DueDateInput
+                  id={`promote-due-${entry.id}`}
+                  value={assignDue}
+                  onChange={setAssignDue}
+                />
+              </label>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={confirmPromote}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-teal-600 text-white text-xs font-semibold hover:bg-teal-500"
+              >
+                <ListPlus size={14} /> Make it a task
+              </button>
+              <button
+                onClick={() => setPromoting(false)}
+                className="px-3 py-1.5 rounded border border-slate-300 text-xs text-slate-600 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              {!roster.length ? (
+                <span className="text-[11px] text-amber-700">
+                  Nobody to assign to yet — staff appear here once they have signed in.
+                </span>
+              ) : null}
+            </div>
+          </div>
         ) : (
           <button
-            onClick={() => assignActivityAsTask(entry.id, { assignedTo: 'Unassigned', dueDate: '' })}
+            onClick={openPromote}
             className="flex items-center gap-1.5 text-teal-700 font-semibold hover:underline"
             title="Promote this note to a task, in place"
           >
