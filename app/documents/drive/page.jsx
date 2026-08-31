@@ -21,7 +21,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
-  FolderSync, Loader2, AlertCircle, CheckCircle2, ArrowLeft, X, RefreshCw,
+  FolderSync, FolderPlus, Loader2, AlertCircle, AlertTriangle, CheckCircle2, ArrowLeft, X, RefreshCw,
 } from 'lucide-react';
 import { useData } from '@/lib/data/DataProvider';
 import { matterTitle } from '@/lib/domain/matter';
@@ -93,6 +93,33 @@ export default function DriveSyncPage() {
     );
     if (!body) return;
     setNote(`Linked ${body.linked} folder${body.linked === 1 ? '' : 's'}. ${body.queuedForReview} need a decision.`);
+    setPlan(null);
+    loadReviews();
+  }
+
+  async function createProjects() {
+    const willCreate = plan?.counts?.willCreate || 0;
+    if (
+      willCreate &&
+      !confirm(
+        `Create ${willCreate} project${willCreate === 1 ? '' : 's'} from Drive folders?\n\n` +
+          'Each gets a client name and a case number from the folder name, and is linked to ' +
+          'that folder. They will have NO statute of limitations until the Filevine reports ' +
+          'are imported over the top.'
+      )
+    ) {
+      return;
+    }
+    const body = await call(
+      '/api/drive/sync',
+      { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ step: 'create' }) },
+      'create'
+    );
+    if (!body) return;
+    setNote(
+      `Created ${body.created} project${body.created === 1 ? '' : 's'} from Drive. ` +
+      `${body.skipped} folder${body.skipped === 1 ? ' was' : 's were'} passed over.`
+    );
     setPlan(null);
     loadReviews();
   }
@@ -171,6 +198,7 @@ export default function DriveSyncPage() {
             <Stat label="Will link" value={plan.counts.willLink} tone="teal" />
             <Stat label="Need a decision" value={plan.counts.needsReview} tone="amber" />
             <Stat label="Already linked" value={plan.counts.alreadyLinked} />
+            <Stat label="No case yet" value={plan.counts.willCreate ?? 0} tone="sky" />
           </div>
         ) : null}
 
@@ -242,6 +270,87 @@ export default function DriveSyncPage() {
           Linking is all that is needed. Documents themselves are read straight from Drive when
           a case is opened, so nothing here can fall behind.
         </p>
+      </section>
+
+      {/* ---- Step 2b: create ---- */}
+      <section className="mt-4 rounded-lg border border-sky-200 bg-sky-50/50 p-4">
+        <h2 className="font-semibold text-slate-900">
+          2b · Create projects for folders with no case
+        </h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Reads the case number out of each folder name — <span className="font-mono text-xs">Rivera, Marcus 26-033</span>{' '}
+          — and makes the case, already linked to that folder. This is the way to bring the
+          whole Filevine case list across.
+        </p>
+
+        {/*
+          Said before the button, not after. A folder name carries a name and a
+          number and nothing else, and someone who presses this expecting a
+          populated case list will believe the SOLs are simply missing rather
+          than never imported.
+        */}
+        <p className="mt-2 flex items-start gap-1.5 text-sm text-amber-800">
+          <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+          <span>
+            <span className="font-semibold">No SOL, no date of accident, no attorney</span> — a folder
+            name does not carry them. Every case made here sits under Missing Key Dates until you
+            import the Filevine reports, which match on case number and fill these in rather than
+            duplicating them.
+          </span>
+        </p>
+
+        <p className="mt-2 text-xs text-slate-500">
+          Folders with no case number in the name — <span className="font-mono">TEMPLATES</span>,{' '}
+          <span className="font-mono">ARCHIVED FILES</span>, and any case folder named without one —
+          are passed over rather than turned into cases.
+        </p>
+
+        <div className="mt-3 flex items-center gap-3">
+          <button
+            onClick={createProjects}
+            disabled={Boolean(busy) || !plan}
+            title={!plan ? 'Run the dry run first, so you can see what it would create' : undefined}
+            className="flex items-center gap-2 px-4 py-2 rounded bg-sky-700 text-white text-sm font-semibold hover:bg-sky-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {busy === 'create' ? <Loader2 size={15} className="animate-spin" /> : <FolderPlus size={15} />}
+            {plan ? `Create ${plan.counts.willCreate ?? 0} project${(plan.counts.willCreate ?? 0) === 1 ? '' : 's'}` : 'Create projects'}
+          </button>
+          {!plan ? (
+            <span className="text-xs text-slate-500">Run step 1 first.</span>
+          ) : null}
+        </div>
+
+        {/* What it would make, and what it would not. Both matter. */}
+        {plan?.willCreate?.length ? (
+          <details className="mt-3">
+            <summary className="text-xs text-slate-600 cursor-pointer">
+              Show what would be created ({plan.willCreate.length} of {plan.counts.willCreate})
+            </summary>
+            <ul className="mt-2 space-y-0.5 text-xs text-slate-600 max-h-56 overflow-y-auto">
+              {plan.willCreate.map((c) => (
+                <li key={c.folder} className="flex gap-2">
+                  <span className="font-mono text-slate-500 shrink-0">{c.caseNumber}</span>
+                  <span className="truncate">{c.clientName}</span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : null}
+
+        {plan?.createSkipped?.length ? (
+          <details className="mt-2">
+            <summary className="text-xs text-slate-600 cursor-pointer">
+              Show what would be passed over ({plan.createSkipped.length} of {plan.counts.createSkipped})
+            </summary>
+            <ul className="mt-2 space-y-0.5 text-xs text-slate-500 max-h-56 overflow-y-auto">
+              {plan.createSkipped.map((c) => (
+                <li key={c.folder} className="truncate">
+                  <span className="text-slate-700">{c.folder}</span> — {c.reason}
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : null}
       </section>
 
       {/* ---- Step 3: review ---- */}
@@ -318,7 +427,10 @@ export default function DriveSyncPage() {
 
 function Stat({ label, value, tone }) {
   const colour =
-    tone === 'teal' ? 'text-teal-700' : tone === 'amber' ? 'text-amber-700' : 'text-slate-900';
+    tone === 'teal' ? 'text-teal-700'
+      : tone === 'amber' ? 'text-amber-700'
+      : tone === 'sky' ? 'text-sky-700'
+      : 'text-slate-900';
   return (
     <div className="rounded border border-slate-200 px-3 py-2">
       <p className={`text-xl font-bold ${colour}`}>{value}</p>
