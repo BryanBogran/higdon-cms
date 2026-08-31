@@ -371,6 +371,20 @@ returns jsonb language sql immutable as $$
   end
 $$;
 
+-- Same two revokes as every other function here, so a database built from
+-- this file has no anon-callable RPC at all. It is pure and reads nothing,
+-- so this is surface reduction rather than a data fix -- but the trigger
+-- runs as the table owner and no client calls it, so nothing needs the
+-- grant. See supabase/009_audit_redact_grant.sql, which closes it on the
+-- databases that predate this.
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then
+    execute 'revoke execute on function audit_redact(jsonb) from anon';
+  end if;
+end $$;
+revoke execute on function audit_redact(jsonb) from public;
+grant execute on function audit_redact(jsonb) to authenticated;
+
 -- One generic trigger for every audited table.
 --
 -- Field access goes through to_jsonb(...)->>'col' rather than new.col on

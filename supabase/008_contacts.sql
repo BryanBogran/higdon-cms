@@ -153,6 +153,18 @@ returns jsonb language sql immutable as $$
   ) end
 $$;
 
+-- CREATE OR REPLACE above keeps the function's existing ACL, so replacing
+-- the body does NOT re-grant anything -- but it does not fix a stale grant
+-- either. Repeated here so this file leaves no anon-callable function
+-- behind on its own. See supabase/009_audit_redact_grant.sql.
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then
+    execute 'revoke execute on function audit_redact(jsonb) from anon';
+  end if;
+end $$;
+revoke execute on function audit_redact(jsonb) from public;
+grant execute on function audit_redact(jsonb) to authenticated;
+
 do $$ begin
   create trigger audit_contact after insert or update or delete on contact
     for each row execute function audit_row();

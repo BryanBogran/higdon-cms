@@ -111,6 +111,30 @@ console.log('\nDrive folder linking (004)');
 await probe('matter', ['id', 'drive_folder_id', 'drive_folder_name'], 'supabase/004_documents.sql');
 await probe('drive_folder_review', ['folder_id', 'folder_name', 'candidates'], 'supabase/004_documents.sql');
 
+console.log('\nContacts (008)');
+{
+  const CONTACTS_SQL = 'supabase/008_contacts.sql';
+  const table = await probe(
+    'contact',
+    ['id', 'kind', 'first_name', 'last_name', 'company_name', 'phones', 'emails', 'addresses', 'tags', 'ssn', 'deleted_at'],
+    CONTACTS_SQL,
+  );
+  // The link is the half that is easy to miss: `contact` can exist while
+  // `matter.client_contact_id` does not, and then every case still shows a
+  // typed name and nothing says why.
+  const link = await probe('matter', ['id', 'client_contact_id'], CONTACTS_SQL);
+  if (!table || !link) {
+    warn('008_contacts.sql has not been run — the Contacts page will be empty and clients stay as text');
+  }
+
+  /*
+   * `tags` carries the roles (Client, Medical Provider, Insurance Company...).
+   * It is checked by name above rather than separately, because a `contact`
+   * table without it would let the page save roles that silently vanish --
+   * which looks like the app losing data, not like a missing migration.
+   */
+}
+
 console.log('\nRetired (present, unused — safe to leave)');
 {
   // `document` and `drive_indexed_at` belonged to the file index, which was
@@ -191,6 +215,32 @@ console.log('\nRPC exposure (supabase/007_function_grants.sql)');
     );
   } else {
     pass(`anon RPC refused (${b.code || res.status}) — allocate_case_number is revoked alongside it`);
+  }
+
+  /*
+   * audit_redact was missed by 007 and survived 008 rewriting its body,
+   * because CREATE OR REPLACE keeps a function's existing ACL. Checked by
+   * name rather than covered by the canary above for exactly that reason:
+   * "the migration ran" and "this function is closed" turned out not to be
+   * the same question.
+   *
+   * Safe to call -- it is IMMUTABLE, reads nothing, and redacts a payload
+   * this script supplies -- so unlike allocate_case_number it can be probed
+   * directly. A 200 here is surface, not a breach: there is no data behind
+   * it. It should still be shut.
+   */
+  const redact = await fetch(`${url}/rest/v1/rpc/audit_redact`, {
+    method: 'POST',
+    headers: { apikey: key, authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ payload: { probe: 'check-db' } }),
+  });
+  if (redact.status === 404) {
+    warn('audit_redact is not present — run supabase/schema.sql');
+  } else if (redact.ok) {
+    fail('anon can call audit_redact — run supabase/009_audit_redact_grant.sql');
+  } else {
+    const rb = await redact.json().catch(() => ({}));
+    pass(`audit_redact closed to anon (${rb.code || redact.status})`);
   }
 }
 
