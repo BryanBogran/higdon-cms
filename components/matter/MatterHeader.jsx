@@ -7,14 +7,22 @@
  * Phone and email have no home in the prototype's FIELDS at all -- the schema
  * adds them (see docs/DECISIONS.md). Until the matter record carries them they
  * render as an "add" affordance rather than being hidden, so the gap is visible.
+ *
+ * The client name is <ClientCard>: a link to the contact card when one is
+ * linked, and a way to link one when it is not. That second half is what makes
+ * the phone and email below actually fill in -- a case imported from a
+ * spreadsheet or made from a Drive folder has a client name and no client
+ * record, so editing the contact was changing something this page did not
+ * point at.
  */
 
 import Link from 'next/link';
-import { Phone, Mail, IdCard, Archive } from 'lucide-react';
+import { Phone, Mail, Archive } from 'lucide-react';
 import { matterTitle, initials, avatarColor } from '@/lib/domain/matter';
 import { FIELD_BY_KEY } from '@/lib/domain/fields';
 import { useData } from '@/lib/data/DataProvider';
 import MatterActions from './MatterActions';
+import ClientCard from './ClientCard';
 
 export default function MatterHeader({ matterId, matter }) {
   const { updateMatterField, contacts } = useData();
@@ -52,10 +60,7 @@ export default function MatterHeader({ matterId, matter }) {
           <h1 className="text-2xl font-bold text-teal-700 truncate">{matterTitle(matter)}</h1>
 
           <div className="flex items-center gap-5 mt-1.5 flex-wrap text-sm">
-            <span className="flex items-center gap-1.5 text-slate-700">
-              <IdCard size={15} className="text-slate-400" />
-              {v.clientName || '—'}
-            </span>
+            <ClientCard matterId={matterId} matter={matter} />
 
             {phone ? (
               <a href={`tel:${phone.replace(/[^\d+]/g, '')}`} className="flex items-center gap-1.5 text-teal-700 hover:underline">
