@@ -40,7 +40,7 @@
 import { NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service';
 import { parseEml, normalizeEmail, parseAddressList } from '@/lib/domain/email';
-import { matchIntakeSlugs } from '@/lib/domain/mailbox';
+import { matchIntakeSlugs, deliveredToAddresses } from '@/lib/domain/mailbox';
 import { uploadEmailFiles, firmDomains, MAX_EMAIL_BYTES } from '@/lib/data/email-ingest';
 
 // Uploads and MIME parsing need Node APIs and more than the Edge memory budget.
@@ -122,6 +122,20 @@ export async function POST(request) {
   } catch {
     // A malformed envelope is not fatal; the header candidates still apply.
   }
+
+  /*
+   * `Delivered-To`, and it is not a nicety.
+   *
+   * The form fields above are SendGrid and Mailgun conventions. A RAW message
+   * posted with no envelope beside it -- which is what the Apps Script poller
+   * sends, because an RFC822 message has no envelope inside it -- has none of
+   * them, and a BCC'd case address appears in no header either.
+   *
+   * Gmail writes `Delivered-To: cases+slug@...` even for a BCC, so on that
+   * route this header IS the envelope. Without it, BCC -- the way staff most
+   * often expect to file a message quietly -- would fail silently.
+   */
+  envelopeTo.push(...deliveredToAddresses(parsed.headers));
 
   const slugs = matchIntakeSlugs({
     envelopeTo,

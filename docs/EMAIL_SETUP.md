@@ -33,79 +33,102 @@ the card says so in amber rather than showing a link that cannot work.
 
 ---
 
-## 2. The per-matter address — needs one DNS record
+## 2. The per-matter address — no DNS change
 
-Every matter gets its own address, shown at the top of its Activity tab with a
+Every matter has its own address, shown at the top of its Activity tab with a
 **Copy** button:
 
 ```
-SmithJane7f3a9c2e1b04@case.higdonlawyers.com
+cases+AdetanAbimbolaMichelle7f3a9c2e1b04@higdonlawyers.com
 ```
 
-CC, BCC or forward to it and the message files itself on that matter. This is
-Filevine's mechanism, and once set up it costs nothing per message.
+CC, BCC or forward to it and the message files itself onto that matter.
 
-### ⚠️ The subdomain is not optional
+### Why this shape, and not a subdomain
 
-The MX record goes on **`case.higdonlawyers.com`**, never on
-`higdonlawyers.com`. Pointing an MX record at the firm's own domain redirects
-the firm's live mail — every client email, every carrier email, gone until it
-is reverted. A subdomain cannot touch it.
+The original design used `slug@case.higdonlawyers.com`, which is a nicer
+address and needs an MX record. Two facts about this firm changed the answer:
+
+- **DNS is on Wix** (`ns6.wixdns.net`), whose editor is limited, and
+  Cloudflare Email Workers — the free option — needs the domain on Cloudflare
+  nameservers. Moving them would migrate the live website and the live mail to
+  gain an email feature.
+- **Mail is on Google Workspace**, and the firm already runs a service account
+  with domain-wide delegation for Drive.
+
+So everything goes to one real mailbox, `cases@higdonlawyers.com`, using
+Gmail's plus-addressing. **No MX record is involved**, which removes the single
+most dangerous step in this feature: an MX record put on `higdonlawyers.com`
+instead of `case.higdonlawyers.com` stops every client and carrier email until
+somebody notices.
+
+The trade is an uglier address, roughly five minutes of delay instead of
+instant, and the fact that a few web forms reject `+` in an address. For CC and
+forward from Outlook or Gmail — which is how staff will actually use it — none
+of those bite.
+
+The subdomain form is still supported. Clear `NEXT_PUBLIC_INTAKE_MAIL_USER` and
+set the domain back, and every address returns to the old shape.
 
 ### Setup
 
-**a. Pick a provider.** Any of these can POST a raw message:
+**a. Create the mailbox.** In Google Admin, add a user `cases@higdonlawyers.com`.
+A full user, not a group: a group does not keep the plus tag in `Delivered-To`,
+and that header is how a BCC'd address is recovered.
 
-| Provider | Notes |
-|---|---|
-| **Cloudflare Email Workers** | Free. Needs the domain on Cloudflare. |
-| **SendGrid Inbound Parse** | Free tier. Tick **"POST the raw, full MIME message"**. |
-| **Mailgun Routes** | Paid. Use the `store()` action with a forward URL. |
-
-**b. Add the MX record** for `case.higdonlawyers.com`, per the provider.
-
-**c. Generate the shared secret:**
+**b. Generate the shared secret:**
 
 ```bash
 openssl rand -hex 32
 ```
 
-**d. Set the server-side variables** (in Netlify → Site settings → Environment
-variables, and in `.env.local` for local work):
+**c. Set it in Vercel** (Project → Settings → Environment Variables), together
+with the address shape:
 
 ```
-INBOUND_EMAIL_SECRET=<the value from step c>
-SUPABASE_SERVICE_ROLE_KEY=<Supabase → Project Settings → API → service_role>
-NEXT_PUBLIC_INTAKE_MAIL_DOMAIN=case.higdonlawyers.com
-NEXT_PUBLIC_INTAKE_MAIL_LIVE=true
+INBOUND_EMAIL_SECRET          <the value from above>
+SUPABASE_SERVICE_ROLE_KEY     <from Supabase → Project Settings → API>
+NEXT_PUBLIC_INTAKE_MAIL_DOMAIN  higdonlawyers.com
+NEXT_PUBLIC_INTAKE_MAIL_USER    cases
+NEXT_PUBLIC_INTAKE_MAIL_LIVE    true
 ```
 
-⚠️ Neither secret takes a `NEXT_PUBLIC_` prefix. That prefix inlines a value
-into the browser bundle at build time; on the service-role key it would publish
-full database access — RLS and all — to every visitor.
+⚠️ An environment change does not apply to a build that already exists.
+**Redeploy** afterwards.
 
-**e. Point the provider at:**
+**d. Install the poller.** Sign in as `cases@higdonlawyers.com`, open
+[script.google.com](https://script.google.com), create a project, and paste
+[`docs/scripts/gmail-intake.gs`](scripts/gmail-intake.gs).
 
-```
-https://<your-site>/api/inbound-email
-```
+In **Project Settings → Script Properties** add:
 
-with the header `x-inbound-secret: <the value from step c>`. If the provider
-cannot send custom headers, put the secret in the URL path instead — the same
-strength, but far more likely to end up in someone's access log.
+| Property | Value |
+|---|---|
+| `CMS_WEBHOOK` | `https://<your-app>.vercel.app/api/inbound-email` |
+| `CMS_SECRET` | the same secret as above |
 
-**f. Check it:**
+Then run **`testConnection`** once from the editor and approve the permission
+prompt. A `200` with `"filed": 0` is the correct answer — the test message
+names no case.
 
-```bash
-curl https://<your-site>/api/inbound-email
-```
+Finally run **`installTrigger`** once. It schedules `pollInbox` every five
+minutes.
 
-`{"ok":true,"configured":true}` means both secrets are set. `configured:false`
-means the webhook will refuse everything until they are.
+**e. Test it.** Open any matter, copy its address, and send it an email from
+your own account. Within five minutes it appears on that matter's Activity tab.
+
+### What the script does, and what it will not do
+
+It reads unread mail, POSTs each message in its original form, and labels the
+thread `CMS/Filed`. A message is marked read **only** on a 2xx — a network
+failure leaves it unread so the next run retries, because a transient error
+must never lose a client's email. A 4xx labels the thread `CMS/Failed` and
+stops retrying it, so a bad secret does not hammer the endpoint forever.
+
+Anything over 25 MB is flagged rather than truncated. Half a message is not
+evidence.
 
 ---
-
-## What is deliberately not claimed
 
 **The sender is not verified, and cannot be.** SMTP has no authentication worth
 the name and a From header is trivially forged, so a message arriving at a
