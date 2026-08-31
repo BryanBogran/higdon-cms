@@ -153,6 +153,37 @@ console.log('\nWrite protection');
   }
 }
 
+console.log('\nRPC exposure (supabase/007_function_grants.sql)');
+{
+  /*
+   * Postgres grants EXECUTE on every new function to PUBLIC, and a later
+   * `grant ... to authenticated` ADDS to that rather than replacing it. So a
+   * SECURITY DEFINER function is anon-callable unless PUBLIC is revoked
+   * explicitly -- and anon means anyone, because the publishable key ships
+   * in the browser.
+   *
+   * reseed_case_number_counter() is the canary because it is the only one of
+   * the two that is safe to call: it raises the counter with greatest() and
+   * never lowers it, so invoking it changes nothing. allocate_case_number()
+   * cannot be probed the same way -- every call burns a real case number --
+   * so it is not called here. Both are revoked by the same migration, so the
+   * canary answering correctly means that migration has been applied.
+   */
+  const res = await fetch(`${url}/rest/v1/rpc/reseed_case_number_counter`, {
+    method: 'POST',
+    headers: { apikey: key, authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+    body: '{}',
+  });
+  const b = await res.json().catch(() => ({}));
+  if (res.status === 404) {
+    warn('reseed_case_number_counter is not present — run supabase/schema.sql');
+  } else if (res.ok) {
+    fail('anon can call reseed_case_number_counter — run supabase/007_function_grants.sql');
+  } else {
+    pass(`anon RPC refused (${b.code || res.status}) — allocate_case_number is revoked alongside it`);
+  }
+}
+
 console.log('\nStorage');
 {
   /*

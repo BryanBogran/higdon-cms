@@ -30,6 +30,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import FieldInput from './FieldInput';
 import ChecklistItems from './ChecklistItems';
 import { useData } from '@/lib/data/DataProvider';
+import { FIELD_BY_KEY } from '@/lib/domain/fields';
 
 function money(n) {
   const num = parseFloat(String(n ?? '').replace(/[^0-9.-]/g, ''));
@@ -155,7 +156,36 @@ function Collection({ matterId, sectionKey, collection, uploadFolder }) {
  * `full: true` on a field makes it span both columns, which is what long text
  * needs and what the printed sheets show.
  */
-function FieldGroup({ matterId, sectionKey, title, fields, state, setSectionField, uploadFolder }) {
+/**
+ * A section field whose key is ALSO a matter-level field must read and write
+ * the matter, not this section's bag of section data.
+ *
+ * The intake interview asks for the SOL, and `lib/domain/fields.js` also
+ * defines `sol` as a matter field, because the deadline chain, the calendar,
+ * the dashboard countdown and the projects table all read `matter.values.sol`.
+ * Routing every field to setSectionField meant the SOL typed on the Intake tab
+ * landed in matter_section_data instead, where nothing that computes a
+ * deadline ever looks -- so the tab accepted the single most important date on
+ * a PI file and silently dropped it, while an identically labelled field on
+ * Case Info worked. Two fields, same label, one of them inert.
+ *
+ * Deciding this from FIELD_BY_KEY rather than a flag in the registry means a
+ * field added to a section later is wired up by virtue of sharing the key, and
+ * cannot repeat the failure by omission.
+ *
+ * yesnoDoc fields are excluded: their value is a {done, docUrl, note, date}
+ * object owned by the checklist, not a scalar, and they reach the matter
+ * through setChecklistItem.
+ */
+function matterBackedField(field) {
+  const mf = FIELD_BY_KEY[field.key];
+  return mf && mf.type !== 'yesnoDoc' ? mf : null;
+}
+
+function FieldGroup({
+  matterId, matter, sectionKey, title, fields, state,
+  setSectionField, updateMatterField, uploadFolder,
+}) {
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
       {title ? (
@@ -171,10 +201,12 @@ function FieldGroup({ matterId, sectionKey, title, fields, state, setSectionFiel
             </label>
             <FieldInput
               field={f}
-              value={state.fields[f.key]}
+              value={matterBackedField(f) ? matter?.values?.[f.key] : state.fields[f.key]}
               matterId={matterId}
               uploadFolder={uploadFolder}
-              onChange={(val) => setSectionField(matterId, sectionKey, f.key, val)}
+              onChange={(val) => (matterBackedField(f)
+                ? updateMatterField(matterId, f.key, val)
+                : setSectionField(matterId, sectionKey, f.key, val))}
             />
           </div>
         ))}
@@ -184,7 +216,7 @@ function FieldGroup({ matterId, sectionKey, title, fields, state, setSectionFiel
 }
 
 export default function GenericSection({ matterId, matter, section }) {
-  const { sectionState, setSectionField } = useData();
+  const { sectionState, setSectionField, updateMatterField } = useData();
   const state = sectionState(matterId, section.key);
 
   // `collections` is the general form; `collection` is the singular shorthand
@@ -214,11 +246,13 @@ export default function GenericSection({ matterId, matter, section }) {
       {section.fields ? (
         <FieldGroup
           matterId={matterId}
+          matter={matter}
           sectionKey={section.key}
           title={section.label}
           fields={section.fields}
           state={state}
           setSectionField={setSectionField}
+          updateMatterField={updateMatterField}
           uploadFolder={section.uploadFolder}
         />
       ) : null}
@@ -227,11 +261,13 @@ export default function GenericSection({ matterId, matter, section }) {
         <FieldGroup
           key={g.title || 'main'}
           matterId={matterId}
+          matter={matter}
           sectionKey={section.key}
           title={g.title}
           fields={g.fields}
           state={state}
           setSectionField={setSectionField}
+          updateMatterField={updateMatterField}
           uploadFolder={section.uploadFolder}
         />
       ))}
