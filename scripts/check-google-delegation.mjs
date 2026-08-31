@@ -27,29 +27,51 @@
 
 import { readFileSync } from 'node:fs';
 import { createSign, createPrivateKey } from 'node:crypto';
+import {
+  diagnoseDelegation, NEEDED_SCOPE, CANDIDATE_SCOPES,
+} from '../lib/google/delegation-diagnosis.js';
 
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
-const SCOPE = 'https://www.googleapis.com/auth/drive';
+const SCOPE = NEEDED_SCOPE;
 
-const [, , keyPath, impersonate] = process.argv;
+const args = process.argv.slice(2);
+const keyPath = args.find((a) => !a.includes('@')) || '';
+const impersonate = args.find((a) => a.includes('@')) || process.env.GOOGLE_IMPERSONATE_USER || '';
 
-if (!keyPath) {
+/*
+ * The JSON file is the easy path, but it is often long gone by the time
+ * something breaks. The env vars are enough for every test here -- only the
+ * printed Client ID needs the file, because client_id is not derivable from a
+ * private key and is not in the environment.
+ */
+let key;
+if (keyPath) {
+  try {
+    key = JSON.parse(readFileSync(keyPath, 'utf8'));
+  } catch (err) {
+    console.log(`Could not read ${keyPath}\n  ${err.message}`);
+    process.exit(1);
+  }
+} else if (process.env.GOOGLE_PRIVATE_KEY && process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL) {
+  key = {
+    client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n').replace(/^"|"$/g, ''),
+    client_id: '',
+  };
+} else {
   console.log(`
 Usage:
   node scripts/check-google-delegation.mjs <service-account.json> [user@higdonlawyers.com]
 
-The JSON file is the one downloaded when the service account key was created.
-If you no longer have it, create a new key: Google Cloud Console -> IAM & Admin
--> Service Accounts -> your account -> Keys -> Add key -> JSON.
-`);
-  process.exit(1);
-}
+or, with the same variables the app uses:
+  node --env-file=.env.local scripts/check-google-delegation.mjs files@higdonlawyers.com
 
-let key;
-try {
-  key = JSON.parse(readFileSync(keyPath, 'utf8'));
-} catch (err) {
-  console.log(`Could not read ${keyPath}\n  ${err.message}`);
+The JSON file is the one downloaded when the service-account key was created.
+It is the only source of the numeric Client ID -- that value is not in the
+environment and cannot be derived from the key. Without it this still tests
+delegation and reports which scopes are authorised; you would read the Client
+ID from Cloud Console -> IAM & Admin -> Service Accounts -> Details -> Unique ID.
+`);
   process.exit(1);
 }
 
@@ -79,11 +101,11 @@ if (key.client_id && !/^\d+$/.test(key.client_id)) {
 const b64url = (input) =>
   Buffer.from(input).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
-async function token({ sub }) {
+async function token({ sub, scope = SCOPE }) {
   const iat = Math.floor(Date.now() / 1000);
   const claims = {
     iss: key.client_email,
-    scope: SCOPE,
+    scope,
     aud: TOKEN_URL,
     iat,
     exp: iat + 3600,
@@ -134,37 +156,66 @@ if (impersonate) {
 
 console.log('');
 
-if (!asSelf.ok) {
-  console.log(red('The key itself is not working, so this is not a delegation problem.'));
-  console.log('Nothing you change in the Admin console will help. Check that the JSON');
-  console.log('file matches a key that still exists on the service account, and that');
-  console.log("this machine's clock is correct — a JWT signed more than a few minutes");
-  console.log('out of step is rejected.\n');
+// Probe each scope alone, but only when it can tell us something: if the key
+// itself is failing, or delegation already works, there is nothing to narrow.
+let granted = [];
+if (asSelf.ok && impersonate && !asUser.ok) {
+  console.log(bold('Which scopes does the entry actually grant?\n'));
+  for (const scope of CANDIDATE_SCOPES) {
+    const r = await token({ sub: impersonate, scope });
+    if (r.ok) granted.push(scope);
+    console.log(`  ${r.ok ? green('granted ') : red('refused ')} ${scope}`);
+  }
+  console.log('');
+}
+
+const d = diagnoseDelegation({
+  asSelfOk: asSelf.ok,
+  impersonate,
+  asUserOk: Boolean(asUser?.ok),
+  granted,
+});
+
+console.log((d.ok ? green : red)(d.headline) + '\n');
+
+if (d.verdict === 'key-broken') {
+  console.log('Nothing you change in the Admin console will help. Check that the key');
+  console.log('still exists on the service account, and that this machine\'s clock is');
+  console.log('correct — a JWT signed more than a few minutes out of step is rejected.\n');
   process.exit(1);
 }
 
-if (!impersonate) {
-  console.log('The key works. Re-run with the address to test delegation:\n');
-  console.log(`  node scripts/check-google-delegation.mjs ${keyPath} files@higdonlawyers.com\n`);
+if (d.verdict === 'not-tested') {
+  console.log('Re-run with the address to test delegation:\n');
+  console.log(`  node scripts/check-google-delegation.mjs ${keyPath || '<key.json>'} files@higdonlawyers.com\n`);
   process.exit(0);
 }
 
-if (asUser.ok) {
-  console.log(green('Delegation is authorised. Set GOOGLE_IMPERSONATE_USER to that address'));
-  console.log(green('in Vercel and redeploy — env changes do not apply to an existing build.\n'));
+if (d.verdict === 'ok') {
+  console.log(green('Set GOOGLE_IMPERSONATE_USER to that address in Vercel and redeploy —'));
+  console.log(green('an env change does not apply to a build that already exists.\n'));
   process.exit(0);
 }
 
-console.log(red('The key works but delegation does not. It is the Admin console entry.\n'));
-console.log('In order of how often each one is the cause:\n');
-console.log(`  1. The scope does not match character for character. It must be exactly`);
-console.log(`     ${bold(SCOPE)}`);
-console.log(`     Not drive.file, not drive.readonly, no trailing space, no quotes.`);
-console.log(`  2. The client id does not match. It must be ${bold(key.client_id)}`);
-console.log(`     If an older entry exists for this account, EDIT it. A second entry for`);
-console.log(`     the same client id does not add scopes — delegation matches on id.`);
-console.log(`  3. Not propagated yet. Usually a few minutes; Google says up to 24 hours.`);
-console.log(`     Wait five and re-run this before changing anything.`);
-console.log(`  4. ${impersonate} is not a real user in the domain, or is suspended.`);
-console.log(`     It must be a live Workspace account, not an alias or a group.\n`);
+if (d.verdict === 'no-scopes') {
+  console.log('A wrong scope string would still leave the other scopes working, so the');
+  console.log('scope is not what is wrong here. Check, in this order:\n');
+  console.log(`  1. The Client ID on the entry. It must be ${bold(key.client_id || 'the Unique ID from Cloud Console')}`);
+  console.log('     and NOT the OAuth id ending .apps.googleusercontent.com.');
+  console.log(`  2. That you saved it in the Workspace domain that owns ${impersonate}.`);
+  console.log('     Being an admin of another domain lets you save an entry that can');
+  console.log('     never apply.');
+  console.log('  3. Propagation. Usually minutes. Re-run this before changing anything —');
+  console.log('     most of the time lost here goes on editing a config already correct.\n');
+  process.exit(1);
+}
+
+// wrong-scopes
+console.log(`  needed:  ${bold(d.needed)}`);
+console.log(`  granted: ${d.granted.join('\n           ')}\n`);
+console.log('EDIT that existing entry and replace its scopes. Do not add a second one —');
+console.log('delegation matches on client id, so a new row for the same id does not add');
+console.log('scopes to it.\n');
+console.log(`${bold('drive.file')} is the usual culprit: it only ever covers files the app itself`);
+console.log('created, so it cannot see folders your staff made.\n');
 process.exit(1);
