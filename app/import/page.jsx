@@ -26,6 +26,7 @@
 import { useState, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import Papa from 'papaparse';
+import { readXlsx } from '@/lib/domain/xlsx';
 import {
   Upload, FileSpreadsheet, AlertTriangle, ArrowLeft, ArrowRight,
   CheckCircle2, Loader2, Plus, RefreshCw, SkipForward,
@@ -79,9 +80,70 @@ export default function ImportPage() {
     [rows, columns, matters, conventions, resolved]
   );
 
+  /**
+   * Rows out of a file, whatever kind it is.
+   *
+   * ── Why .xlsx is read directly rather than asked for as CSV ────────────
+   *
+   * Every report Filevine produced for this firm is .xlsx, and telling
+   * someone to re-save 24 files as CSV is not just tedious — it is where
+   * dates break. Excel writes a date out using the machine's locale, so a
+   * Statute of Limitations of 3 August becomes "8/3/26" on one laptop and
+   * "3/8/26" on another, and this importer then has to infer which. It
+   * infers well; on a column where no day exceeds 12 it cannot infer at all
+   * and blocks, which is correct and also a dead end.
+   *
+   * Inside the .xlsx that cell is the number 46251 with a date format on it.
+   * Read directly, the ambiguity never exists. On the SOL column that is the
+   * difference between a deadline and a malpractice claim.
+   */
+  async function readWorkbook(file) {
+    const rowsOut = await readXlsx(await file.arrayBuffer());
+    const nonEmpty = rowsOut.filter((r) => r.some((c) => String(c ?? '').trim()));
+    if (!nonEmpty.length) throw new Error('That spreadsheet has no rows in it.');
+    return nonEmpty;
+  }
+
+  function accept(file, data, errors) {
+    if (!data.length) {
+      setParseError('That file has no rows in it.');
+      return;
+    }
+    // A CSV exported from Excel can carry a byte-order mark on the first
+    // header, which would stop "Client Name" matching anything at all.
+    const head = (data[0] || []).map((h, i) =>
+      i === 0 ? String(h ?? '').replace(/^\ufeff/, '') : String(h ?? '')
+    );
+    const body = data.slice(1).filter((r) => r.some((c) => String(c ?? '').trim()));
+    if (!body.length) {
+      setParseError('That file has headers but no data rows.');
+      return;
+    }
+    setFileName(file.name);
+    setHeaders(head);
+    setRows(body);
+    setOverrides({});
+    setResolved({});
+    setResult(null);
+    setStep(1);
+    if (errors?.length) {
+      setParseError(`${errors.length} row(s) looked malformed and were read as best we could.`);
+    }
+  }
+
   function readFile(file) {
     if (!file) return;
     setParseError('');
+
+    // Decided by content where possible, not by the extension: a .xls that is
+    // really a modern workbook, or an .xlsx renamed to .csv, both happen.
+    if (/\.xlsx?$/i.test(file.name)) {
+      readWorkbook(file)
+        .then((data) => accept(file, data, null))
+        .catch((err) => setParseError(err?.message || 'Could not read that spreadsheet.'));
+      return;
+    }
+
     Papa.parse(file, {
       skipEmptyLines: 'greedy',
       complete: ({ data, errors }) => {
@@ -89,26 +151,7 @@ export default function ImportPage() {
           setParseError('That file has no rows in it.');
           return;
         }
-        // A CSV exported from Excel can carry a byte-order mark on the first
-        // header, which would stop "Client Name" matching anything at all.
-        const head = (data[0] || []).map((h, i) =>
-          i === 0 ? String(h ?? '').replace(/^﻿/, '') : String(h ?? '')
-        );
-        const body = data.slice(1).filter((r) => r.some((c) => String(c ?? '').trim()));
-        if (!body.length) {
-          setParseError('That file has headers but no data rows.');
-          return;
-        }
-        setFileName(file.name);
-        setHeaders(head);
-        setRows(body);
-        setOverrides({});
-        setResolved({});
-        setResult(null);
-        setStep(1);
-        if (errors?.length) {
-          setParseError(`${errors.length} row(s) looked malformed and were read as best we could.`);
-        }
+        accept(file, data, errors);
       },
       error: (err) => setParseError(err?.message || 'Could not read that file.'),
     });
@@ -139,7 +182,7 @@ export default function ImportPage() {
         </Link>
       </div>
       <p className="text-sm text-slate-500 mb-6">
-        A spreadsheet of cases, saved as CSV. Import the same file again later and it updates
+        A spreadsheet of cases — .xlsx straight out of Filevine, or a CSV. Import the same file again later and it updates
         those cases rather than duplicating them.
       </p>
 
@@ -179,15 +222,16 @@ export default function ImportPage() {
             className="w-full border-2 border-dashed border-slate-300 rounded-xl py-16 grid place-items-center gap-3 hover:border-slate-400 hover:bg-slate-50 transition"
           >
             <Upload size={28} className="text-slate-400" />
-            <span className="font-medium text-slate-700">Drop a CSV here, or click to choose</span>
+            <span className="font-medium text-slate-700">Drop a spreadsheet here, or click to choose</span>
             <span className="text-xs text-slate-500">
-              In Excel or Google Sheets: File → Save as / Download → CSV
+              .xlsx or .csv. Filevine&apos;s exports are .xlsx — use them as they are, rather than
+              re-saving as CSV, which is where dates get read the wrong way round.
             </span>
           </button>
           <input
             ref={inputRef}
             type="file"
-            accept=".csv,text/csv"
+            accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             className="hidden"
             onChange={(e) => readFile(e.target.files?.[0])}
           />
