@@ -11,10 +11,13 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Search, Plus, X, ChevronDown } from 'lucide-react';
+import { Search, Plus, X, ChevronDown, ArrowDownUp } from 'lucide-react';
 import { useData } from '@/lib/data/DataProvider';
 import CreateProjectPanel from '@/components/projects/CreateProjectPanel';
-import { matterTitle, initials, avatarColor, daysSinceActivity } from '@/lib/domain/matter';
+import { matterTitle, initials, avatarColor } from '@/lib/domain/matter';
+import {
+  buildCaseList, SORTS, CASE_TYPES, DEPO_FILTERS,
+} from '@/lib/domain/case-list';
 import { FIELD_BY_KEY } from '@/lib/domain/fields';
 
 const PAGE_SIZE = 50;
@@ -25,6 +28,9 @@ export default function ProjectHubPage() {
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('');
   const [attorney, setAttorney] = useState('');
+  const [caseType, setCaseType] = useState('');
+  const [depo, setDepo] = useState('');
+  const [sort, setSort] = useState('activity');
   const [showArchived, setShowArchived] = useState(false);
   const [page, setPage] = useState(0);
   const [creating, setCreating] = useState(false);
@@ -51,23 +57,17 @@ export default function ProjectHubPage() {
     [matters]
   );
 
-  const rows = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    return Object.entries(matters)
-      .filter(([, m]) => (showArchived ? true : !m.archivedAt))
-      .filter(([, m]) => (status ? (m.values?.status || '') === status : true))
-      .filter(([, m]) => (attorney ? (m.values?.attorney || '') === attorney : true))
-      .filter(([, m]) => {
-        if (!term) return true;
-        const v = m.values || {};
-        return (
-          (v.clientName || '').toLowerCase().includes(term) ||
-          (v.caseNumber || '').toLowerCase().includes(term)
-        );
-      })
-      .map(([id, m]) => ({ id, matter: m, stale: daysSinceActivity(m) }))
-      .sort((a, b) => (a.stale ?? 1e9) - (b.stale ?? 1e9));
-  }, [matters, q, status, attorney, showArchived]);
+  /*
+   * Filtering and sorting live in lib/domain/case-list.js, not here. They are
+   * rules rather than rendering -- whether a blank insurance class counts as
+   * Unknown, where a case with no number sorts, whether a deposition ticked
+   * without a date counts as taken -- and none of those can be tested inside
+   * a component.
+   */
+  const rows = useMemo(
+    () => buildCaseList(matters, { q, status, attorney, caseType, depo, showArchived, sort }),
+    [matters, q, status, attorney, caseType, depo, showArchived, sort]
+  );
 
   const pageRows = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
@@ -75,8 +75,20 @@ export default function ProjectHubPage() {
   const chips = [
     status ? { label: status, clear: () => setStatus('') } : null,
     attorney ? { label: attorney, clear: () => setAttorney('') } : null,
+    caseType ? { label: caseType, clear: () => setCaseType('') } : null,
+    depo ? {
+      label: DEPO_FILTERS.find((d) => d.key === depo)?.label || depo,
+      clear: () => setDepo(''),
+    } : null,
     q.trim() ? { label: `"${q.trim()}"`, clear: () => setQ('') } : null,
   ].filter(Boolean);
+
+  // Sort is not a chip. A chip means "something is being hidden from you", and
+  // a sort hides nothing -- putting one there would make Clear filters look
+  // like it had left something on.
+  function clearAll() {
+    setStatus(''); setAttorney(''); setCaseType(''); setDepo(''); setQ(''); setPage(0);
+  }
 
   return (
     <div className="p-4 sm:p-6">
@@ -110,6 +122,25 @@ export default function ProjectHubPage() {
           options={FIELD_BY_KEY.status.options} />
         <Facet label="Primary" value={attorney} onChange={(v) => { setAttorney(v); setPage(0); }}
           options={attorneys} />
+        <Facet label="Case type" value={caseType} onChange={(v) => { setCaseType(v); setPage(0); }}
+          options={CASE_TYPES} />
+        <Facet label="Depositions" value={depo} onChange={(v) => { setDepo(v); setPage(0); }}
+          options={DEPO_FILTERS.map((d) => ({ value: d.key, label: d.label }))} />
+
+        {/* Sort sits with the filters but is not one: it changes the order,
+            never the contents, so it has no "any" option and no chip. */}
+        <label className="flex items-center gap-1.5 text-slate-600">
+          <ArrowDownUp size={14} className="text-slate-400" />
+          <span className="sr-only sm:not-sr-only">Sort</span>
+          <select
+            value={sort}
+            onChange={(e) => { setSort(e.target.value); setPage(0); }}
+            aria-label="Sort projects"
+            className="border border-slate-300 rounded px-2 py-1.5 bg-white text-sm"
+          >
+            {SORTS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+          </select>
+        </label>
         <label className="flex items-center gap-2 text-slate-600 cursor-pointer">
           <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
           Show archived
@@ -128,7 +159,7 @@ export default function ProjectHubPage() {
             </span>
           ))}
           <button
-            onClick={() => { setStatus(''); setAttorney(''); setQ(''); }}
+            onClick={clearAll}
             className="text-sm text-teal-700 font-semibold hover:underline"
           >
             Clear filters
@@ -212,17 +243,27 @@ export default function ProjectHubPage() {
   );
 }
 
+/**
+ * One filter dropdown. The empty option is the label, so an unset facet reads
+ * as "Status" rather than "Status: any" and the row stays scannable.
+ *
+ * Options are plain strings where the value IS the label -- a status, an
+ * attorney -- or `{ value, label }` where they differ, which the deposition
+ * filter needs: it stores 'neither' and has to read "No depo taken yet".
+ */
 function Facet({ label, value, onChange, options = [] }) {
+  const items = options.map((o) => (typeof o === 'string' ? { value: o, label: o } : o));
   return (
     <div className="relative">
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        aria-label={label}
         className="appearance-none bg-white border border-slate-300 rounded pl-3 pr-8 py-1.5 text-sm text-slate-700"
       >
         <option value="">{label}</option>
-        {options.map((o) => (
-          <option key={o} value={o}>{o}</option>
+        {items.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
         ))}
       </select>
       <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
