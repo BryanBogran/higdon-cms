@@ -1,45 +1,70 @@
 -- ---------------------------------------------------------------------
 -- 011 — permanent deletion of a matter
 --
--- Until now the only removal was Archive, which sets `deleted_at` and
--- keeps the row. That is the right default and it stays the default. But
--- an import that went wrong, a duplicate, or a project opened by mistake
--- should not sit in the database forever, and asking a developer to
--- remove one is not a workflow.
+-- ⚠️ REVISED. The first version of this file did not run: it tried to
+-- delete the matter's rows out of audit_event and was stopped by the
+-- `audit_no_rowmod` trigger with
 --
--- ── What actually gets deleted ────────────────────────────────────────
+--     ERROR: audit_event is append-only
 --
--- Everything hangs off `matter` with ON DELETE CASCADE, so removing the
--- matter takes its checklist items, activity, tasks, section data,
--- section rows and relations with it. Those are handled by the database
--- and are not listed here.
+-- That trigger was right and this file was wrong. audit_event has RLS
+-- with a SELECT-only policy, so no client can touch it; the trigger
+-- exists precisely to stop a SECURITY DEFINER function — this one — from
+-- doing what a client cannot. Its comment says so: "A REVOKE alone would
+-- not restrain a table owner."
 --
--- TWO things do NOT cascade, and both are deliberate:
+-- ── Why I am not working around it ────────────────────────────────────
 --
---   audit_event   has no foreign key — it must survive the row it
---                 describes. Handled explicitly below.
+-- I could have the trigger stand aside for a session flag this function
+-- sets. I am not going to, because the reasoning behind the original
+-- version does not survive contact with the question "what is the audit
+-- log FOR".
 --
---   the Drive folder  lives in Google, not Postgres. Nothing here can or
---                 should reach into it. The app says so on the button:
---                 the documents remain, and a person deletes them in
---                 Drive if that is what they want. Silently binning a
---                 client's medical records because someone tidied a case
---                 list would be indefensible.
+-- It is there so nobody can quietly rewrite history. A firm where a case
+-- and every trace of it can be removed from one web button has an audit
+-- log that proves nothing, because the act of covering the tracks is
+-- itself one of the things it can be used to do. That is a bad property
+-- for a law firm and a worse one for the person who later has to say
+-- under oath what the system does.
 --
--- ── The audit question ────────────────────────────────────────────────
+-- The justification I gave was disk space, and I had already established
+-- in 012 that it is not real: DELETE frees nothing until autovacuum, the
+-- rows are small, and they are already redacted for SSN, date of birth
+-- and document URLs.
 --
--- audit_event holds a redacted snapshot of every change the matter ever
--- had. Keeping those after a purge means the "deleted" case is still in
--- the database in all but name, which defeats the point. Deleting them
--- silently means a case can vanish with no trace that it existed.
+-- So the history STAYS. The case goes.
 --
--- So: the history goes, and ONE tombstone row replaces it recording that
--- a purge happened, when, by whom, why, and how many rows went. The
--- tombstone carries the CASE NUMBER but NOT the client's name — enough to
--- answer "what happened to 26-042", not enough to leave the person in the
--- database after they were removed from it.
+-- ── What that means in practice ───────────────────────────────────────
 --
--- Safe to re-run.
+-- Deleting the matter fires the ordinary audit triggers on it and on
+-- every cascaded child, so the audit log ends up holding a full, dated,
+-- attributed record of the removal. This function adds one more row
+-- carrying the thing those cannot: WHY, in the words of the person who
+-- did it.
+--
+-- If the firm ever genuinely needs history erased — a case imported with
+-- another client's data, a court-ordered expungement — that is a
+-- deliberate act for a person with database access, not an API:
+--
+--     alter table audit_event disable trigger audit_no_rowmod;
+--     delete from audit_event where row_pk->>'matter_id' = '<uuid>';
+--     alter table audit_event enable  trigger audit_no_rowmod;
+--
+-- Three statements, run knowingly, that leave the trigger back on. That
+-- is the right amount of friction for erasing a legal record.
+--
+-- ── What gets deleted ─────────────────────────────────────────────────
+--
+-- Everything hangs off `matter` with ON DELETE CASCADE: checklist items,
+-- activity, tasks, section data, section rows and relations. Handled by
+-- the database and not listed here.
+--
+-- The Drive folder is NOT touched. It lives in Google, nothing here
+-- should reach into it, and the app says so on the button — silently
+-- binning a client's medical records because someone tidied a case list
+-- would be indefensible.
+--
+-- Safe to re-run; replaces the earlier version in place.
 -- ---------------------------------------------------------------------
 
 
@@ -92,7 +117,6 @@ as $$
 declare
   v_case_number text;
   v_hold        boolean;
-  v_audit_rows  integer;
   v_children    jsonb;
 begin
   select case_number, legal_hold into v_case_number, v_hold
@@ -120,40 +144,32 @@ begin
                          where from_id = p_matter_id or to_id = p_matter_id)
   ) into v_children;
 
-  select count(*) into v_audit_rows
-    from audit_event where row_pk->>'matter_id' = p_matter_id::text;
-
-  -- The history. Uses the audit_by_matter index.
-  delete from audit_event where row_pk->>'matter_id' = p_matter_id::text;
-
-  -- The matter. Cascades take every child table with it, and the row's
-  -- own DELETE audit trigger fires — writing one more row, which is why
-  -- the tombstone is inserted after this rather than before.
+  /*
+   * audit_event is NOT touched. The delete below fires the ordinary audit
+   * triggers on the matter and on every cascaded child, so the log ends up
+   * with a complete, dated, attributed record of the removal — which is the
+   * point of having one.
+   */
   delete from matter where id = p_matter_id;
 
-  -- Whatever the cascade's own triggers just wrote is part of the history
-  -- being removed, so clear it too and leave only the tombstone.
-  delete from audit_event where row_pk->>'matter_id' = p_matter_id::text;
-
   /*
-   * The tombstone. Case number, not client name: enough to answer "what
-   * happened to 26-042" without leaving the person in the database after
-   * they were taken out of it.
+   * One extra row carrying the thing the automatic ones cannot: why, in the
+   * words of the person who did it. Inserted after the delete so it reads
+   * last in the timeline.
    */
-  insert into audit_event (actor_id, table_name, row_pk, op, old_row)
+  insert into audit_event (actor_id, table_name, row_pk, op, new_row)
   values (
     auth.uid(),
     'matter',
     jsonb_build_object('matter_id', p_matter_id::text),
     'D',
     jsonb_build_object(
-      'purged',            true,
-      'case_number',       v_case_number,
-      'reason',            nullif(btrim(coalesce(p_reason, '')), ''),
-      'audit_rows_removed', v_audit_rows,
-      'children_removed',  v_children,
-      'note', 'Permanently deleted. Client name withheld deliberately; '
-              || 'any Google Drive folder was NOT touched.'
+      'purged',           true,
+      'case_number',      v_case_number,
+      'reason',           nullif(btrim(coalesce(p_reason, '')), ''),
+      'children_removed', v_children,
+      'note', 'Permanently deleted from the case list. History above is '
+              || 'retained. Any Google Drive folder was NOT touched.'
     )
   );
 
@@ -161,7 +177,6 @@ begin
     'ok', true,
     'matter_id', p_matter_id,
     'case_number', v_case_number,
-    'audit_rows_removed', v_audit_rows,
     'children_removed', v_children
   );
 end $$;

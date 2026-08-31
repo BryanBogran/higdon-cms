@@ -25,6 +25,12 @@
  * Google to bin a client's medical records because someone tidied a case
  * list, and a "delete" that leaves documents behind without saying so is
  * a lie about what just happened. The panel says it before you type.
+ *
+ * The AUDIT HISTORY is not deleted either, and this list used to claim it
+ * was. The database refused — audit_event carries a trigger that stops
+ * even a SECURITY DEFINER function from touching it — and the database
+ * was right: a log that can be erased from the same button that erases
+ * the case proves nothing about either. See supabase/011_delete_matter.sql.
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -175,8 +181,11 @@ export default function MatterActions({ matterId, matter }) {
 
                 <ul className="mt-2 space-y-1 text-xs text-slate-600 list-disc pl-4">
                   <li>Its notes, tasks, checklist, deadlines and section rows go with it.</li>
-                  <li>Its history in the audit log is removed; one record that a deletion
-                      happened is kept.</li>
+                  <li>
+                    Its <span className="font-semibold text-slate-800">audit history is kept</span> —
+                    who changed what, and when. That is what the log is for, and it stays
+                    whether or not the case does.
+                  </li>
                   <li>
                     <span className="font-semibold text-slate-800">The Google Drive folder is not touched.</span>{' '}
                     {driveFolderId ? (
