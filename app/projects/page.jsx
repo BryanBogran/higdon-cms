@@ -11,12 +11,14 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Search, Plus, X, ChevronDown, ArrowDownUp } from 'lucide-react';
+import {
+  Search, Plus, X, ChevronDown, ArrowUpNarrowWide, ArrowDownWideNarrow,
+} from 'lucide-react';
 import { useData } from '@/lib/data/DataProvider';
 import CreateProjectPanel from '@/components/projects/CreateProjectPanel';
 import { matterTitle, initials, avatarColor } from '@/lib/domain/matter';
 import {
-  buildCaseList, SORTS, CASE_TYPES, DEPO_FILTERS,
+  buildCaseList, SORTS, CASE_TYPES, DEPO_FILTERS, directionLabel,
 } from '@/lib/domain/case-list';
 import { FIELD_BY_KEY } from '@/lib/domain/fields';
 
@@ -31,6 +33,7 @@ export default function ProjectHubPage() {
   const [caseType, setCaseType] = useState('');
   const [depo, setDepo] = useState('');
   const [sort, setSort] = useState('activity');
+  const [direction, setDirection] = useState('asc');
   const [showArchived, setShowArchived] = useState(false);
   const [page, setPage] = useState(0);
   const [creating, setCreating] = useState(false);
@@ -65,8 +68,8 @@ export default function ProjectHubPage() {
    * a component.
    */
   const rows = useMemo(
-    () => buildCaseList(matters, { q, status, attorney, caseType, depo, showArchived, sort }),
-    [matters, q, status, attorney, caseType, depo, showArchived, sort]
+    () => buildCaseList(matters, { q, status, attorney, caseType, depo, showArchived, sort, direction }),
+    [matters, q, status, attorney, caseType, depo, showArchived, sort, direction]
   );
 
   const pageRows = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -129,8 +132,7 @@ export default function ProjectHubPage() {
 
         {/* Sort sits with the filters but is not one: it changes the order,
             never the contents, so it has no "any" option and no chip. */}
-        <label className="flex items-center gap-1.5 text-slate-600">
-          <ArrowDownUp size={14} className="text-slate-400" />
+        <div className="flex items-center gap-1.5 text-slate-600">
           <span className="sr-only sm:not-sr-only">Sort</span>
           <select
             value={sort}
@@ -140,7 +142,30 @@ export default function ProjectHubPage() {
           >
             {SORTS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
           </select>
-        </label>
+
+          {/*
+            The direction, as its own button rather than six entries in the
+            dropdown. Two controls that each do one thing beat one that does
+            both, and reversing an order is the kind of thing you do
+            repeatedly while reading a list -- one click, not open-scan-pick.
+
+            Labelled in the terms of the CURRENT sort. "Descending" makes a
+            reader work out what that means for case numbers; "Newest number
+            first" does not.
+          */}
+          <button
+            type="button"
+            onClick={() => { setDirection((d) => (d === 'asc' ? 'desc' : 'asc')); setPage(0); }}
+            aria-label={`Sorted ${directionLabel(sort, direction)} — click to reverse`}
+            title={`${directionLabel(sort, direction)} — click to reverse`}
+            className="flex items-center gap-1 rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-600 hover:border-slate-400 hover:text-slate-900"
+          >
+            {direction === 'asc'
+              ? <ArrowUpNarrowWide size={14} className="text-slate-500" />
+              : <ArrowDownWideNarrow size={14} className="text-slate-500" />}
+            <span className="hidden lg:inline text-xs">{directionLabel(sort, direction)}</span>
+          </button>
+        </div>
         <label className="flex items-center gap-2 text-slate-600 cursor-pointer">
           <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
           Show archived
