@@ -132,7 +132,7 @@ async function token({ sub, scope = SCOPE }) {
     }),
   });
   const body = await res.json().catch(() => ({}));
-  if (res.ok && body.access_token) return { ok: true };
+  if (res.ok && body.access_token) return { ok: true, token: body.access_token };
   return { ok: false, error: body.error || `HTTP ${res.status}`, detail: body.error_description || '' };
 }
 
@@ -192,8 +192,41 @@ if (d.verdict === 'not-tested') {
 }
 
 if (d.verdict === 'ok') {
-  console.log(green('Set GOOGLE_IMPERSONATE_USER to that address in Vercel and redeploy —'));
-  console.log(green('an env change does not apply to a build that already exists.\n'));
+  /*
+   * Delegation passing is not the same as being able to upload. A service
+   * account has no storage of its own -- that is the whole reason for
+   * impersonation -- so the impersonated user has to have some. A Workspace
+   * account with no Drive licence authorises delegation perfectly well and
+   * then fails every upload with storageQuotaExceeded, which reads like a
+   * delegation problem and is not one.
+   */
+  const about = await fetch(
+    'https://www.googleapis.com/drive/v3/about?fields=user(emailAddress),storageQuota(limit,usage)',
+    { headers: { authorization: `Bearer ${asUser.token}` } },
+  );
+  const info = await about.json().catch(() => ({}));
+
+  if (!about.ok) {
+    console.log(red(`Delegation works, but the Drive API refused: ${info.error?.message || about.status}`));
+    process.exit(1);
+  }
+
+  const limit = Number(info.storageQuota?.limit ?? 0);
+  const acting = info.user?.emailAddress || impersonate;
+  console.log(`  acting as ................ ${green(acting)}`);
+  console.log(
+    `  drive storage ............ ${limit ? green(`${(limit / 1e9).toFixed(0)} GB`) : green('unlimited / pooled')}\n`
+  );
+
+  if (acting.toLowerCase() !== impersonate.toLowerCase()) {
+    console.log(red(`The token is acting as ${acting}, not ${impersonate}. Check the address.\n`));
+    process.exit(1);
+  }
+
+  console.log(green('This account can upload. If GOOGLE_IMPERSONATE_USER is already set in'));
+  console.log(green('Vercel, nothing needs redeploying — the scope lives at Google\'s end.'));
+  console.log('If it is not set yet, set it and redeploy: an env change does not apply');
+  console.log('to a build that already exists.\n');
   process.exit(0);
 }
 
