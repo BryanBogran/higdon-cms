@@ -297,10 +297,17 @@ begin
   return v_number;
 end $$;
 
--- Postgres grants EXECUTE to PUBLIC by default, and a `grant ... to
--- authenticated` does not undo that. Without the revoke, this SECURITY
--- DEFINER function is callable by anon -- i.e. by anyone with the
--- publishable key. See supabase/007_function_grants.sql.
+-- TWO grants have to go, not one. Postgres grants EXECUTE to PUBLIC on any
+-- new function, AND Supabase's default privileges for the public schema
+-- grant it directly to `anon`. Those are separate ACL entries, so revoking
+-- PUBLIC alone leaves anon able to call it -- which is anyone holding the
+-- publishable key, since that ships in the browser. This is SECURITY
+-- DEFINER, so RLS would not save it. See supabase/007_function_grants.sql.
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then
+    execute 'revoke execute on function allocate_case_number(char) from anon';
+  end if;
+end $$;
 revoke execute on function allocate_case_number(char) from public;
 grant execute on function allocate_case_number(char) to authenticated;
 
@@ -318,7 +325,12 @@ returns void language sql security definer set search_path = public as $$
     set last_seq = greatest(case_number_counter.last_seq, excluded.last_seq);
 $$;
 
--- SECURITY DEFINER, so it reads matter past RLS. Same PUBLIC default as above.
+-- SECURITY DEFINER, so it reads matter past RLS. Same two grants as above.
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then
+    execute 'revoke execute on function reseed_case_number_counter() from anon';
+  end if;
+end $$;
 revoke execute on function reseed_case_number_counter() from public;
 grant execute on function reseed_case_number_counter() to authenticated;
 

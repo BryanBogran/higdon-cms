@@ -162,6 +162,12 @@ console.log('\nRPC exposure (supabase/007_function_grants.sql)');
    * explicitly -- and anon means anyone, because the publishable key ships
    * in the browser.
    *
+   * TWO grants have to be revoked, not one: the PUBLIC default that Postgres
+   * adds, and the direct grant to `anon` that Supabase's default privileges
+   * for the public schema add. They are separate ACL entries, so revoking
+   * PUBLIC alone leaves anon able to call the function -- which is how the
+   * first version of 007 came to look applied and change nothing.
+   *
    * reseed_case_number_counter() is the canary because it is the only one of
    * the two that is safe to call: it raises the counter with greatest() and
    * never lowers it, so invoking it changes nothing. allocate_case_number()
@@ -178,7 +184,11 @@ console.log('\nRPC exposure (supabase/007_function_grants.sql)');
   if (res.status === 404) {
     warn('reseed_case_number_counter is not present — run supabase/schema.sql');
   } else if (res.ok) {
-    fail('anon can call reseed_case_number_counter — run supabase/007_function_grants.sql');
+    fail(
+      'anon can call reseed_case_number_counter — run supabase/007_function_grants.sql.\n' +
+      '        If you already ran it: that file was corrected on 2026-08-31 to revoke\n' +
+      '        the `anon` grant as well as PUBLIC. Run the current version again.'
+    );
   } else {
     pass(`anon RPC refused (${b.code || res.status}) — allocate_case_number is revoked alongside it`);
   }
