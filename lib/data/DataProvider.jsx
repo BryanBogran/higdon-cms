@@ -322,6 +322,46 @@ export function DataProvider({ children }) {
     [run, applyMatters]
   );
 
+  /**
+   * Permanent deletion.
+   *
+   * ── NOT optimistic, unlike archive ────────────────────────────────────
+   *
+   * Every other intent here writes to local state first and lets the store
+   * catch up, because being wrong costs a re-render. Here being wrong means
+   * the case vanishes from the screen and is still in the database — and the
+   * two ways that happens are the two most likely: a matter under legal
+   * hold, which the database refuses by design, and an offline write.
+   *
+   * So the store goes first and the screen follows only on success. A
+   * deletion that failed must look like a deletion that failed.
+   */
+  const deleteMatter = useCallback(
+    async (matterId, options) => {
+      const current = ref.current.matters[matterId];
+      if (!current) return { ok: false, error: 'No such matter' };
+
+      const result = await run((s) => s.deleteMatter(matterId, options));
+      if (!result?.ok) return result || { ok: false, error: 'Could not delete that matter.' };
+
+      const { [matterId]: gone, ...rest } = ref.current.matters;
+      applyMatters(rest);
+
+      // Activity and tasks are gone in the database (ON DELETE CASCADE) and
+      // in local storage. Drop them here too, or the Feed keeps rendering
+      // entries whose matter no longer resolves.
+      setActivity((prev) =>
+        Object.fromEntries(Object.entries(prev).filter(([, e]) => e?.matterId !== matterId)));
+      setTasks((prev) =>
+        Object.fromEntries(Object.entries(prev).filter(([, t]) => t?.matterId !== matterId)));
+      setRelations((prev) =>
+        prev.filter((r) => r.fromId !== matterId && r.toId !== matterId));
+
+      return result;
+    },
+    [run, applyMatters]
+  );
+
   /* ---------------- Task intents ---------------- */
 
   const applyTasks = useCallback((next) => {
@@ -612,7 +652,7 @@ export function DataProvider({ children }) {
   const value = useMemo(
     () => ({
       matters, tasks, team, sections, activity, relations, contacts, loaded, saveState, backend, currentUser,
-      createMatter, importMatters, updateMatterField, setChecklistItem, archiveMatter, unarchiveMatter,
+      createMatter, importMatters, updateMatterField, setChecklistItem, archiveMatter, unarchiveMatter, deleteMatter,
       createContact, updateContact, linkClientContact,
       createTask, updateTask, setTaskComplete, clearTaskOverride, deleteTask, bulkSetComplete,
       sectionState, setSectionField, addSectionRow, updateSectionRow, deleteSectionRow,
@@ -620,7 +660,7 @@ export function DataProvider({ children }) {
     }),
     [
       matters, tasks, team, sections, activity, relations, contacts, loaded, saveState, backend, currentUser,
-      createMatter, importMatters, updateMatterField, setChecklistItem, archiveMatter, unarchiveMatter,
+      createMatter, importMatters, updateMatterField, setChecklistItem, archiveMatter, unarchiveMatter, deleteMatter,
       createContact, updateContact, linkClientContact,
       createTask, updateTask, setTaskComplete, clearTaskOverride, deleteTask, bulkSetComplete,
       sectionState, setSectionField, addSectionRow, updateSectionRow, deleteSectionRow,
