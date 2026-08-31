@@ -3,17 +3,31 @@
 --
 -- ⚠️ THIS DELETES ROWS. It is armed. Running it purges.
 --
--- The first version shipped with the purge commented out, which meant
--- running the file did the dry run and nothing else. That was one pass
--- too careful: you read the dry run, so the safety it bought is spent.
--- This version runs the whole thing in ONE transaction and reports the
--- before and after together.
+-- Select the whole file and run it. Four statements; the last one is the
+-- report.
 --
--- ── To rehearse it first ──────────────────────────────────────────────
--- Change the last line from `commit;` to `rollback;`. Everything runs,
--- you see the exact same report, and nothing is kept. Change it back to
--- `commit;` when the numbers look right. That is a better dry run than
--- the SELECTs were, because it exercises the deletes themselves.
+-- ── Why this file has no temp table any more ──────────────────────────
+--
+-- It used to capture the before-counts into `create temp table _before
+-- ... on commit drop`, inside an explicit `begin; ... commit;`. That
+-- failed in the Supabase SQL editor with
+--
+--     ERROR: 42P01: relation "_before" does not exist
+--
+-- because the editor does not hold one transaction across the statements
+-- the way psql does — each auto-commits. `ON COMMIT DROP` therefore fired
+-- the moment the table was created, and the report four statements later
+-- was reading something already gone.
+--
+-- So: no temp table, no reliance on `begin`/`commit`, every statement
+-- independent and safe to re-run on its own. A purge script is the last
+-- place to be clever.
+--
+-- ── The before-counts ─────────────────────────────────────────────────
+--
+-- You already have them from the dry run. The report at the end proves
+-- the outcome, which is the half that actually matters: demo_left must
+-- be 0.
 --
 -- ── What it touches ───────────────────────────────────────────────────
 --   matter rows whose client_name ends in "(demo)"   — deleted
@@ -23,24 +37,9 @@
 --   everything else                                  — untouched
 -- ---------------------------------------------------------------------
 
-begin;
-
--- Counts BEFORE, held for the report at the end. Without this the purge
--- runs and you are left looking at zeros with no idea what they replaced.
-create temp table _before on commit drop as
-select
-  (select count(*) from matter where client_name like '% (demo)')     as demo_matters,
-  (select count(*) from matter where client_name not like '% (demo)') as real_matters,
-  (select count(*) from matter_checklist_item i join matter m on m.id = i.matter_id
-     where m.client_name like '% (demo)')                             as demo_checklist,
-  (select count(*) from activity a join matter m on m.id = a.matter_id
-     where m.client_name like '% (demo)')                             as demo_activity,
-  (select count(*) from matter_section_row r join matter m on m.id = r.matter_id
-     where m.client_name like '% (demo)')                             as demo_section_rows,
-  (select json_agg(row_to_json(c) order by c.year_yy) from case_number_counter c) as counter_before;
 
 -- ---------------------------------------------------------------------
--- The purge
+-- 1. The purge.
 --
 -- Matched on the "(demo)" suffix ALONE. seed_demo.sql also filtered on
 -- `case_number like '26-0%'`; dropped here, because a demo row whose
@@ -59,8 +58,9 @@ select
 -- ---------------------------------------------------------------------
 delete from matter where client_name like '% (demo)';
 
+
 -- ---------------------------------------------------------------------
--- ⚠️ RESET the counter — do not merely reseed it.
+-- 2. RESET the counter — do not merely reseed it.
 --
 -- reseed_case_number_counter() raises each year to the highest number IN
 -- USE and never lowers it (`greatest(...)`, deliberately, so a concurrent
@@ -71,39 +71,43 @@ delete from matter where client_name like '% (demo)';
 -- meaning "the 42nd case opened in 2026" — which is the only reason the
 -- number is shaped this way.
 --
--- So: clear it, and let the reseed rebuild it from the real cases left.
--- If no real cases remain the table stays empty, and the first
--- allocation starts that year at 001. That is correct.
+-- Clearing it is safe because step 3 rebuilds it from the cases that
+-- remain. If none remain the table stays empty and the first allocation
+-- of a year starts at 001, which is correct.
 -- ---------------------------------------------------------------------
 delete from case_number_counter;
+
+
+-- ---------------------------------------------------------------------
+-- 3. Rebuild it from the real cases that are left.
+-- ---------------------------------------------------------------------
 select reseed_case_number_counter();
 
+
 -- ---------------------------------------------------------------------
--- The report. Before and after, side by side.
+-- 4. The report. This is the result the editor will show.
 --
--- demo_left MUST be 0. counter_after should reflect only real cases —
--- or be null if there are none yet, which is fine.
+--   demo_left      MUST be 0.
+--   matters_now    your real cases, and only those.
+--   counter_now    null is CORRECT if no real cases exist yet — the
+--                  first case of a year then gets 001.
+--
+-- ⚠️ After you import the Filevine export, the counter has to move again:
+-- those cases run up to 26-101, and allocate_case_number() reads this
+-- table rather than the matters. The importer now calls the reseed itself
+-- once it has written, so this is handled — but if you ever load cases by
+-- any other route, run `select reseed_case_number_counter();` afterwards
+-- or the next new intake is refused as a duplicate.
 -- ---------------------------------------------------------------------
 select
-  b.demo_matters                                                      as demo_matters_deleted,
-  b.demo_checklist                                                    as checklist_items_deleted,
-  b.demo_activity                                                     as activity_deleted,
-  b.demo_section_rows                                                 as section_rows_deleted,
-  b.real_matters                                                      as real_matters_kept,
-  b.counter_before,
-  (select count(*) from matter where client_name like '% (demo)')     as demo_left,
-  (select count(*) from matter)                                       as matters_now,
+  (select count(*) from matter where client_name like '% (demo)')      as demo_left,
+  (select count(*) from matter)                                        as matters_now,
+  (select count(*) from matter_checklist_item)                         as checklist_now,
+  (select count(*) from activity)                                      as activity_now,
+  (select count(*) from matter_section_row)                            as section_rows_now,
+  (select count(*) from contact where deleted_at is null)              as contacts_now,
   (select json_agg(row_to_json(c) order by c.year_yy)
-     from case_number_counter c)                                      as counter_after
-  from _before b;
-
--- `on commit drop` above means the temp table needs no DROP here. That is
--- not tidiness: the SQL editor shows the LAST result, and a trailing DROP
--- returns none, which would leave you looking at a blank pane instead of
--- the report.
-
--- Change to `rollback;` to rehearse, `commit;` to keep it.
-commit;
+     from case_number_counter c)                                       as counter_now;
 
 
 -- =====================================================================
@@ -116,9 +120,12 @@ commit;
 --
 -- LOOK FIRST:
 --
---   select id, coalesce(company_name, last_name || ', ' || first_name) as name,
---          tags, jsonb_array_length(phones) as phones,
---          jsonb_array_length(emails) as emails, created_at,
+--   select id,
+--          coalesce(company_name, concat_ws(', ', last_name, first_name)) as name,
+--          tags,
+--          jsonb_array_length(phones) as phones,
+--          jsonb_array_length(emails) as emails,
+--          created_at,
 --          exists (select 1 from matter m where m.client_contact_id = c.id) as on_a_case
 --     from contact c
 --    where deleted_at is null
