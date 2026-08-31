@@ -8,8 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "node --test \"lib/**/*.test.js\" && TZ=Pacific/Auckland node --test \"lib/**/*.test.js\" && TZ=Pacific/Honolulu node --test \"lib/**/*.test.js\"",
-    "test:one": "node --test \"lib/**/*.test.js\""
+    "test": "node --import ./scripts/test-alias.mjs --test \"lib/**/*.test.js\" && TZ=Pacific/Auckland node --import ./scripts/test-alias.mjs --test \"lib/**/*.test.js\" && TZ=Pacific/Honolulu node --import ./scripts/test-alias.mjs --test \"lib/**/*.test.js\"",
+    "test:one": "node --import ./scripts/test-alias.mjs --test \"lib/**/*.test.js\""
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.5",
