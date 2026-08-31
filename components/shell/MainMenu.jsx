@@ -28,7 +28,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   X, Inbox, Contact, Calendar, Search, Plus, ListChecks,
-  FilePlus2, Settings, LayoutGrid,
+  FilePlus2, Settings, LayoutGrid, Upload,
 } from 'lucide-react';
 
 /**
@@ -49,6 +49,7 @@ const ITEMS = [
   { key: 'calendar', label: 'Calendar', icon: Calendar, href: '/calendar' },
   { key: 'search', label: 'Search', icon: Search, action: 'search' },
   { key: 'new-project', label: 'New Project', icon: Plus, href: '/projects/new', accent: true },
+  { key: 'import', label: 'Import Cases', icon: Upload, href: '/import' },
   {
     key: 'saved-reports', label: 'Saved Reports', icon: ListChecks,
     soon: 'Saved, shareable report definitions. Needs Report Builder first.',

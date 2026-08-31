@@ -3,7 +3,7 @@
 /**
  * The data layer.
  *
- * Twenty-one per-record intents — createMatter, updateMatterField,
+ * Twenty-six per-record intents — createMatter, importMatters, updateMatterField,
  * setChecklistItem, addSectionRow, and so on. Never whole-collection writes.
  * See docs/DECISIONS.md, "Do NOT build a storage-shaped adapter and swap its
  * implementation": preserving a `set(key, entireCollection)` shape would have
@@ -190,6 +190,36 @@ export function DataProvider({ children }) {
       return result;
     },
     [run, applyMatters]
+  );
+
+  /**
+   * Commit a reviewed import plan, then reload everything from the store.
+   *
+   * The other intents update local state optimistically and write in the
+   * background, which is right when a keystroke changes one field. An import
+   * creates rows whose ids only the store knows, so guessing the resulting
+   * state would mean reconstructing what the database just did. Re-reading it
+   * is both simpler and the only version that is certainly true -- and an
+   * import happens once, not on every keystroke.
+   */
+  const importMatters = useCallback(
+    async (entries = []) => {
+      const result = await run((s) => s.importMatters(entries));
+      try {
+        const data = await storeRef.current.loadAll();
+        setMatters(data.matters || {});
+        setTasks(data.tasks || {});
+        setActivity(data.activity || {});
+        setRelations(data.relations || []);
+        setSections(data.sections || {});
+        setTeam(data.team || {});
+        ref.current = { ...ref.current, matters: data.matters || {}, tasks: data.tasks || {} };
+      } catch (err) {
+        return { ...result, ok: false, error: `Imported, but could not reload: ${err?.message || err}` };
+      }
+      return result;
+    },
+    [run]
   );
 
   const updateMatterField = useCallback(
@@ -546,14 +576,14 @@ export function DataProvider({ children }) {
   const value = useMemo(
     () => ({
       matters, tasks, team, sections, activity, relations, loaded, saveState, backend, currentUser,
-      createMatter, updateMatterField, setChecklistItem, archiveMatter, unarchiveMatter,
+      createMatter, importMatters, updateMatterField, setChecklistItem, archiveMatter, unarchiveMatter,
       createTask, updateTask, setTaskComplete, clearTaskOverride, deleteTask, bulkSetComplete,
       sectionState, setSectionField, addSectionRow, updateSectionRow, deleteSectionRow,
       addActivity, addEmail, signFile, addRelation, removeRelation, updateActivity, deleteActivity, assignActivityAsTask, saveTeam,
     }),
     [
       matters, tasks, team, sections, activity, relations, loaded, saveState, backend, currentUser,
-      createMatter, updateMatterField, setChecklistItem, archiveMatter, unarchiveMatter,
+      createMatter, importMatters, updateMatterField, setChecklistItem, archiveMatter, unarchiveMatter,
       createTask, updateTask, setTaskComplete, clearTaskOverride, deleteTask, bulkSetComplete,
       sectionState, setSectionField, addSectionRow, updateSectionRow, deleteSectionRow,
       addActivity, addEmail, signFile, addRelation, removeRelation, updateActivity, deleteActivity, assignActivityAsTask, saveTeam,
