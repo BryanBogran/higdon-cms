@@ -34,11 +34,28 @@ export default function DriveSyncPage() {
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
+  const [reviewsError, setReviewsError] = useState('');
 
   const loadReviews = useCallback(async () => {
-    const res = await fetch('/api/drive/review');
-    const body = await res.json().catch(() => ({}));
-    if (res.ok) setReviews(body.reviews || []);
+    /*
+     * A failed fetch used to leave `reviews` at [], which the panel below
+     * renders as "Nothing waiting." -- so an unreachable Drive read as "no
+     * folders need a decision". Those are opposite facts, and the reassuring
+     * one is the wrong default: the queue exists to stop medical records being
+     * filed on the wrong client.
+     */
+    try {
+      const res = await fetch('/api/drive/review');
+      const body = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setReviews(body.reviews || []);
+        setReviewsError('');
+      } else {
+        setReviewsError(body.error || `Could not read the review queue (${res.status}).`);
+      }
+    } catch (err) {
+      setReviewsError(err?.message || 'Could not reach the server to read the review queue.');
+    }
   }, []);
 
   useEffect(() => { loadReviews(); }, [loadReviews]);
@@ -239,6 +256,10 @@ export default function DriveSyncPage() {
 
         {!loaded ? (
           <p className="mt-4 text-sm text-slate-400">Loading…</p>
+        ) : reviewsError ? (
+          <p className="mt-4 text-sm text-amber-700">
+            {reviewsError} Folders may be waiting that cannot be shown.
+          </p>
         ) : reviews.length === 0 ? (
           <p className="mt-4 text-sm text-slate-400">Nothing waiting.</p>
         ) : (

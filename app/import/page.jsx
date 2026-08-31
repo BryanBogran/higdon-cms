@@ -470,6 +470,30 @@ export default function ImportPage() {
             ) : null}
           </div>
 
+          {/*
+            Imported cases have no Drive folder attached yet. The matching
+            already exists on the Drive sync page and only links a folder when
+            exactly one case matches and nothing else is close -- but nothing
+            told anyone to go and run it, so 200 freshly imported cases would
+            sit there looking document-less.
+          */}
+          {(result.created ?? 0) > 0 ? (
+            <div className="mt-6 rounded-lg border border-slate-200 bg-white p-5">
+              <h3 className="font-semibold text-slate-900 mb-2">Attach the documents</h3>
+              <p className="text-sm text-slate-600 mb-3">
+                These cases have no Drive folder linked yet. Drive sync matches your existing
+                folders to them by name — it links a folder only when exactly one case matches and
+                nothing else is close, and queues anything doubtful for you to decide.
+              </p>
+              <Link
+                href="/documents/drive"
+                className="inline-block px-3 py-1.5 rounded-lg border border-slate-300 text-sm font-medium text-slate-700"
+              >
+                Run Drive sync
+              </Link>
+            </div>
+          ) : null}
+
           <div className="mt-6 rounded-lg border border-slate-200 bg-white p-5">
             <h3 className="font-semibold text-slate-900 mb-2">Check this now, before you rely on it</h3>
             <p className="text-sm text-slate-600 mb-3">
