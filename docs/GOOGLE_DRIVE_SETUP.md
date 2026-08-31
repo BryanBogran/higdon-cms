@@ -197,11 +197,36 @@ Editor, not Viewer. Viewer is enough to read; uploading needs write.
 
 ## L2c. Authorise domain-wide delegation
 
-1. Google Cloud console → your service account → **Details** → copy the
-   **Unique ID** (a long number).
+**The quickest way to get both values is to have them printed for you:**
+
+```
+node scripts/check-google-delegation.mjs ~/Downloads/service-account.json files@higdonlawyers.com
+```
+
+That reads the JSON key file you downloaded when the key was created, prints
+the exact Client ID and scope to paste, and then tests delegation and says
+which half is broken. It needs no environment variables. Run it again after
+saving the Admin console entry — a pass there is the confirmation.
+
+### The same thing by hand
+
+⚠️ **One number, three names.** The Admin console calls it *Client ID*, the
+Cloud console calls it *Unique ID*, and the JSON key file calls it `client_id`.
+They are all the same 21-digit number. It is **not** the OAuth client id ending
+in `.apps.googleusercontent.com`, which is a different thing entirely and is
+the usual reason for `unauthorized_client`.
+
+1. Either read `client_id` from the service-account JSON file:
+
+   ```
+   node -e "console.log(require('/full/path/to/service-account.json').client_id)"
+   ```
+
+   or, if you no longer have that file: Google Cloud console → **IAM & Admin →
+   Service Accounts** → click the account → **Details** → **Unique ID**.
 2. <https://admin.google.com> → **Security → Access and data control → API
    controls → Domain-wide delegation** → **Add new**.
-3. **Client ID:** the Unique ID from step 1.
+3. **Client ID:** the number from step 1.
 4. **OAuth scopes:**
 
 ```
