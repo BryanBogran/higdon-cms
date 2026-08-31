@@ -191,7 +191,28 @@ function put(sessionUrl, file, onProgress) {
       try { resolve(JSON.parse(xhr.responseText)); }
       catch { reject(new Error('Drive accepted the file but returned nothing usable.')); }
     };
-    xhr.onerror = () => reject(new Error('Network error during upload.'));
+    /*
+     * status 0 with the request complete means the browser never got a
+     * response at all: the connection failed, or something between the page
+     * and Google refused it. It is NOT a Drive error -- Drive errors arrive as
+     * a status in onload.
+     *
+     * Worth naming the usual suspects, because "Network error" sends people to
+     * look at the app, and the app is not where the problem is. The CORS
+     * headers on a resumable session URL were verified directly against Google
+     * and permit PUT with Content-Type from any origin, so this is almost
+     * always something local: an extension, a VPN, or a network policy that
+     * blocks googleapis.com.
+     */
+    xhr.onerror = () =>
+      reject(new Error(
+        'The browser could not reach Google to upload. Nothing between here and '
+        + 'Drive returned an error, so this is usually an ad blocker, a VPN, or a '
+        + 'network policy blocking googleapis.com. Check the Network tab for the '
+        + 'failed PUT.'
+      ));
+    xhr.ontimeout = () => reject(new Error('The upload timed out before Google responded.'));
+    xhr.onabort = () => reject(new Error('The upload was cancelled.'));
     xhr.send(file);
   });
 }
