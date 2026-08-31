@@ -87,11 +87,33 @@ export async function POST(request) {
     return NextResponse.json({ error: 'That folder is not inside this case.' }, { status: 403 });
   }
 
+  /*
+   * The browser's origin has to be declared when the SESSION is created, not
+   * when the bytes are sent.
+   *
+   * Without it Google completes the upload and answers 200 with the file
+   * metadata, but omits Access-Control-Allow-Origin from that final response --
+   * so the browser discards it as net::ERR_FAILED. The file is in Drive and
+   * the app reports a failed upload. Staff then retry, and Drive fills with
+   * duplicates. Verified directly against Google: with the header the final
+   * 200 carries the ACAO, without it the header is absent. A resume/status
+   * query (308) carries it either way, which is what makes this so easy to
+   * misdiagnose.
+   *
+   * The header is only used if it matches this deployment's own origin. It is
+   * client-supplied, and there is no reason to let a caller decide which
+   * origin Google should bless.
+   */
+  const selfOrigin = new URL(request.url).origin;
+  const claimed = request.headers.get('origin') || '';
+  const origin = claimed === selfOrigin ? claimed : selfOrigin;
+
   const session = await createUploadSession({
     parentId: target,
     name: name.trim(),
     mimeType,
     sizeBytes,
+    origin,
   });
   if (!session.ok) return NextResponse.json({ error: session.error }, { status: 502 });
 

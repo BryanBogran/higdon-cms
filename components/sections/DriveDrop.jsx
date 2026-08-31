@@ -192,24 +192,22 @@ function put(sessionUrl, file, onProgress) {
       catch { reject(new Error('Drive accepted the file but returned nothing usable.')); }
     };
     /*
-     * status 0 with the request complete means the browser never got a
-     * response at all: the connection failed, or something between the page
-     * and Google refused it. It is NOT a Drive error -- Drive errors arrive as
-     * a status in onload.
+     * Reached only when the browser got no usable response at all. Drive's own
+     * errors arrive as a status in onload.
      *
-     * Worth naming the usual suspects, because "Network error" sends people to
-     * look at the app, and the app is not where the problem is. The CORS
-     * headers on a resumable session URL were verified directly against Google
-     * and permit PUT with Content-Type from any origin, so this is almost
-     * always something local: an extension, a VPN, or a network policy that
-     * blocks googleapis.com.
+     * This used to fire on every upload: the session was created without the
+     * browser's Origin, so Google answered 200 and the browser threw the
+     * response away for want of an Access-Control-Allow-Origin header. The
+     * file was in Drive and the field said the upload failed. Fixed where the
+     * session is created -- see app/api/drive/upload-url/route.js.
+     *
+     * The warning about a possible duplicate stays, because that is what this
+     * class of failure does: the bytes may well have arrived.
      */
     xhr.onerror = () =>
       reject(new Error(
-        'The browser could not reach Google to upload. Nothing between here and '
-        + 'Drive returned an error, so this is usually an ad blocker, a VPN, or a '
-        + 'network policy blocking googleapis.com. Check the Network tab for the '
-        + 'failed PUT.'
+        'The upload did not complete. Check the case folder in Drive before '
+        + 'trying again — the file may have arrived even though this failed.'
       ));
     xhr.ontimeout = () => reject(new Error('The upload timed out before Google responded.'));
     xhr.onabort = () => reject(new Error('The upload was cancelled.'));
