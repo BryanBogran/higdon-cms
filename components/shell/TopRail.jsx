@@ -16,6 +16,7 @@ import GlobalSearch from './GlobalSearch';
 import MainMenu from './MainMenu';
 import SaveIndicator from './SaveIndicator';
 import UserMenu from './UserMenu';
+import ReportProblem from './ReportProblem';
 
 const NAV = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard, match: (p) => p === '/' },
@@ -78,6 +79,7 @@ export default function TopRail() {
         */}
         <div className="flex items-center gap-1 shrink-0">
           <SaveIndicator />
+          <ReportProblem />
           <UserMenu />
         </div>
       </div>
