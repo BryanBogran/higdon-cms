@@ -76,9 +76,9 @@ export default function FeedPage() {
       <ActivityComposer matterId={null} />
 
       {!loaded ? (
-        <p className="text-sm text-slate-500">Loading…</p>
+        <p className="text-sm text-ink-3">Loading…</p>
       ) : filtered.length === 0 ? (
-        <p className="py-12 text-center text-sm text-slate-400">
+        <p className="py-12 text-center text-sm text-ink-4">
           Nothing in the feed yet. Notes, calls and tasks added on a matter appear here.
         </p>
       ) : (
@@ -97,8 +97,8 @@ function Group({ label, rows }) {
   return (
     <section className="mb-6">
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-semibold text-slate-700">{label}</h3>
-        <span className="text-xs text-slate-500">{rows.length} items</span>
+        <h3 className="text-sm font-semibold text-ink-2">{label}</h3>
+        <span className="text-xs text-ink-3">{rows.length} items</span>
       </div>
       {rows.map((a) => (
         <ActivityCard key={a.id} entry={a} />

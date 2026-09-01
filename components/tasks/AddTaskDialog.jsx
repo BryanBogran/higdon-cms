@@ -75,18 +75,18 @@ export default function AddTaskDialog({ open, onClose, matterId: fixedMatterId }
       <form
         onMouseDown={(e) => e.stopPropagation()}
         onSubmit={submit}
-        className="w-full max-w-lg bg-white rounded-xl shadow-xl border border-slate-200"
+        className="w-full max-w-lg bg-surface rounded-xl shadow-xl border border-line"
       >
-        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
-          <h2 className="font-semibold text-slate-900">New Task</h2>
-          <button type="button" onClick={onClose} className="p-1 text-slate-400 hover:text-slate-700">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-line-soft">
+          <h2 className="font-semibold text-ink">New Task</h2>
+          <button type="button" onClick={onClose} className="p-1 text-ink-4 hover:text-ink-2">
             <X size={18} />
           </button>
         </div>
 
         <div className="p-5 space-y-4">
           <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">
+            <label className="block text-[11px] font-semibold uppercase tracking-wide text-ink-4 mb-1">
               Task
             </label>
             <input
@@ -100,7 +100,7 @@ export default function AddTaskDialog({ open, onClose, matterId: fixedMatterId }
 
           {!fixedMatterId ? (
             <div>
-              <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wide text-ink-4 mb-1">
                 Case
               </label>
               <select className="input" value={matterId} onChange={(e) => setMatterId(e.target.value)}>
@@ -114,7 +114,7 @@ export default function AddTaskDialog({ open, onClose, matterId: fixedMatterId }
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wide text-ink-4 mb-1">
                 Due
               </label>
               <input
@@ -127,20 +127,20 @@ export default function AddTaskDialog({ open, onClose, matterId: fixedMatterId }
                 <button
                   type="button"
                   onClick={() => setDueDate(todayInFirmTz())}
-                  className="text-[11px] text-teal-700 hover:underline"
+                  className="text-[11px] text-accent-ink hover:underline"
                 >
                   Today
                 </button>
                 <button
                   type="button"
                   onClick={() => setDueDate(nextBusinessDay(todayInFirmTz()))}
-                  className="text-[11px] text-teal-700 hover:underline"
+                  className="text-[11px] text-accent-ink hover:underline"
                 >
                   Next business day
                 </button>
               </div>
               {bad ? (
-                <p className="flex items-center gap-1 mt-1 text-[11px] text-amber-700">
+                <p className="flex items-center gap-1 mt-1 text-[11px] text-warn-ink">
                   <AlertTriangle size={12} /> Falls on a {bad}.{' '}
                   <button
                     type="button"
@@ -154,7 +154,7 @@ export default function AddTaskDialog({ open, onClose, matterId: fixedMatterId }
             </div>
 
             <div>
-              <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wide text-ink-4 mb-1">
                 Assigned to
               </label>
               <select className="input" value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)}>
@@ -164,7 +164,7 @@ export default function AddTaskDialog({ open, onClose, matterId: fixedMatterId }
                 ))}
               </select>
               {!assignees.length ? (
-                <p className="mt-1 text-[11px] text-amber-700">
+                <p className="mt-1 text-[11px] text-warn-ink">
                   Nobody to assign to yet — staff appear here once they have signed in.
                 </p>
               ) : null}
@@ -172,8 +172,8 @@ export default function AddTaskDialog({ open, onClose, matterId: fixedMatterId }
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">
-              Note <span className="font-normal normal-case text-slate-400">(optional)</span>
+            <label className="block text-[11px] font-semibold uppercase tracking-wide text-ink-4 mb-1">
+              Note <span className="font-normal normal-case text-ink-4">(optional)</span>
             </label>
             <textarea
               className="input min-h-[70px]"
@@ -183,14 +183,14 @@ export default function AddTaskDialog({ open, onClose, matterId: fixedMatterId }
           </div>
         </div>
 
-        <div className="px-5 py-3 border-t border-slate-100 flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="px-3 py-2 text-sm text-slate-600 hover:text-slate-900">
+        <div className="px-5 py-3 border-t border-line-soft flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="px-3 py-2 text-sm text-ink-2 hover:text-ink">
             Cancel
           </button>
           <button
             type="submit"
             disabled={!title.trim() || busy}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold disabled:opacity-40 hover:bg-slate-800"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold disabled:opacity-40 hover:bg-primary-2"
           >
             <Plus size={15} /> {busy ? 'Adding…' : 'Add Task'}
           </button>

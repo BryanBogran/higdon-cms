@@ -26,16 +26,16 @@ export default function SectionRail({ matterId, activeSection }) {
             href={`/matters/${matterId}/${s.key}`}
             className={`flex items-center gap-2.5 px-5 py-2 text-sm transition ${
               active
-                ? 'bg-teal-50 text-teal-800 font-semibold border-l-[3px] border-teal-600 pl-[17px]'
-                : 'text-slate-700 hover:bg-slate-50 border-l-[3px] border-transparent pl-[17px]'
+                ? 'bg-accent-bg text-accent-ink-strong font-semibold border-l-[3px] border-accent-solid pl-[17px]'
+                : 'text-ink-2 hover:bg-hover border-l-[3px] border-transparent pl-[17px]'
             }`}
           >
-            <Icon size={17} className={active ? 'text-teal-700' : 'text-slate-400'} />
+            <Icon size={17} className={active ? 'text-accent-ink' : 'text-ink-4'} />
             <span className="truncate">{s.label}</span>
             {s.kind === 'generic' && !s.verified ? (
               <span
                 title="Fields not yet confirmed against Filevine"
-                className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-400"
+                className="ml-auto w-1.5 h-1.5 rounded-full bg-warn-solid-2"
               />
             ) : null}
           </Link>

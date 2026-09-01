@@ -95,7 +95,7 @@ export default function MainMenu({ open, onClose, onSearch }) {
 
       <nav
         aria-label="Main menu"
-        className="fixed inset-y-0 left-0 z-50 w-[19rem] max-w-[85vw] bg-slate-900 text-white overflow-y-auto"
+        className="fixed inset-y-0 left-0 z-50 w-[19rem] max-w-[85vw] bg-chrome text-white overflow-y-auto"
       >
         <div className="flex items-center gap-4 h-14 px-4">
           <button onClick={onClose} aria-label="Close menu" className="p-1 hover:bg-white/10 rounded">
@@ -120,7 +120,7 @@ export default function MainMenu({ open, onClose, onSearch }) {
                   <Link
                     href={item.href}
                     className={`flex items-center gap-4 px-4 py-3.5 ${
-                      item.accent ? 'bg-teal-600 hover:bg-teal-500' : 'hover:bg-white/10'
+                      item.accent ? 'bg-accent-solid hover:bg-accent-solid-2' : 'hover:bg-white/10'
                     }`}
                   >
                     {inner}
@@ -147,20 +147,20 @@ export default function MainMenu({ open, onClose, onSearch }) {
                 <div
                   aria-disabled="true"
                   title={item.soon}
-                  className="flex items-center gap-4 px-4 py-3.5 text-slate-500 cursor-not-allowed"
+                  className="flex items-center gap-4 px-4 py-3.5 text-white/40 cursor-not-allowed"
                 >
                   {inner}
-                  <span className="text-[10px] uppercase tracking-wide border border-slate-600 rounded px-1.5 py-0.5">
+                  <span className="text-[10px] uppercase tracking-wide border border-white/25 rounded px-1.5 py-0.5">
                     Not built
                   </span>
                 </div>
-                <p className="px-4 pb-3 -mt-1 ml-9 text-xs text-slate-500 leading-snug">{item.soon}</p>
+                <p className="px-4 pb-3 -mt-1 ml-9 text-xs text-white/50 leading-snug">{item.soon}</p>
               </li>
             );
           })}
         </ul>
 
-        <p className="px-4 py-4 text-xs text-slate-500 border-t border-white/10">
+        <p className="px-4 py-4 text-xs text-white/50 border-t border-white/10">
           Greyed items are Filevine features this system does not have yet. They are listed so
           nothing looks quietly missing — tell Bryan which ones you actually use and they get
           built first.

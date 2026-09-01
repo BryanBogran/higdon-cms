@@ -35,7 +35,7 @@ export default function ActivityComposer({ matterId }) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="w-full text-left px-4 py-3 mb-4 rounded-lg border border-slate-200 bg-white text-slate-400 hover:border-slate-300"
+        className="w-full text-left px-4 py-3 mb-4 rounded-lg border border-line bg-surface text-ink-4 hover:border-line-strong"
       >
         Add new activity…
       </button>
@@ -43,7 +43,7 @@ export default function ActivityComposer({ matterId }) {
   }
 
   return (
-    <div className="mb-4 rounded-lg border border-slate-300 bg-white shadow-sm">
+    <div className="mb-4 rounded-lg border border-line-strong bg-surface shadow-sm">
       <textarea
         autoFocus
         value={body}
@@ -55,23 +55,23 @@ export default function ActivityComposer({ matterId }) {
         placeholder="Type a note. Use @name to mention someone."
         className="w-full px-4 py-3 text-sm outline-none resize-y min-h-[84px] rounded-t-lg"
       />
-      <div className="px-3 py-2 border-t border-slate-100 flex items-center gap-2">
+      <div className="px-3 py-2 border-t border-line-soft flex items-center gap-2">
         <select value={kind} onChange={(e) => setKind(e.target.value)} className="input w-auto text-sm">
           {KINDS.map((k) => (
             <option key={k} value={k}>{k}</option>
           ))}
         </select>
-        <span className="text-xs text-slate-400 hidden sm:inline">
+        <span className="text-xs text-ink-4 hidden sm:inline">
           {currentUser?.displayName ? `as ${currentUser.displayName} · ` : ''}⌘↵ to save
         </span>
         <div className="flex-1" />
-        <button onClick={() => setOpen(false)} className="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900">
+        <button onClick={() => setOpen(false)} className="px-3 py-1.5 text-sm text-ink-2 hover:text-ink">
           Cancel
         </button>
         <button
           onClick={submit}
           disabled={!body.trim()}
-          className="px-4 py-1.5 rounded bg-slate-900 text-white text-sm font-semibold disabled:opacity-40 hover:bg-slate-800"
+          className="px-4 py-1.5 rounded bg-primary text-white text-sm font-semibold disabled:opacity-40 hover:bg-primary-2"
         >
           Save
         </button>

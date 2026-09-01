@@ -176,12 +176,12 @@ export default function ImportPage() {
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
       <div className="flex items-center gap-3 mb-1">
-        <h1 className="text-2xl font-bold text-slate-900">Import cases</h1>
-        <Link href="/projects" className="text-sm text-slate-500 hover:text-slate-700">
+        <h1 className="text-2xl font-bold text-ink">Import cases</h1>
+        <Link href="/projects" className="text-sm text-ink-3 hover:text-ink-2">
           Project Hub
         </Link>
       </div>
-      <p className="text-sm text-slate-500 mb-6">
+      <p className="text-sm text-ink-3 mb-6">
         A spreadsheet of cases — .xlsx straight out of Filevine, or a CSV. Import the same file again later and it updates
         those cases rather than duplicating them.
       </p>
@@ -193,20 +193,20 @@ export default function ImportPage() {
             <span
               className={`px-2.5 py-1 rounded-full font-semibold ${
                 i === step
-                  ? 'bg-slate-900 text-white'
+                  ? 'bg-primary text-white'
                   : i < step
-                    ? 'bg-emerald-50 text-emerald-700'
-                    : 'bg-slate-100 text-slate-400'
+                    ? 'bg-ok-bg text-ok-ink'
+                    : 'bg-raised text-ink-4'
               }`}
             >
               {i + 1}. {label}
             </span>
-            {i < STEPS.length - 1 ? <span className="text-slate-300">→</span> : null}
+            {i < STEPS.length - 1 ? <span className="text-ink-4">→</span> : null}
           </li>
         ))}
       </ol>
 
-      {!loaded ? <p className="text-sm text-slate-500">Loading existing cases…</p> : null}
+      {!loaded ? <p className="text-sm text-ink-3">Loading existing cases…</p> : null}
 
       {/* ---------- 1. file ---------- */}
       {step === 0 ? (
@@ -219,11 +219,11 @@ export default function ImportPage() {
               e.preventDefault();
               readFile(e.dataTransfer.files?.[0]);
             }}
-            className="w-full border-2 border-dashed border-slate-300 rounded-xl py-16 grid place-items-center gap-3 hover:border-slate-400 hover:bg-slate-50 transition"
+            className="w-full border-2 border-dashed border-line-strong rounded-xl py-16 grid place-items-center gap-3 hover:border-ink-4 hover:bg-hover transition"
           >
-            <Upload size={28} className="text-slate-400" />
-            <span className="font-medium text-slate-700">Drop a spreadsheet here, or click to choose</span>
-            <span className="text-xs text-slate-500">
+            <Upload size={28} className="text-ink-4" />
+            <span className="font-medium text-ink-2">Drop a spreadsheet here, or click to choose</span>
+            <span className="text-xs text-ink-3">
               .xlsx or .csv. Filevine&apos;s exports are .xlsx — use them as they are, rather than
               re-saving as CSV, which is where dates get read the wrong way round.
             </span>
@@ -236,28 +236,28 @@ export default function ImportPage() {
             onChange={(e) => readFile(e.target.files?.[0])}
           />
           {parseError ? (
-            <p className="mt-3 text-sm text-rose-700 flex items-center gap-1.5">
+            <p className="mt-3 text-sm text-danger-ink flex items-center gap-1.5">
               <AlertTriangle size={14} /> {parseError}
             </p>
           ) : null}
 
-          <div className="mt-8 rounded-lg border border-slate-200 bg-white p-5">
-            <h2 className="font-semibold text-slate-900 mb-2">What the file needs</h2>
-            <p className="text-sm text-slate-600 mb-3">
+          <div className="mt-8 rounded-lg border border-line bg-surface p-5">
+            <h2 className="font-semibold text-ink mb-2">What the file needs</h2>
+            <p className="text-sm text-ink-2 mb-3">
               One row per case, with a header row on top. Only <strong>Client Name</strong> is
               required — a row without one is skipped, because a case nobody can look up by name
               is not findable at all.
             </p>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-ink-2">
               Include <strong>Case Number</strong> if you have it. It is what lets you import the
               same file again after you have recovered more, without ending up with two of
               everything.
             </p>
-            <pre className="mt-3 text-xs bg-slate-50 border border-slate-200 rounded p-3 overflow-x-auto">
+            <pre className="mt-3 text-xs bg-canvas border border-line rounded p-3 overflow-x-auto">
 {`Client Name,Case Number,DOA,SOL,Trial Date,Status,Attorney
 "Rivera, Marcus",26-001,2024-10-15,2026-10-15,,Open,PH`}
             </pre>
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="mt-2 text-xs text-ink-3">
               Note the quotes around the name. A client name written{' '}
               <strong>Last, First</strong> contains a comma, which would otherwise split it across
               two columns. Excel and Google Sheets add those quotes for you when you save as CSV —
@@ -270,37 +270,37 @@ export default function ImportPage() {
       {/* ---------- 2. columns ---------- */}
       {step === 1 ? (
         <div>
-          <div className="flex items-center gap-2 text-sm text-slate-600 mb-4">
-            <FileSpreadsheet size={16} className="text-slate-400" />
-            <span className="font-medium text-slate-800">{fileName}</span>
-            <span className="text-slate-400">·</span>
+          <div className="flex items-center gap-2 text-sm text-ink-2 mb-4">
+            <FileSpreadsheet size={16} className="text-ink-4" />
+            <span className="font-medium text-ink">{fileName}</span>
+            <span className="text-ink-4">·</span>
             <span>{rows.length} rows</span>
-            <span className="text-slate-400">·</span>
+            <span className="text-ink-4">·</span>
             <span>{mappedCount} of {headers.length} columns mapped</span>
           </div>
 
           {parseError ? (
-            <p className="mb-4 text-sm text-amber-700 flex items-center gap-1.5">
+            <p className="mb-4 text-sm text-warn-ink flex items-center gap-1.5">
               <AlertTriangle size={14} /> {parseError}
             </p>
           ) : null}
 
-          <div className="rounded-lg border border-slate-200 overflow-hidden bg-white">
+          <div className="rounded-lg border border-line overflow-hidden bg-surface">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50">
+              <thead className="bg-canvas">
                 <tr>
-                  <th className="text-left px-4 py-2.5 font-semibold text-slate-500 text-xs uppercase tracking-wide">Column in your file</th>
-                  <th className="text-left px-4 py-2.5 font-semibold text-slate-500 text-xs uppercase tracking-wide">First value</th>
-                  <th className="text-left px-4 py-2.5 font-semibold text-slate-500 text-xs uppercase tracking-wide">Imports as</th>
+                  <th className="text-left px-4 py-2.5 font-semibold text-ink-3 text-xs uppercase tracking-wide">Column in your file</th>
+                  <th className="text-left px-4 py-2.5 font-semibold text-ink-3 text-xs uppercase tracking-wide">First value</th>
+                  <th className="text-left px-4 py-2.5 font-semibold text-ink-3 text-xs uppercase tracking-wide">Imports as</th>
                 </tr>
               </thead>
               <tbody>
                 {columns.map((col) => {
                   const sample = rows.find((r) => String(r[col.index] ?? '').trim());
                   return (
-                    <tr key={col.index} className="border-t border-slate-100">
-                      <td className="px-4 py-2.5 font-medium text-slate-800">{col.header || <em className="text-slate-400">(no header)</em>}</td>
-                      <td className="px-4 py-2.5 text-slate-500 truncate max-w-[14rem]">
+                    <tr key={col.index} className="border-t border-line-soft">
+                      <td className="px-4 py-2.5 font-medium text-ink">{col.header || <em className="text-ink-4">(no header)</em>}</td>
+                      <td className="px-4 py-2.5 text-ink-3 truncate max-w-[14rem]">
                         {sample ? String(sample[col.index]).slice(0, 40) : '—'}
                       </td>
                       <td className="px-4 py-2.5">
@@ -330,18 +330,18 @@ export default function ImportPage() {
 
           {/* Ambiguous date columns block the import. */}
           {blockers.length ? (
-            <div className="mt-6 rounded-lg border border-amber-300 bg-amber-50 p-5">
-              <h2 className="font-semibold text-amber-900 flex items-center gap-1.5 mb-1">
+            <div className="mt-6 rounded-lg border border-warn-line-2 bg-warn-bg p-5">
+              <h2 className="font-semibold text-warn-ink-strong flex items-center gap-1.5 mb-1">
                 <AlertTriangle size={16} /> Which way round are these dates?
               </h2>
-              <p className="text-sm text-amber-900/80 mb-4">
+              <p className="text-sm text-warn-ink-strong/80 mb-4">
                 <strong>03/04/2026</strong> is the 4th of March in Houston and the 3rd of April in
                 London, and nothing in the file settles it. Every other date column was worked out
                 from the data — these could not be.
               </p>
               {blockers.map((b) => (
                 <div key={b.key} className="flex items-center gap-3 mb-2">
-                  <span className="text-sm font-medium text-amber-900 w-28">{b.label}</span>
+                  <span className="text-sm font-medium text-warn-ink-strong w-28">{b.label}</span>
                   <select
                     className="input max-w-xs"
                     value={resolved[b.key] || ''}
@@ -358,12 +358,12 @@ export default function ImportPage() {
 
           {/* Date columns settled from the data, shown so it is not magic. */}
           {Object.keys(conventions).length ? (
-            <p className="mt-4 text-xs text-slate-500">
+            <p className="mt-4 text-xs text-ink-3">
               Date formats read from your data:{' '}
               {Object.entries(conventions).map(([key, conv], i) => (
                 <span key={key}>
                   {i ? ' · ' : ''}
-                  <strong className="text-slate-700">{FIELD_BY_KEY[key]?.label || key}</strong>{' '}
+                  <strong className="text-ink-2">{FIELD_BY_KEY[key]?.label || key}</strong>{' '}
                   {CONVENTION_LABEL[resolved[key] || conv] || conv}
                 </span>
               ))}
@@ -371,7 +371,7 @@ export default function ImportPage() {
           ) : null}
 
           <div className="flex items-center gap-3 mt-6">
-            <button type="button" className="text-sm text-slate-500 hover:text-slate-700 flex items-center gap-1" onClick={() => setStep(0)}>
+            <button type="button" className="text-sm text-ink-3 hover:text-ink-2 flex items-center gap-1" onClick={() => setStep(0)}>
               <ArrowLeft size={14} /> Choose a different file
             </button>
             <span className="flex-1" />
@@ -379,13 +379,13 @@ export default function ImportPage() {
               type="button"
               disabled={blockers.length > 0 || !columns.some((c) => c.key === 'clientName')}
               onClick={() => setStep(2)}
-              className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+              className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
             >
               See what this will do <ArrowRight size={14} />
             </button>
           </div>
           {!columns.some((c) => c.key === 'clientName') ? (
-            <p className="mt-2 text-sm text-rose-700 text-right">
+            <p className="mt-2 text-sm text-danger-ink text-right">
               One column has to be Client Name.
             </p>
           ) : null}
@@ -402,8 +402,8 @@ export default function ImportPage() {
             <Stat label="Warnings" value={plan.summary.warnings} tone="amber" icon={AlertTriangle} />
           </div>
 
-          <div className="rounded-lg border border-slate-200 bg-white p-4 mb-6">
-            <p className="text-sm text-slate-700">
+          <div className="rounded-lg border border-line bg-surface p-4 mb-6">
+            <p className="text-sm text-ink-2">
               <strong>{plan.summary.withSol}</strong> of the {plan.summary.create + plan.summary.update}{' '}
               cases being written carry an SOL.
               {plan.summary.create + plan.summary.update - plan.summary.withSol > 0 ? (
@@ -423,7 +423,7 @@ export default function ImportPage() {
                 type="button"
                 onClick={() => setFilter(f)}
                 className={`px-2.5 py-1 rounded-full font-medium capitalize ${
-                  filter === f ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  filter === f ? 'bg-primary text-white' : 'bg-raised text-ink-2 hover:bg-raised-2'
                 }`}
               >
                 {f}
@@ -431,30 +431,30 @@ export default function ImportPage() {
             ))}
           </div>
 
-          <div className="rounded-lg border border-slate-200 overflow-hidden bg-white">
+          <div className="rounded-lg border border-line overflow-hidden bg-surface">
             <div className="overflow-x-auto max-h-[28rem] overflow-y-auto">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 sticky top-0">
+                <thead className="bg-canvas sticky top-0">
                   <tr>
-                    <th className="text-left px-3 py-2 font-semibold text-slate-500 text-xs uppercase">Row</th>
-                    <th className="text-left px-3 py-2 font-semibold text-slate-500 text-xs uppercase">Client</th>
-                    <th className="text-left px-3 py-2 font-semibold text-slate-500 text-xs uppercase">Case #</th>
-                    <th className="text-left px-3 py-2 font-semibold text-slate-500 text-xs uppercase">SOL</th>
-                    <th className="text-left px-3 py-2 font-semibold text-slate-500 text-xs uppercase">What happens</th>
+                    <th className="text-left px-3 py-2 font-semibold text-ink-3 text-xs uppercase">Row</th>
+                    <th className="text-left px-3 py-2 font-semibold text-ink-3 text-xs uppercase">Client</th>
+                    <th className="text-left px-3 py-2 font-semibold text-ink-3 text-xs uppercase">Case #</th>
+                    <th className="text-left px-3 py-2 font-semibold text-ink-3 text-xs uppercase">SOL</th>
+                    <th className="text-left px-3 py-2 font-semibold text-ink-3 text-xs uppercase">What happens</th>
                   </tr>
                 </thead>
                 <tbody>
                   {visible.map((e) => (
-                    <tr key={e.rowIndex} className="border-t border-slate-100 align-top">
-                      <td className="px-3 py-2 text-slate-400 tabular-nums">{spreadsheetRow(e.rowIndex)}</td>
-                      <td className="px-3 py-2 font-medium text-slate-800">{e.values.clientName || '—'}</td>
-                      <td className="px-3 py-2 text-slate-600 tabular-nums">{e.values.caseNumber || '—'}</td>
-                      <td className="px-3 py-2 text-slate-600 tabular-nums">{e.values.sol || '—'}</td>
+                    <tr key={e.rowIndex} className="border-t border-line-soft align-top">
+                      <td className="px-3 py-2 text-ink-4 tabular-nums">{spreadsheetRow(e.rowIndex)}</td>
+                      <td className="px-3 py-2 font-medium text-ink">{e.values.clientName || '—'}</td>
+                      <td className="px-3 py-2 text-ink-2 tabular-nums">{e.values.caseNumber || '—'}</td>
+                      <td className="px-3 py-2 text-ink-2 tabular-nums">{e.values.sol || '—'}</td>
                       <td className="px-3 py-2">
                         <ActionTag action={e.action} />
-                        <span className="text-slate-500 ml-2">{e.reason}</span>
+                        <span className="text-ink-3 ml-2">{e.reason}</span>
                         {e.warnings.map((w, i) => (
-                          <div key={i} className="text-amber-700 text-xs mt-1 flex items-start gap-1">
+                          <div key={i} className="text-warn-ink text-xs mt-1 flex items-start gap-1">
                             <AlertTriangle size={12} className="mt-0.5 shrink-0" /> {w}
                           </div>
                         ))}
@@ -462,7 +462,7 @@ export default function ImportPage() {
                     </tr>
                   ))}
                   {!visible.length ? (
-                    <tr><td colSpan={5} className="px-3 py-8 text-center text-slate-400">Nothing in this filter.</td></tr>
+                    <tr><td colSpan={5} className="px-3 py-8 text-center text-ink-4">Nothing in this filter.</td></tr>
                   ) : null}
                 </tbody>
               </table>
@@ -470,7 +470,7 @@ export default function ImportPage() {
           </div>
 
           <div className="flex items-center gap-3 mt-6">
-            <button type="button" className="text-sm text-slate-500 hover:text-slate-700 flex items-center gap-1" onClick={() => setStep(1)}>
+            <button type="button" className="text-sm text-ink-3 hover:text-ink-2 flex items-center gap-1" onClick={() => setStep(1)}>
               <ArrowLeft size={14} /> Back to columns
             </button>
             <span className="flex-1" />
@@ -478,7 +478,7 @@ export default function ImportPage() {
               type="button"
               disabled={busy || plan.summary.create + plan.summary.update === 0}
               onClick={commit}
-              className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium disabled:opacity-40 flex items-center gap-1.5"
+              className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium disabled:opacity-40 flex items-center gap-1.5"
             >
               {busy ? <Loader2 size={14} className="animate-spin" /> : null}
               Import {plan.summary.create + plan.summary.update} cases
@@ -492,19 +492,19 @@ export default function ImportPage() {
         <div>
           <div
             className={`rounded-lg border p-5 ${
-              result.ok ? 'border-emerald-200 bg-emerald-50' : 'border-amber-300 bg-amber-50'
+              result.ok ? 'border-ok-line bg-ok-bg' : 'border-warn-line-2 bg-warn-bg'
             }`}
           >
-            <h2 className="font-semibold text-slate-900 flex items-center gap-2 mb-1">
-              {result.ok ? <CheckCircle2 size={18} className="text-emerald-600" /> : <AlertTriangle size={18} className="text-amber-600" />}
+            <h2 className="font-semibold text-ink flex items-center gap-2 mb-1">
+              {result.ok ? <CheckCircle2 size={18} className="text-ok-ink" /> : <AlertTriangle size={18} className="text-warn-ink" />}
               {result.ok ? 'Import finished' : 'Imported, with problems'}
             </h2>
-            <p className="text-sm text-slate-700">
+            <p className="text-sm text-ink-2">
               <strong>{result.created ?? 0}</strong> created, <strong>{result.updated ?? 0}</strong> updated.
               {result.error ? <> {result.error}</> : null}
             </p>
             {result.failed?.length ? (
-              <ul className="mt-3 text-sm text-amber-900 list-disc pl-5">
+              <ul className="mt-3 text-sm text-warn-ink-strong list-disc pl-5">
                 {result.failed.slice(0, 20).map((f, i) => (
                   <li key={i}>
                     {f.rowIndex === null ? '' : `Row ${spreadsheetRow(f.rowIndex)}: `}{f.error}
@@ -522,40 +522,40 @@ export default function ImportPage() {
             sit there looking document-less.
           */}
           {(result.created ?? 0) > 0 ? (
-            <div className="mt-6 rounded-lg border border-slate-200 bg-white p-5">
-              <h3 className="font-semibold text-slate-900 mb-2">Attach the documents</h3>
-              <p className="text-sm text-slate-600 mb-3">
+            <div className="mt-6 rounded-lg border border-line bg-surface p-5">
+              <h3 className="font-semibold text-ink mb-2">Attach the documents</h3>
+              <p className="text-sm text-ink-2 mb-3">
                 These cases have no Drive folder linked yet. Drive sync matches your existing
                 folders to them by name — it links a folder only when exactly one case matches and
                 nothing else is close, and queues anything doubtful for you to decide.
               </p>
               <Link
                 href="/documents/drive"
-                className="inline-block px-3 py-1.5 rounded-lg border border-slate-300 text-sm font-medium text-slate-700"
+                className="inline-block px-3 py-1.5 rounded-lg border border-line-strong text-sm font-medium text-ink-2"
               >
                 Run Drive sync
               </Link>
             </div>
           ) : null}
 
-          <div className="mt-6 rounded-lg border border-slate-200 bg-white p-5">
-            <h3 className="font-semibold text-slate-900 mb-2">Check this now, before you rely on it</h3>
-            <p className="text-sm text-slate-600 mb-3">
+          <div className="mt-6 rounded-lg border border-line bg-surface p-5">
+            <h3 className="font-semibold text-ink mb-2">Check this now, before you rely on it</h3>
+            <p className="text-sm text-ink-2 mb-3">
               Open the dashboard and read <em>Missing Key Dates</em>. Every case listed there has no
               SOL and no trial date. Each one should be a case you have decided is fine — not one
               whose date simply did not come across.
             </p>
             <div className="flex gap-3">
-              <Link href="/" className="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-sm font-medium">
+              <Link href="/" className="px-3 py-1.5 rounded-lg bg-primary text-white text-sm font-medium">
                 Open the dashboard
               </Link>
-              <Link href="/projects" className="px-3 py-1.5 rounded-lg border border-slate-300 text-sm font-medium text-slate-700">
+              <Link href="/projects" className="px-3 py-1.5 rounded-lg border border-line-strong text-sm font-medium text-ink-2">
                 See all cases
               </Link>
               <button
                 type="button"
                 onClick={() => { setStep(0); setRows([]); setHeaders([]); setFileName(''); setResult(null); }}
-                className="px-3 py-1.5 rounded-lg border border-slate-300 text-sm font-medium text-slate-700"
+                className="px-3 py-1.5 rounded-lg border border-line-strong text-sm font-medium text-ink-2"
               >
                 Import another file
               </button>
@@ -569,10 +569,10 @@ export default function ImportPage() {
 
 function Stat({ label, value, tone, icon: Icon }) {
   const tones = {
-    emerald: 'text-emerald-700 bg-emerald-50 border-emerald-200',
-    sky: 'text-sky-700 bg-sky-50 border-sky-200',
-    slate: 'text-slate-600 bg-slate-50 border-slate-200',
-    amber: 'text-amber-700 bg-amber-50 border-amber-200',
+    emerald: 'text-ok-ink bg-ok-bg border-ok-line',
+    sky: 'text-info-ink bg-info-bg border-info-line',
+    slate: 'text-ink-2 bg-canvas border-line',
+    amber: 'text-warn-ink bg-warn-bg border-warn-line',
   };
   return (
     <div className={`rounded-lg border p-3 ${tones[tone]}`}>
@@ -586,10 +586,10 @@ function Stat({ label, value, tone, icon: Icon }) {
 
 function ActionTag({ action }) {
   const map = {
-    create: ['New', 'bg-emerald-100 text-emerald-800'],
-    update: ['Update', 'bg-sky-100 text-sky-800'],
-    skip: ['Skip', 'bg-slate-200 text-slate-600'],
+    create: ['New', 'bg-ok-bg-2 text-ok-ink'],
+    update: ['Update', 'bg-info-bg-2 text-info-ink'],
+    skip: ['Skip', 'bg-raised-2 text-ink-2'],
   };
-  const [label, cls] = map[action] || ['?', 'bg-slate-100'];
+  const [label, cls] = map[action] || ['?', 'bg-raised'];
   return <span className={`px-1.5 py-0.5 rounded text-[11px] font-semibold ${cls}`}>{label}</span>;
 }

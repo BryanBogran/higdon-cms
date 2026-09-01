@@ -26,7 +26,7 @@ export default function FieldInput({ field, value, onChange, row, matterId, uplo
     const result = num(row?.[a]) - num(row?.[b]);
     return (
       <div
-        className="input bg-slate-50 text-slate-600 cursor-not-allowed"
+        className="input bg-canvas text-ink-2 cursor-not-allowed"
         title={`Calculated: ${a} − ${b}`}
       >
         {result.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
@@ -49,16 +49,16 @@ export default function FieldInput({ field, value, onChange, row, matterId, uplo
   if (field.type === 'yesnounknown') {
     const current = value ?? '';
     return (
-      <div className="inline-flex rounded-lg border border-slate-300 overflow-hidden">
+      <div className="inline-flex rounded-lg border border-line-strong overflow-hidden">
         {['Yes', 'No', 'Unknown'].map((opt) => (
           <button
             key={opt}
             type="button"
             onClick={() => onChange(current === opt ? '' : opt)}
-            className={`px-3 py-1.5 text-sm border-r border-slate-200 last:border-r-0 ${
+            className={`px-3 py-1.5 text-sm border-r border-line last:border-r-0 ${
               current === opt
-                ? 'bg-slate-900 text-white font-semibold'
-                : 'bg-white text-slate-600 hover:bg-slate-50'
+                ? 'bg-primary text-white font-semibold'
+                : 'bg-surface text-ink-2 hover:bg-hover'
             }`}
           >
             {opt}
@@ -91,7 +91,7 @@ export default function FieldInput({ field, value, onChange, row, matterId, uplo
       <div>
         <input type="date" className="input" value={v} onChange={(e) => onChange(e.target.value)} />
         {bad ? (
-          <p className="flex items-center gap-1 mt-1 text-[11px] text-amber-700">
+          <p className="flex items-center gap-1 mt-1 text-[11px] text-warn-ink">
             <AlertTriangle size={12} /> Falls on a {bad}
           </p>
         ) : null}
@@ -114,7 +114,7 @@ export default function FieldInput({ field, value, onChange, row, matterId, uplo
             href={v}
             target="_blank"
             rel="noopener noreferrer"
-            className="shrink-0 px-2.5 grid place-items-center border border-slate-200 rounded-lg text-teal-700 hover:bg-slate-50"
+            className="shrink-0 px-2.5 grid place-items-center border border-line rounded-lg text-accent-ink hover:bg-hover"
             title="Open document"
           >
             <ExternalLink size={15} />
@@ -127,7 +127,7 @@ export default function FieldInput({ field, value, onChange, row, matterId, uplo
   if (field.type === 'money') {
     return (
       <div className="relative">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-4 text-sm">$</span>
         <input
           type="text"
           inputMode="decimal"
@@ -182,8 +182,8 @@ export default function FieldInput({ field, value, onChange, row, matterId, uplo
           title={done ? `Done ${val.doneDate}` : 'Mark done'}
           className={`shrink-0 px-2 py-2 rounded-lg border ${
             done
-              ? 'bg-teal-50 border-teal-200 text-teal-700'
-              : 'border-slate-200 text-slate-300 hover:text-slate-500'
+              ? 'bg-accent-bg border-accent-line text-accent-ink'
+              : 'border-line text-ink-4 hover:text-ink-3'
           }`}
         >
           <Check size={15} />
@@ -240,8 +240,8 @@ export default function FieldInput({ field, value, onChange, row, matterId, uplo
               onClick={() => onChange(on ? list.filter((x) => x !== o) : [...list, o])}
               className={`px-2 py-1 rounded-full text-xs border ${
                 on
-                  ? 'bg-slate-900 text-white border-slate-900'
-                  : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
+                  ? 'bg-primary text-white border-primary'
+                  : 'bg-surface text-ink-2 border-line-strong hover:border-ink-4'
               }`}
             >
               {o}
@@ -280,7 +280,7 @@ function ContactField({ value, onChange }) {
 
   return (
     <div className="relative">
-      <User size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+      <User size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-4" />
       <input
         type="text"
         className="input pl-8"

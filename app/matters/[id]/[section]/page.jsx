@@ -46,12 +46,12 @@ export default function MatterSectionPage({ params }) {
   const matter = matters[id];
 
   if (!loaded) {
-    return <p className="p-8 text-sm text-slate-500">Loading…</p>;
+    return <p className="p-8 text-sm text-ink-3">Loading…</p>;
   }
   if (!matter) {
     return (
       <div className="p-8">
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-ink-2">
           No matter with that id. It may have been deleted, or this link is stale.
         </p>
       </div>
@@ -68,7 +68,7 @@ export default function MatterSectionPage({ params }) {
         was no way to reach any section at all. This select is the same
         registry, rendered for small screens.
       */}
-      <div className="lg:hidden px-4 py-2 bg-white border-b border-slate-200">
+      <div className="lg:hidden px-4 py-2 bg-surface border-b border-line">
         <select
           value={section}
           onChange={(e) => router.push(`/matters/${id}/${e.target.value}`)}
@@ -82,7 +82,7 @@ export default function MatterSectionPage({ params }) {
       </div>
 
       <div className="flex min-h-[calc(100vh-3.5rem-6.5rem)]">
-        <aside className="w-56 shrink-0 border-r border-slate-200 bg-white hidden lg:block">
+        <aside className="w-56 shrink-0 border-r border-line bg-surface hidden lg:block">
           <SectionRail matterId={id} activeSection={section} />
         </aside>
         <main className="flex-1 min-w-0 p-4 sm:p-6">

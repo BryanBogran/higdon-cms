@@ -23,7 +23,7 @@ const SECTIONS_WITH_ITEMS = [
 export default function LitigationSection({ matterId, matter }) {
   return (
     <div>
-      <p className="mb-4 rounded border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-600">
+      <p className="mb-4 rounded border border-line bg-canvas px-4 py-2.5 text-sm text-ink-2">
         This combined view is retired. These items now live in their own
         sections — {SECTIONS_WITH_ITEMS.join(', ')} — and are the same records
         wherever you edit them.

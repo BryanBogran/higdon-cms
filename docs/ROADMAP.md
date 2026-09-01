@@ -147,7 +147,12 @@ fourteen sections are then configuration.
 ### Phase 6 — Per-record mutation API, still on localStorage · 3–4 evenings
 
 Unchanged in intent, now covering the section engine's writes too. Intents, not collections.
-`grep` for `localStorage` should hit exactly one file when this is done.
+`grep` for `localStorage` should hit exactly one *data* file when this is done.
+
+The one deliberate exception is `lib/theme.js`, added with dark mode. A theme is a per-device
+display preference rather than application data, and routing it through the store would mean it
+arrives after hydration — which reintroduces the white flash the pre-paint script exists to
+prevent. Every access is confined to that one module, so the count stays checkable.
 
 Cut the dead notification-queue UI here as planned — but note it is **rebuilt for real** in
 Phase 13, because Reminders is a Filevine section and therefore in scope.

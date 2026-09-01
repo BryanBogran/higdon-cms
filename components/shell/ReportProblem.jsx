@@ -99,7 +99,7 @@ export default function ReportProblem() {
         onClick={() => { reset(); setOpen(true); }}
         title="Report a problem with this system"
         aria-label="Report a problem"
-        className="p-2 rounded text-slate-300 hover:bg-white/10 hover:text-white"
+        className="p-2 rounded text-chrome-muted hover:bg-white/10 hover:text-white"
       >
         <MessageSquareWarning size={18} />
       </button>
@@ -114,12 +114,12 @@ export default function ReportProblem() {
             aria-modal="true"
             aria-label="Report a problem"
             onMouseDown={(e) => e.stopPropagation()}
-            className="mt-16 w-full max-w-lg rounded-xl bg-white text-slate-900 shadow-2xl"
+            className="mt-16 w-full max-w-lg rounded-xl bg-surface text-ink shadow-2xl"
           >
-            <div className="flex items-start justify-between border-b border-slate-100 px-5 py-3">
+            <div className="flex items-start justify-between border-b border-line-soft px-5 py-3">
               <h2 className="font-semibold">Report a problem</h2>
               <button type="button" onClick={() => setOpen(false)} aria-label="Close"
-                className="p-1 text-slate-400 hover:text-slate-700">
+                className="p-1 text-ink-4 hover:text-ink-2">
                 <X size={18} />
               </button>
             </div>
@@ -127,8 +127,8 @@ export default function ReportProblem() {
             {result ? (
               <div className="p-5">
                 {result.emailed ? (
-                  <p className="flex items-start gap-2 text-sm text-teal-800">
-                    <CheckCircle2 size={17} className="mt-0.5 shrink-0 text-teal-600" />
+                  <p className="flex items-start gap-2 text-sm text-accent-ink-strong">
+                    <CheckCircle2 size={17} className="mt-0.5 shrink-0 text-accent-ink" />
                     <span>
                       <span className="block font-medium">Sent. Thank you.</span>
                       It has been recorded and emailed to Bryan.
@@ -141,25 +141,25 @@ export default function ReportProblem() {
                    * "sent" would leave someone waiting on a reply that is not
                    * coming.
                    */
-                  <p className="flex items-start gap-2 text-sm text-amber-800">
+                  <p className="flex items-start gap-2 text-sm text-warn-ink-strong">
                     <AlertTriangle size={17} className="mt-0.5 shrink-0" />
                     <span>
                       <span className="block font-medium">Recorded, but not emailed.</span>
                       Your report is saved and will not be lost. The notification did not go
                       out, so tell Bryan directly if it is urgent.
                       {result.emailError ? (
-                        <span className="mt-1 block text-xs text-amber-700">{result.emailError}</span>
+                        <span className="mt-1 block text-xs text-warn-ink">{result.emailError}</span>
                       ) : null}
                     </span>
                   </p>
                 )}
                 <div className="mt-4 flex justify-end gap-2">
                   <button type="button" onClick={reset}
-                    className="px-3 py-2 text-sm text-slate-600 hover:text-slate-900">
+                    className="px-3 py-2 text-sm text-ink-2 hover:text-ink">
                     Report something else
                   </button>
                   <button type="button" onClick={() => setOpen(false)}
-                    className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+                    className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white">
                     Done
                   </button>
                 </div>
@@ -167,7 +167,7 @@ export default function ReportProblem() {
             ) : (
               <form onSubmit={submit} className="space-y-4 p-5">
                 <div>
-                  <label htmlFor="rp-summary" className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                  <label htmlFor="rp-summary" className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-ink-4">
                     What went wrong?
                   </label>
                   <input
@@ -182,7 +182,7 @@ export default function ReportProblem() {
                 </div>
 
                 <div>
-                  <label htmlFor="rp-severity" className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                  <label htmlFor="rp-severity" className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-ink-4">
                     How bad is it?
                   </label>
                   <select id="rp-severity" className="input" value={severity}
@@ -192,8 +192,8 @@ export default function ReportProblem() {
                 </div>
 
                 <div>
-                  <label htmlFor="rp-detail" className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                    Anything else <span className="font-normal normal-case text-slate-400">(optional)</span>
+                  <label htmlFor="rp-detail" className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-ink-4">
+                    Anything else <span className="font-normal normal-case text-ink-4">(optional)</span>
                   </label>
                   <textarea
                     id="rp-detail"
@@ -205,7 +205,7 @@ export default function ReportProblem() {
                   />
                 </div>
 
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-ink-3">
                   The page you are on, your browser, and any errors it has already reported are
                   attached automatically — you do not need to describe them.
                 </p>
@@ -226,27 +226,27 @@ export default function ReportProblem() {
                   when a variable happens to be set is the wrong way round.
                   A description of the fault does not need the client in it.
                 */}
-                <p className="rounded border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-800">
+                <p className="rounded border border-warn-line bg-warn-bg px-2.5 py-2 text-xs text-warn-ink-strong">
                   Describe the fault, not the file. Reports may be read outside the firm, so
                   leave out client names, case numbers and anything medical — &ldquo;the SOL
                   field will not save&rdquo; is more useful than which case it was on.
                 </p>
 
                 {error ? (
-                  <p className="flex items-start gap-1.5 text-sm text-rose-700">
+                  <p className="flex items-start gap-1.5 text-sm text-danger-ink">
                     <AlertTriangle size={14} className="mt-0.5 shrink-0" /> {error}
                   </p>
                 ) : null}
 
-                <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+                <div className="flex justify-end gap-2 border-t border-line-soft pt-4">
                   <button type="button" onClick={() => setOpen(false)}
-                    className="px-3 py-2 text-sm text-slate-600 hover:text-slate-900">
+                    className="px-3 py-2 text-sm text-ink-2 hover:text-ink">
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={!summary.trim() || busy}
-                    className="flex items-center gap-1.5 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-500 disabled:opacity-40"
+                    className="flex items-center gap-1.5 rounded-lg bg-accent-solid px-4 py-2 text-sm font-semibold text-white hover:bg-accent-solid-2 disabled:opacity-40"
                   >
                     {busy ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
                     {busy ? 'Sending…' : 'Send report'}

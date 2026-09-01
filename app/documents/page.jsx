@@ -51,16 +51,16 @@ export default function DocumentsPage() {
     <div className="px-5 space-y-4">
       <Link
         href="/documents/drive"
-        className="flex items-center gap-2 text-sm font-semibold text-teal-700 hover:underline"
+        className="flex items-center gap-2 text-sm font-semibold text-accent-ink hover:underline"
       >
         <FolderSync size={15} /> Google Drive sync
       </Link>
-      <p className="text-xs text-slate-500 leading-snug">
+      <p className="text-xs text-ink-3 leading-snug">
         Searches Drive directly — including the text inside PDFs and Google Docs, not only
         filenames.
       </p>
       {backend !== 'supabase' ? (
-        <p className="text-xs text-amber-700 leading-snug">
+        <p className="text-xs text-warn-ink leading-snug">
           Running on local storage, so there is no Drive to search.
         </p>
       ) : null}
@@ -70,8 +70,8 @@ export default function DocumentsPage() {
   return (
     <RailLayout title="Documents" count={files?.length} rail={rail} wide>
       <form onSubmit={search} className="flex items-center gap-2 mb-5">
-        <div className="flex items-center gap-2 flex-1 bg-white border border-slate-300 rounded-lg px-3 py-2">
-          <Search size={16} className="text-slate-400 shrink-0" />
+        <div className="flex items-center gap-2 flex-1 bg-surface border border-line-strong rounded-lg px-3 py-2">
+          <Search size={16} className="text-ink-4 shrink-0" />
           <input
             autoFocus
             className="flex-1 outline-none text-sm"
@@ -83,14 +83,14 @@ export default function DocumentsPage() {
         <button
           type="submit"
           disabled={busy || term.trim().length < 2}
-          className="px-5 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold disabled:opacity-40 hover:bg-slate-800"
+          className="px-5 py-2 rounded-lg bg-primary text-white text-sm font-semibold disabled:opacity-40 hover:bg-primary-2"
         >
           {busy ? <Loader2 size={15} className="animate-spin" /> : 'Search'}
         </button>
       </form>
 
       {error ? (
-        <p className="flex items-start gap-1.5 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+        <p className="flex items-start gap-1.5 rounded border border-warn-line bg-warn-bg px-3 py-2 text-sm text-warn-ink-strong">
           <AlertCircle size={15} className="mt-0.5 shrink-0" /> {error}
         </p>
       ) : null}
@@ -102,24 +102,24 @@ export default function DocumentsPage() {
         is worse than saying nothing.
       */}
       {files === null && !error ? (
-        <p className="py-16 text-center text-sm text-slate-400">
+        <p className="py-16 text-center text-sm text-ink-4">
           Type at least two characters and press Search.
         </p>
       ) : null}
 
       {files !== null && files.length === 0 ? (
-        <p className="py-16 text-center text-sm text-slate-400">
+        <p className="py-16 text-center text-sm text-ink-4">
           Nothing in Drive matches “{term.trim()}”.
         </p>
       ) : null}
 
       {files?.length ? (
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+        <div className="bg-surface rounded-lg border border-line shadow-sm overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50">
+              <tr className="border-b border-line bg-canvas">
                 {['Name', 'Case', 'Modified', ''].map((h) => (
-                  <th key={h} className="text-left px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                  <th key={h} className="text-left px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-ink-3">
                     {h}
                   </th>
                 ))}
@@ -127,13 +127,13 @@ export default function DocumentsPage() {
             </thead>
             <tbody>
               {files.map((f) => (
-                <tr key={f.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                <tr key={f.id} className="border-b border-line-soft last:border-0 hover:bg-hover">
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-2 min-w-0">
-                      <FileText size={15} className="text-slate-400 shrink-0" />
-                      <span className="font-medium text-slate-900 truncate">{f.name}</span>
+                      <FileText size={15} className="text-ink-4 shrink-0" />
+                      <span className="font-medium text-ink truncate">{f.name}</span>
                       {f.sizeBytes ? (
-                        <span className="text-xs text-slate-400 shrink-0">
+                        <span className="text-xs text-ink-4 shrink-0">
                           {Math.max(1, Math.round(f.sizeBytes / 1024))} KB
                         </span>
                       ) : null}
@@ -141,16 +141,16 @@ export default function DocumentsPage() {
                   </td>
                   <td className="px-4 py-2.5">
                     {f.matterId ? (
-                      <Link href={`/matters/${f.matterId}/docs`} className="text-teal-700 hover:underline">
+                      <Link href={`/matters/${f.matterId}/docs`} className="text-accent-ink hover:underline">
                         {f.matterLabel}
                       </Link>
                     ) : (
-                      <span className="text-slate-400" title="Not inside any linked case folder">
+                      <span className="text-ink-4" title="Not inside any linked case folder">
                         Unfiled
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-2.5 text-slate-500 whitespace-nowrap">
+                  <td className="px-4 py-2.5 text-ink-3 whitespace-nowrap">
                     {f.modifiedTime ? f.modifiedTime.slice(0, 10) : '—'}
                   </td>
                   <td className="px-4 py-2.5">
@@ -159,7 +159,7 @@ export default function DocumentsPage() {
                         href={f.webViewLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-teal-700 hover:text-teal-900"
+                        className="text-accent-ink hover:text-accent-ink-strong"
                         title="Open in Google Drive"
                       >
                         <ExternalLink size={16} />

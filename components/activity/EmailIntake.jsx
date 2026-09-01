@@ -97,23 +97,23 @@ export function EmailDropTarget({ matterId, children }) {
       className={`relative rounded-lg ${over ? 'outline outline-2 outline-dashed outline-teal-500 outline-offset-4' : ''}`}
     >
       {over ? (
-        <div className="absolute inset-0 z-20 grid place-items-center bg-teal-50/80 rounded-lg pointer-events-none">
-          <p className="flex items-center gap-2 text-teal-800 font-semibold">
+        <div className="absolute inset-0 z-20 grid place-items-center bg-accent-bg/80 rounded-lg pointer-events-none">
+          <p className="flex items-center gap-2 text-accent-ink-strong font-semibold">
             <Upload size={18} /> Drop to file on this case
           </p>
         </div>
       ) : null}
 
       {busy > 0 ? (
-        <p className="mb-3 flex items-center gap-2 text-sm text-slate-600">
+        <p className="mb-3 flex items-center gap-2 text-sm text-ink-2">
           <Loader2 size={14} className="animate-spin" /> Filing {busy} message{busy === 1 ? '' : 's'}…
         </p>
       ) : null}
 
-      {done ? <p className="mb-3 text-sm text-teal-700">{done}</p> : null}
+      {done ? <p className="mb-3 text-sm text-accent-ink">{done}</p> : null}
 
       {errors.map((err, i) => (
-        <p key={i} className="mb-2 flex items-start gap-1.5 text-sm text-red-700">
+        <p key={i} className="mb-2 flex items-start gap-1.5 text-sm text-danger-ink">
           <AlertCircle size={14} className="mt-0.5 shrink-0" /> {err}
         </p>
       ))}
@@ -142,24 +142,24 @@ export default function EmailIntake({ matterId }) {
   }
 
   return (
-    <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+    <div className="mb-4 rounded-lg border border-line bg-canvas px-4 py-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <Mail size={15} className="text-slate-400 shrink-0" />
+        <Mail size={15} className="text-ink-4 shrink-0" />
 
         {address ? (
           <>
-            <code className={`text-sm ${MAIL_LIVE ? 'text-slate-800' : 'text-slate-500'}`}>
+            <code className={`text-sm ${MAIL_LIVE ? 'text-ink' : 'text-ink-3'}`}>
               {address}
             </code>
             <button
               onClick={copy}
-              className="flex items-center gap-1 text-xs text-teal-700 font-semibold hover:underline"
+              className="flex items-center gap-1 text-xs text-accent-ink font-semibold hover:underline"
             >
               {copied ? <Check size={12} /> : <Copy size={12} />} {copied ? 'Copied' : 'Copy'}
             </button>
           </>
         ) : (
-          <span className="text-sm text-slate-500">
+          <span className="text-sm text-ink-3">
             This matter has no email address yet — run <code>supabase/003_email.sql</code>.
           </span>
         )}
@@ -169,7 +169,7 @@ export default function EmailIntake({ matterId }) {
         <button
           onClick={() => input.current?.click()}
           disabled={busy > 0}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-slate-300 bg-white text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-line-strong bg-surface text-sm text-ink-2 hover:bg-raised disabled:opacity-50"
         >
           {busy > 0 ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
           Add email file
@@ -187,7 +187,7 @@ export default function EmailIntake({ matterId }) {
         />
       </div>
 
-      <p className="mt-1.5 ml-6 text-xs text-slate-500">
+      <p className="mt-1.5 ml-6 text-xs text-ink-3">
         {MAIL_LIVE
           ? 'CC or forward to this address and the message files itself here.'
           : 'Not receiving mail yet — the MX record is not set up. Until then, drag a .eml onto the feed or use the button.'}{' '}

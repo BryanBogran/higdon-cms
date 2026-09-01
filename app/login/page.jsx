@@ -63,17 +63,17 @@ function LoginForm() {
           dark-on-light version the firm may not have.
         */}
         <div className="flex justify-center mb-6">
-          <span className="rounded-xl bg-slate-900 px-6 py-4">
+          <span className="rounded-xl bg-chrome px-6 py-4">
             <Logo width={160} />
           </span>
         </div>
 
-        <form onSubmit={submit} className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-          <h1 className="text-lg font-semibold text-slate-900 mb-1">Sign in</h1>
-          <p className="text-sm text-slate-500 mb-5">Case management system.</p>
+        <form onSubmit={submit} className="bg-surface rounded-xl border border-line shadow-sm p-6">
+          <h1 className="text-lg font-semibold text-ink mb-1">Sign in</h1>
+          <p className="text-sm text-ink-3 mb-5">Case management system.</p>
 
           {!configured ? (
-            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            <div className="mb-4 rounded-lg border border-warn-line bg-warn-bg p-3 text-sm text-warn-ink-strong">
               <p className="flex items-center gap-1.5 font-semibold">
                 <AlertTriangle size={15} /> Supabase isn&apos;t configured
               </p>
@@ -86,7 +86,7 @@ function LoginForm() {
             </div>
           ) : null}
 
-          <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">
+          <label className="block text-[11px] font-semibold uppercase tracking-wide text-ink-4 mb-1">
             Email
           </label>
           <input
@@ -99,7 +99,7 @@ function LoginForm() {
             placeholder="you@higdonlawyers.com"
           />
 
-          <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">
+          <label className="block text-[11px] font-semibold uppercase tracking-wide text-ink-4 mb-1">
             Password
           </label>
           <input
@@ -112,7 +112,7 @@ function LoginForm() {
           />
 
           {error ? (
-            <p className="flex items-start gap-1.5 mb-4 text-sm text-red-700">
+            <p className="flex items-start gap-1.5 mb-4 text-sm text-danger-ink">
               <AlertTriangle size={15} className="mt-0.5 shrink-0" /> {error}
             </p>
           ) : null}
@@ -120,13 +120,13 @@ function LoginForm() {
           <button
             type="submit"
             disabled={busy || !configured}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-slate-900 text-white font-semibold hover:bg-slate-800 disabled:opacity-40"
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-primary text-white font-semibold hover:bg-primary-2 disabled:opacity-40"
           >
             {busy ? <Loader2 size={16} className="animate-spin" /> : null}
             {busy ? 'Signing in…' : 'Sign in'}
           </button>
 
-          <p className="mt-4 text-xs text-slate-400 text-center">
+          <p className="mt-4 text-xs text-ink-4 text-center">
             Accounts are created by an administrator. There is no self-signup.
           </p>
       </form>
@@ -136,8 +136,8 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen grid place-items-center bg-slate-100 p-4">
-      <Suspense fallback={<p className="text-sm text-slate-500">Loading…</p>}>
+    <div className="min-h-screen grid place-items-center bg-canvas p-4">
+      <Suspense fallback={<p className="text-sm text-ink-3">Loading…</p>}>
         <LoginForm />
       </Suspense>
     </div>

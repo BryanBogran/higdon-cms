@@ -52,10 +52,10 @@ function Collection({ matterId, sectionKey, collection, uploadFolder }) {
   }, [state.rows, collection]);
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-      <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-        <h2 className="font-semibold text-slate-900">{collection.label}</h2>
-        <span className="text-sm text-slate-500">
+    <div className="bg-surface rounded-xl border border-line shadow-sm">
+      <div className="px-5 py-3 border-b border-line-soft flex items-center justify-between">
+        <h2 className="font-semibold text-ink">{collection.label}</h2>
+        <span className="text-sm text-ink-3">
           {state.rows.length} {state.rows.length === 1 ? 'entry' : 'entries'}
           {total !== null ? ` · $${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : ''}
         </span>
@@ -65,9 +65,9 @@ function Collection({ matterId, sectionKey, collection, uploadFolder }) {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50">
+              <tr className="border-b border-line-soft bg-canvas">
                 {cols.map((c) => (
-                  <th key={c.key} className="text-left px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400 whitespace-nowrap">
+                  <th key={c.key} className="text-left px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-ink-4 whitespace-nowrap">
                     {c.label}
                   </th>
                 ))}
@@ -76,7 +76,7 @@ function Collection({ matterId, sectionKey, collection, uploadFolder }) {
             </thead>
             <tbody>
               {state.rows.map((row) => (
-                <tr key={row.id} className="border-b border-slate-50 last:border-0">
+                <tr key={row.id} className="border-b border-line-soft last:border-0">
                   {cols.map((c) => (
                     /*
                      * The minimum comes from the column TYPE, not one number
@@ -104,7 +104,7 @@ function Collection({ matterId, sectionKey, collection, uploadFolder }) {
                   <td className="px-2 align-middle">
                     <button
                       onClick={() => deleteSectionRow(matterId, storageKey, row.id)}
-                      className="p-1.5 text-slate-300 hover:text-red-600"
+                      className="p-1.5 text-ink-4 hover:text-danger-ink"
                       title="Delete row"
                     >
                       <Trash2 size={15} />
@@ -116,10 +116,10 @@ function Collection({ matterId, sectionKey, collection, uploadFolder }) {
           </table>
         </div>
       ) : (
-        <p className="px-5 py-8 text-center text-sm text-slate-400">No entries yet.</p>
+        <p className="px-5 py-8 text-center text-sm text-ink-4">No entries yet.</p>
       )}
 
-      <div className="px-5 py-3 border-t border-slate-100 bg-slate-50/60 flex flex-wrap items-end gap-3">
+      <div className="px-5 py-3 border-t border-line-soft bg-canvas/60 flex flex-wrap items-end gap-3">
         {/*
           Every column, not the first three. It used to slice(0, 3), so on
           Insurance you could enter carrier, coverage and policy number but not
@@ -136,7 +136,7 @@ function Collection({ matterId, sectionKey, collection, uploadFolder }) {
               className={c.type === 'textarea' ? 'flex-1' : ''}
               style={{ minWidth: columnMinWidth(c.type) }}
             >
-              <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wide text-ink-4 mb-1">
                 {c.label}
               </label>
               <FieldInput
@@ -153,7 +153,7 @@ function Collection({ matterId, sectionKey, collection, uploadFolder }) {
             addSectionRow(matterId, storageKey, draft);
             setDraft({});
           }}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800"
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-2"
         >
           <Plus size={15} /> Add
         </button>
@@ -204,16 +204,16 @@ function FieldGroup({
   setSectionField, updateMatterField, uploadFolder,
 }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+    <div className="bg-surface rounded-xl border border-line shadow-sm">
       {title ? (
-        <div className="px-5 py-3 border-b border-slate-100">
-          <h2 className="font-semibold text-slate-900">{title}</h2>
+        <div className="px-5 py-3 border-b border-line-soft">
+          <h2 className="font-semibold text-ink">{title}</h2>
         </div>
       ) : null}
       <div className="p-5 grid gap-4 sm:grid-cols-2">
         {fields.map((f) => (
           <div key={f.key} className={f.type === 'textarea' || f.full ? 'sm:col-span-2' : ''}>
-            <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">
+            <label className="block text-[11px] font-semibold uppercase tracking-wide text-ink-4 mb-1">
               {f.label}
             </label>
             <FieldInput
@@ -242,7 +242,7 @@ export default function GenericSection({ matterId, matter, section }) {
 
   return (
     <div className="space-y-6">
-      {section.description ? <p className="text-sm text-slate-500">{section.description}</p> : null}
+      {section.description ? <p className="text-sm text-ink-3">{section.description}</p> : null}
 
       {/*
         Checklist items belonging to this section — Served under Pleading, the
@@ -300,11 +300,11 @@ export default function GenericSection({ matterId, matter, section }) {
       ))}
 
       {section.verified ? (
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-ink-4">
           Fields captured from the firm&apos;s own Filevine configuration.
         </p>
       ) : (
-        <p className="text-xs text-amber-700">
+        <p className="text-xs text-warn-ink">
           These fields are a first pass, not yet confirmed against Filevine — capture a matter
           that has data in this section and they can be replaced with the real ones.
         </p>

@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation';
 import { LogOut, ChevronDown, Loader2 } from 'lucide-react';
 import { useData } from '@/lib/data/DataProvider';
 import { getSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
+import ThemeToggle from './ThemeToggle';
 
 export default function UserMenu() {
   const { currentUser, backend } = useData();
@@ -62,36 +63,38 @@ export default function UserMenu() {
         className="flex items-center gap-1.5 pl-1 pr-1.5 py-1 rounded hover:bg-white/10"
         title={currentUser?.email || 'Account'}
       >
-        <span className="w-8 h-8 rounded-full bg-orange-500 grid place-items-center text-sm font-semibold">
+        <span className="w-8 h-8 rounded-full bg-alert-solid grid place-items-center text-sm font-semibold">
           {initial}
         </span>
-        <ChevronDown size={14} className="text-slate-300" />
+        <ChevronDown size={14} className="text-chrome-muted" />
       </button>
 
       {open ? (
-        <div className="absolute right-0 mt-1.5 w-64 bg-white rounded-lg shadow-xl border border-slate-200 overflow-hidden z-50 text-slate-900">
-          <div className="px-4 py-3 border-b border-slate-100">
+        <div className="absolute right-0 mt-1.5 w-64 bg-surface rounded-lg shadow-xl border border-line overflow-hidden z-50 text-ink">
+          <div className="px-4 py-3 border-b border-line-soft">
             <p className="font-semibold text-sm truncate">
               {currentUser?.displayName || 'Not signed in'}
             </p>
             {currentUser?.email ? (
-              <p className="text-xs text-slate-500 truncate">{currentUser.email}</p>
+              <p className="text-xs text-ink-3 truncate">{currentUser.email}</p>
             ) : null}
             {currentUser?.handle ? (
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-ink-4 mt-0.5">
                 @{currentUser.handle} · {currentUser.role}
               </p>
             ) : null}
           </div>
 
+          <ThemeToggle />
+
           {/* State the connection positively as well as negatively -- an absent
               warning is not the same as a visible confirmation. */}
           {backend === 'supabase' ? (
-            <p className="px-4 py-2 text-xs text-teal-800 bg-teal-50 border-b border-teal-100">
+            <p className="px-4 py-2 text-xs text-accent-ink bg-accent-bg border-b border-accent-line">
               Connected to the shared database.
             </p>
           ) : (
-            <p className="px-4 py-2 text-xs text-amber-800 bg-amber-50 border-b border-amber-100">
+            <p className="px-4 py-2 text-xs text-warn-ink bg-warn-bg border-b border-warn-line">
               Running on browser storage — this data is on this device only, and
               is not saved to the database.
             </p>
@@ -100,7 +103,7 @@ export default function UserMenu() {
           <button
             onClick={signOut}
             disabled={busy}
-            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-left hover:bg-slate-50 disabled:opacity-50"
+            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-left hover:bg-raised disabled:opacity-50"
           >
             {busy ? <Loader2 size={15} className="animate-spin" /> : <LogOut size={15} />}
             {busy ? 'Signing out…' : 'Sign out'}

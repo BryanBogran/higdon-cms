@@ -59,16 +59,16 @@ export default function ContactEditor({ contact: initial, onSaved, onCancel }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/40 p-4 overflow-y-auto">
-      <div className="w-full max-w-4xl rounded-xl bg-white shadow-xl my-6">
+      <div className="w-full max-w-4xl rounded-xl bg-surface shadow-xl my-6">
         {/* ---- header ---- */}
-        <div className="flex items-start gap-4 p-5 border-b border-slate-200">
-          <span className="w-14 h-14 rounded-full bg-amber-300 grid place-items-center shrink-0">
+        <div className="flex items-start gap-4 p-5 border-b border-line">
+          <span className="w-14 h-14 rounded-full bg-warn-solid-2 grid place-items-center shrink-0">
             {c.kind === 'company'
-              ? <Building2 size={22} className="text-amber-900" />
-              : <User size={22} className="text-amber-900" />}
+              ? <Building2 size={22} className="text-warn-ink-strong" />
+              : <User size={22} className="text-warn-ink-strong" />}
           </span>
           <div className="min-w-0 flex-1">
-            <h2 className="text-xl font-bold text-slate-900">
+            <h2 className="text-xl font-bold text-ink">
               {c.id ? 'Edit Contact' : 'New Contact'}
             </h2>
             {/*
@@ -91,8 +91,8 @@ export default function ContactEditor({ contact: initial, onSaved, onCancel }) {
                     onClick={() => setC((prev) => toggleRole(prev, role, !rolesOf(prev).includes(role)))}
                     className={`rounded border px-1.5 py-0.5 text-xs ${
                       on
-                        ? 'border-teal-600 bg-teal-50 text-teal-700 font-medium'
-                        : 'border-slate-200 text-slate-400 hover:border-slate-400 hover:text-slate-600'
+                        ? 'border-accent-solid bg-accent-bg text-accent-ink font-medium'
+                        : 'border-line text-ink-4 hover:border-ink-4 hover:text-ink-2'
                     }`}
                   >
                     {role}
@@ -104,21 +104,21 @@ export default function ContactEditor({ contact: initial, onSaved, onCancel }) {
               <button
                 type="button"
                 onClick={() => set({ kind: c.kind === 'company' ? 'person' : 'company' })}
-                className="text-xs text-slate-500 hover:text-slate-700"
+                className="text-xs text-ink-3 hover:text-ink-2"
               >
                 {c.kind === 'company' ? 'Switch to a person' : 'This is a company'}
               </button>
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <button type="button" onClick={onCancel} className="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900">
+            <button type="button" onClick={onCancel} className="px-3 py-1.5 text-sm text-ink-2 hover:text-ink">
               Cancel
             </button>
             <button
               type="button"
               onClick={save}
               disabled={busy}
-              className="px-4 py-1.5 rounded-lg bg-teal-600 text-white text-sm font-medium disabled:opacity-50"
+              className="px-4 py-1.5 rounded-lg bg-accent-solid text-white text-sm font-medium disabled:opacity-50"
             >
               Save
             </button>
@@ -126,14 +126,14 @@ export default function ContactEditor({ contact: initial, onSaved, onCancel }) {
         </div>
 
         {/* ---- tabs ---- */}
-        <div className="flex gap-1 px-5 pt-3 border-b border-slate-200">
+        <div className="flex gap-1 px-5 pt-3 border-b border-line">
           {TABS.map((t) => (
             <button
               key={t}
               type="button"
               onClick={() => setTab(t)}
               className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
-                tab === t ? 'border-teal-600 text-teal-700' : 'border-transparent text-slate-500 hover:text-slate-700'
+                tab === t ? 'border-accent-solid text-accent-ink' : 'border-transparent text-ink-3 hover:text-ink-2'
               }`}
             >
               {t}{t === 'Associated Projects' && linked.length ? ` (${linked.length})` : ''}
@@ -143,9 +143,9 @@ export default function ContactEditor({ contact: initial, onSaved, onCancel }) {
 
         <div className="p-5">
           {errors.length ? (
-            <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 p-3">
+            <div className="mb-4 rounded-lg border border-danger-line bg-danger-bg p-3">
               {errors.map((e, i) => (
-                <p key={i} className="text-sm text-rose-800 flex items-center gap-1.5">
+                <p key={i} className="text-sm text-danger-ink-strong flex items-center gap-1.5">
                   <AlertTriangle size={13} /> {e}
                 </p>
               ))}
@@ -171,9 +171,9 @@ function Field({ label, children, hint }) {
   const id = `f-${label.replace(/\W+/g, '-').toLowerCase()}`;
   return (
     <div>
-      <label htmlFor={id} className="block text-xs font-medium text-slate-600 mb-1">{label}</label>
+      <label htmlFor={id} className="block text-xs font-medium text-ink-2 mb-1">{label}</label>
       {typeof children === 'function' ? children(id) : children}
-      {hint ? <p className="mt-1 text-[11px] text-slate-400">{hint}</p> : null}
+      {hint ? <p className="mt-1 text-[11px] text-ink-4">{hint}</p> : null}
     </div>
   );
 }
@@ -190,12 +190,12 @@ function Toggle({ label, checked, onChange }) {
       role="switch"
       aria-checked={Boolean(checked)}
       onClick={() => onChange(!checked)}
-      className="flex items-center gap-2.5 rounded-lg border border-slate-200 px-3 py-2.5 w-full text-left hover:border-slate-300"
+      className="flex items-center gap-2.5 rounded-lg border border-line px-3 py-2.5 w-full text-left hover:border-line-strong"
     >
-      <span className={`w-9 h-5 rounded-full transition relative shrink-0 ${checked ? 'bg-teal-600' : 'bg-slate-300'}`}>
-        <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${checked ? 'left-4.5' : 'left-0.5'}`} />
+      <span className={`w-9 h-5 rounded-full transition relative shrink-0 ${checked ? 'bg-accent-solid' : 'bg-line-strong'}`}>
+        <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-surface transition-all ${checked ? 'left-4.5' : 'left-0.5'}`} />
       </span>
-      <span className="text-sm text-slate-700">{label}</span>
+      <span className="text-sm text-ink-2">{label}</span>
     </button>
   );
 }
@@ -209,7 +209,7 @@ function Repeating({ title, entries, labels, fields, onChange, addLabel }) {
 
   return (
     <div>
-      <h3 className="text-sm font-semibold text-slate-900 mb-2">{title}</h3>
+      <h3 className="text-sm font-semibold text-ink mb-2">{title}</h3>
       <div className="space-y-2">
         {(entries || []).map((entry, i) => (
           <div key={i} className="flex items-start gap-2">
@@ -232,14 +232,14 @@ function Repeating({ title, entries, labels, fields, onChange, addLabel }) {
               />
             ))}
             <button type="button" onClick={() => remove(i)} aria-label={`Remove this ${title.toLowerCase().replace(/e?s$/, '')}`}
-              className="p-2 text-slate-300 hover:text-rose-600 shrink-0">
+              className="p-2 text-ink-4 hover:text-danger-ink shrink-0">
               <Trash2 size={14} />
             </button>
           </div>
         ))}
       </div>
       <button type="button" onClick={add}
-        className="mt-2 inline-flex items-center gap-1 text-sm text-teal-700 hover:underline">
+        className="mt-2 inline-flex items-center gap-1 text-sm text-accent-ink hover:underline">
         <Plus size={13} /> {addLabel}
       </button>
     </div>
@@ -252,8 +252,8 @@ function ContactInfo({ c, set, dupes }) {
   return (
     <div className="space-y-6">
       {dupes.length ? (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3">
-          <p className="text-sm text-amber-900 flex items-start gap-1.5">
+        <div className="rounded-lg border border-warn-line-2 bg-warn-bg p-3">
+          <p className="text-sm text-warn-ink-strong flex items-start gap-1.5">
             <AlertTriangle size={14} className="mt-0.5 shrink-0" />
             <span>
               <strong>{dupes.length === 1 ? 'A contact' : `${dupes.length} contacts`}</strong> already
@@ -300,7 +300,7 @@ function ContactInfo({ c, set, dupes }) {
         <Field label="Job Title">{(id) => <Text id={id} value={c.jobTitle} onChange={(v) => set({ jobTitle: v })} />}</Field>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2 pt-2 border-t border-slate-100">
+      <div className="grid gap-6 lg:grid-cols-2 pt-2 border-t border-line-soft">
         <Repeating
           title="Phones" entries={c.phones} labels={PHONE_LABELS} addLabel="Add Phone"
           onChange={(phones) => set({ phones })}
@@ -316,7 +316,7 @@ function ContactInfo({ c, set, dupes }) {
         />
       </div>
 
-      <div className="pt-2 border-t border-slate-100">
+      <div className="pt-2 border-t border-line-soft">
         <Repeating
           title="Addresses" entries={c.addresses} labels={ADDRESS_LABELS} addLabel="Add Address"
           onChange={(addresses) => set({ addresses })}
@@ -346,7 +346,7 @@ function Details({ c, set }) {
       </div>
 
       {c.isMinor ? (
-        <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-1.5">
+        <p className="text-sm text-warn-ink-strong bg-warn-bg border border-warn-line rounded-lg p-3 flex items-start gap-1.5">
           <AlertTriangle size={14} className="mt-0.5 shrink-0" />
           A minor&apos;s limitations period does not run the way an adult&apos;s does. The SOL on any
           case for this client needs the attorney to set it deliberately.
@@ -393,11 +393,11 @@ function Details({ c, set }) {
 
 function Associated({ linked, isNew }) {
   if (isNew) {
-    return <p className="text-sm text-slate-500">Save this contact and it can be added to a case.</p>;
+    return <p className="text-sm text-ink-3">Save this contact and it can be added to a case.</p>;
   }
   if (!linked.length) {
     return (
-      <div className="space-y-2 text-sm text-slate-500">
+      <div className="space-y-2 text-sm text-ink-3">
         <p>This contact is not the client on any case.</p>
         {/*
           Say what is NOT being counted. A provider on thirty cases would also
@@ -407,7 +407,7 @@ function Associated({ linked, isNew }) {
           a real reference. Same rule as the Drive review queue -- never render
           "we could not ask" as "the answer is none".
         */}
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-ink-4">
           Only the client link is counted. A provider, adjuster or defence firm named on a case is
           stored as text on that row, so it cannot be traced back here yet.
         </p>
@@ -415,13 +415,13 @@ function Associated({ linked, isNew }) {
     );
   }
   return (
-    <ul className="divide-y divide-slate-100">
+    <ul className="divide-y divide-line-soft">
       {linked.map(([id, m]) => (
         <li key={id} className="py-2.5 flex items-center justify-between">
-          <Link href={`/matters/${id}`} className="text-sm font-medium text-teal-700 hover:underline">
+          <Link href={`/matters/${id}`} className="text-sm font-medium text-accent-ink hover:underline">
             {matterTitle(m)}
           </Link>
-          <span className="text-xs text-slate-500">{m.values?.status || ''}</span>
+          <span className="text-xs text-ink-3">{m.values?.status || ''}</span>
         </li>
       ))}
     </ul>

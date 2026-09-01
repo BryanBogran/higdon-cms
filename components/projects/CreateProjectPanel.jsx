@@ -156,23 +156,23 @@ export default function CreateProjectPanel({ open, onClose }) {
         role="dialog"
         aria-modal="true"
         aria-label="Create a Project"
-        className="fixed right-0 top-0 z-40 h-full w-full max-w-md bg-white shadow-2xl flex flex-col"
+        className="fixed right-0 top-0 z-40 h-full w-full max-w-md bg-surface shadow-2xl flex flex-col"
       >
-        <div className="flex items-start justify-between p-5 border-b border-slate-100">
-          <h2 className="text-xl font-bold text-slate-900">Create a Project</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="p-1 text-slate-400 hover:text-slate-700">
+        <div className="flex items-start justify-between p-5 border-b border-line-soft">
+          <h2 className="text-xl font-bold text-ink">Create a Project</h2>
+          <button type="button" onClick={onClose} aria-label="Close" className="p-1 text-ink-4 hover:text-ink-2">
             <X size={20} />
           </button>
         </div>
 
         <form onSubmit={submit} className="flex-1 overflow-y-auto p-5 space-y-5">
           <div>
-            <label htmlFor="cp-org" className="block text-sm text-slate-500 mb-1">Org*</label>
-            <input id="cp-org" className="input w-full bg-slate-50 text-slate-500" value="Higdon Lawyers" disabled />
+            <label htmlFor="cp-org" className="block text-sm text-ink-3 mb-1">Org*</label>
+            <input id="cp-org" className="input w-full bg-canvas text-ink-3" value="Higdon Lawyers" disabled />
           </div>
 
           <div>
-            <label htmlFor="cp-type" className="block text-sm text-slate-500 mb-1">Project Type*</label>
+            <label htmlFor="cp-type" className="block text-sm text-ink-3 mb-1">Project Type*</label>
             <select id="cp-type" className="input w-full" value={projectType} onChange={(e) => setProjectType(e.target.value)}>
               {PROJECT_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
             </select>
@@ -180,26 +180,26 @@ export default function CreateProjectPanel({ open, onClose }) {
 
           {/* ---- client ---- */}
           <div>
-            <label htmlFor="cp-client" className="block text-sm text-slate-500 mb-1">Add Client*</label>
+            <label htmlFor="cp-client" className="block text-sm text-ink-3 mb-1">Add Client*</label>
 
             {client ? (
-              <div className="flex items-center gap-2 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2.5">
-                <Check size={15} className="text-teal-600 shrink-0" />
-                <span className="flex-1 min-w-0 truncate text-sm font-medium text-slate-900">
+              <div className="flex items-center gap-2 rounded-lg border border-accent-line bg-accent-bg px-3 py-2.5">
+                <Check size={15} className="text-accent-ink shrink-0" />
+                <span className="flex-1 min-w-0 truncate text-sm font-medium text-ink">
                   {displayName(client)}
                 </span>
-                <button type="button" onClick={() => setEditing(client)} className="text-xs text-teal-700 hover:underline">
+                <button type="button" onClick={() => setEditing(client)} className="text-xs text-accent-ink hover:underline">
                   Edit
                 </button>
                 <button type="button" onClick={() => setClient(null)} aria-label="Choose a different client"
-                  className="p-0.5 text-slate-400 hover:text-slate-700">
+                  className="p-0.5 text-ink-4 hover:text-ink-2">
                   <X size={14} />
                 </button>
               </div>
             ) : (
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-4 pointer-events-none" />
                   <input
                     id="cp-client"
                     ref={searchRef}
@@ -211,25 +211,25 @@ export default function CreateProjectPanel({ open, onClose }) {
                     onFocus={() => setShowResults(true)}
                   />
                   {showResults && query.trim() ? (
-                    <ul className="absolute z-10 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg max-h-64 overflow-y-auto">
+                    <ul className="absolute z-10 mt-1 w-full rounded-lg border border-line bg-surface shadow-lg max-h-64 overflow-y-auto">
                       {results.length ? results.map((c) => (
                         <li key={c.id}>
                           <button type="button" onClick={() => pick(c)}
-                            className="w-full text-left px-3 py-2 hover:bg-slate-50">
-                            <span className="block text-sm font-medium text-slate-900">{displayName(c)}</span>
+                            className="w-full text-left px-3 py-2 hover:bg-hover">
+                            <span className="block text-sm font-medium text-ink">{displayName(c)}</span>
                             {(c.phones?.[0]?.value || c.emails?.[0]?.value) ? (
-                              <span className="block text-xs text-slate-500 truncate">
+                              <span className="block text-xs text-ink-3 truncate">
                                 {c.phones?.[0]?.value || c.emails?.[0]?.value}
                               </span>
                             ) : null}
                           </button>
                         </li>
                       )) : (
-                        <li className="px-3 py-3 text-sm text-slate-500">
+                        <li className="px-3 py-3 text-sm text-ink-3">
                           No contact matches “{query.trim()}”.
                           <button type="button"
                             onClick={() => setEditing({ lastName: query.trim().split(',')[0]?.trim() || '', tags: ['Client'] })}
-                            className="ml-1 text-teal-700 hover:underline">
+                            className="ml-1 text-accent-ink hover:underline">
                             Create one
                           </button>
                         </li>
@@ -242,23 +242,23 @@ export default function CreateProjectPanel({ open, onClose }) {
                   onClick={() => setEditing({ tags: ['Client'] })}
                   aria-label="Create a new contact"
                   title="Create a new contact"
-                  className="shrink-0 w-10 rounded-lg border border-slate-300 grid place-items-center text-slate-500 hover:border-teal-500 hover:text-teal-700"
+                  className="shrink-0 w-10 rounded-lg border border-line-strong grid place-items-center text-ink-3 hover:border-accent-solid hover:text-accent-ink"
                 >
                   <UserPlus size={16} />
                 </button>
               </div>
             )}
-            <p className="mt-1 text-[11px] text-slate-400">
+            <p className="mt-1 text-[11px] text-ink-4">
               Picked from contacts, so the same person on two cases is one record.
             </p>
           </div>
 
           {/* ---- case number ---- */}
           <fieldset>
-            <legend className="block text-sm text-slate-500 mb-1">Case Number</legend>
+            <legend className="block text-sm text-ink-3 mb-1">Case Number</legend>
 
             <div className="space-y-2">
-              <label className="flex items-start gap-2 text-sm text-slate-700">
+              <label className="flex items-start gap-2 text-sm text-ink-2">
                 <input
                   type="radio"
                   name="cp-number-mode"
@@ -268,14 +268,14 @@ export default function CreateProjectPanel({ open, onClose }) {
                 />
                 <span>
                   Assign the next one automatically
-                  <span className="block text-[11px] text-slate-400">
+                  <span className="block text-[11px] text-ink-4">
                     {suggestion ? `Next is about ${suggestion}. ` : ''}
                     The exact number is issued when the case is saved.
                   </span>
                 </span>
               </label>
 
-              <label className="flex items-start gap-2 text-sm text-slate-700">
+              <label className="flex items-start gap-2 text-sm text-ink-2">
                 <input
                   type="radio"
                   name="cp-number-mode"
@@ -297,7 +297,7 @@ export default function CreateProjectPanel({ open, onClose }) {
             {numberMode === 'manual' ? (
               <div className="mt-2 pl-6">
                 <div className="relative w-40">
-                  <Hash size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  <Hash size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-4 pointer-events-none" />
                   <input
                     id="cp-case-number"
                     className="input w-full pl-9 tabular-nums tracking-wide"
@@ -315,15 +315,15 @@ export default function CreateProjectPanel({ open, onClose }) {
                 </div>
 
                 {numberCheck.error ? (
-                  <p className="mt-1 flex items-start gap-1.5 text-xs text-rose-700">
+                  <p className="mt-1 flex items-start gap-1.5 text-xs text-danger-ink">
                     <AlertCircle size={12} className="mt-0.5 shrink-0" /> {numberCheck.error}
                   </p>
                 ) : numberCheck.warning ? (
-                  <p className="mt-1 flex items-start gap-1.5 text-xs text-amber-700">
+                  <p className="mt-1 flex items-start gap-1.5 text-xs text-warn-ink">
                     <AlertCircle size={12} className="mt-0.5 shrink-0" /> {numberCheck.warning}
                   </p>
                 ) : (
-                  <p className="mt-1 text-[11px] text-slate-400">
+                  <p className="mt-1 text-[11px] text-ink-4">
                     Two digits for the year, then three — 26-033.
                   </p>
                 )}
@@ -332,53 +332,53 @@ export default function CreateProjectPanel({ open, onClose }) {
           </fieldset>
 
           <div>
-            <label htmlFor="cp-name" className="block text-sm text-slate-500 mb-1">Project Name</label>
+            <label htmlFor="cp-name" className="block text-sm text-ink-3 mb-1">Project Name</label>
             <input id="cp-name" className="input w-full" placeholder="Defaults to the client name and case number"
               value={projectName} onChange={(e) => setProjectName(e.target.value)} />
           </div>
 
           {/* Real in Filevine, nowhere to go here. Saying so beats a box that
               silently discards what you typed. */}
-          <div className="rounded-lg border border-slate-200 p-3">
-            <p className="text-sm font-medium text-slate-700">Add a Team</p>
-            <p className="mt-1 text-xs text-slate-500">
+          <div className="rounded-lg border border-line p-3">
+            <p className="text-sm font-medium text-ink-2">Add a Team</p>
+            <p className="mt-1 text-xs text-ink-3">
               Not built. Everyone signed in sees every matter, which matches how the firm works
               today — so a team picker would not restrict anything.
             </p>
           </div>
 
-          <div className="rounded-lg border border-slate-200 p-3">
-            <p className="text-sm font-medium text-slate-700">Subscribe to Project Notifications</p>
-            <p className="mt-1 text-xs text-slate-500">Not built. There is no notification system yet.</p>
+          <div className="rounded-lg border border-line p-3">
+            <p className="text-sm font-medium text-ink-2">Subscribe to Project Notifications</p>
+            <p className="mt-1 text-xs text-ink-3">Not built. There is no notification system yet.</p>
           </div>
 
-          <p className="flex items-start gap-1.5 text-xs text-slate-500">
-            <FolderPlus size={13} className="mt-0.5 shrink-0 text-slate-400" />
+          <p className="flex items-start gap-1.5 text-xs text-ink-3">
+            <FolderPlus size={13} className="mt-0.5 shrink-0 text-ink-4" />
             A Drive folder is set up on create — an existing folder for this client is adopted if
             there is one, rather than a second being made.
           </p>
 
           {error ? (
-            <p className="flex items-start gap-1.5 text-sm text-rose-700">
+            <p className="flex items-start gap-1.5 text-sm text-danger-ink">
               <AlertCircle size={14} className="mt-0.5 shrink-0" /> {error}
             </p>
           ) : null}
         </form>
 
-        <div className="flex items-center justify-end gap-3 p-5 border-t border-slate-100">
+        <div className="flex items-center justify-end gap-3 p-5 border-t border-line-soft">
           {busy ? (
-            <span className="mr-auto flex items-center gap-1.5 text-xs text-slate-500">
+            <span className="mr-auto flex items-center gap-1.5 text-xs text-ink-3">
               <Loader2 size={12} className="animate-spin" /> {busy}
             </span>
           ) : null}
-          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:text-slate-900">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-ink-2 hover:text-ink">
             Cancel
           </button>
           <button
             type="button"
             onClick={submit}
             disabled={!client || Boolean(busy) || Boolean(numberCheck.error)}
-            className="px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-4 py-2 rounded-lg bg-accent-solid text-white text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Create Project
           </button>

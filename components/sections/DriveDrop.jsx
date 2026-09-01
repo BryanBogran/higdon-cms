@@ -106,20 +106,20 @@ export default function DriveDrop({
     >
       {list.map((f, i) => (
         <div key={f?.id || i} className="flex items-center gap-1.5 mb-1">
-          <Paperclip size={11} className="text-slate-400 shrink-0" />
+          <Paperclip size={11} className="text-ink-4 shrink-0" />
           <a
             href={f?.url || '#'}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-teal-700 hover:underline truncate flex-1 min-w-0"
+            className="text-xs text-accent-ink hover:underline truncate flex-1 min-w-0"
           >
             {f?.name || 'Document'}
           </a>
-          <ExternalLink size={10} className="text-slate-300 shrink-0" />
+          <ExternalLink size={10} className="text-ink-4 shrink-0" />
           <button
             onClick={() => remove(i)}
             title="Unlink from this field — the file stays in Drive"
-            className="p-0.5 text-slate-300 hover:text-red-600 shrink-0"
+            className="p-0.5 text-ink-4 hover:text-danger-ink shrink-0"
           >
             <X size={12} />
           </button>
@@ -127,14 +127,14 @@ export default function DriveDrop({
       ))}
 
       {busy ? (
-        <div className="text-xs text-slate-500">
+        <div className="text-xs text-ink-3">
           <span className="flex items-center gap-1.5">
             <Loader2 size={11} className="animate-spin" />
             <span className="truncate">{busy.name}</span>
             <span className="shrink-0">{busy.percent}%</span>
           </span>
-          <div className="mt-1 h-1 rounded bg-slate-100 overflow-hidden">
-            <div className="h-full bg-teal-500 transition-all" style={{ width: `${busy.percent}%` }} />
+          <div className="mt-1 h-1 rounded bg-raised overflow-hidden">
+            <div className="h-full bg-accent-solid-2 transition-all" style={{ width: `${busy.percent}%` }} />
           </div>
         </div>
       ) : (!multiple && list.length) ? null : (
@@ -143,8 +143,8 @@ export default function DriveDrop({
           onClick={() => picker.current?.click()}
           className={`w-full flex items-center justify-center gap-1.5 rounded-lg border border-dashed px-2 py-1.5 text-xs transition ${
             over
-              ? 'border-teal-500 bg-teal-50 text-teal-800'
-              : 'border-slate-300 text-slate-400 hover:border-slate-400 hover:text-slate-600'
+              ? 'border-accent-solid bg-accent-bg text-accent-ink-strong'
+              : 'border-line-strong text-ink-4 hover:border-ink-4 hover:text-ink-2'
           }`}
         >
           <Upload size={12} />
@@ -161,7 +161,7 @@ export default function DriveDrop({
       />
 
       {error ? (
-        <p className="mt-1 flex items-start gap-1 text-xs text-red-700">
+        <p className="mt-1 flex items-start gap-1 text-xs text-danger-ink">
           <AlertCircle size={11} className="mt-0.5 shrink-0" /> {error}
         </p>
       ) : null}

@@ -57,28 +57,28 @@ export default function ExportPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-8">
-      <h1 className="text-2xl font-bold text-slate-900">Export the firm's data</h1>
-      <p className="mt-1 text-sm text-slate-500">
+      <h1 className="text-2xl font-bold text-ink">Export the firm's data</h1>
+      <p className="mt-1 text-sm text-ink-3">
         Nothing here leaves your computer. Both files are built in the browser from data
         already on screen.
       </p>
 
-      {!loaded ? <p className="mt-6 text-sm text-slate-500">Loading…</p> : (
+      {!loaded ? <p className="mt-6 text-sm text-ink-3">Loading…</p> : (
         <>
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
             <button
               type="button"
               onClick={saveCaseList}
-              className="text-left rounded-lg border border-slate-200 bg-white p-5 hover:border-slate-300 transition"
+              className="text-left rounded-lg border border-line bg-surface p-5 hover:border-line-strong transition"
             >
-              <div className="flex items-center gap-2 text-slate-900 font-semibold">
-                <FileSpreadsheet size={16} className="text-teal-600" /> Case list (CSV)
+              <div className="flex items-center gap-2 text-ink font-semibold">
+                <FileSpreadsheet size={16} className="text-accent-ink" /> Case list (CSV)
               </div>
-              <p className="mt-2 text-sm text-slate-600">
+              <p className="mt-2 text-sm text-ink-2">
                 One row per case, with every key date. Opens in Excel, and this app can read
                 it back — so it is a restore, not just a printout.
               </p>
-              <span className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-teal-700">
+              <span className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-accent-ink">
                 <Download size={12} /> {counts.matters} cases
               </span>
             </button>
@@ -86,26 +86,26 @@ export default function ExportPage() {
             <button
               type="button"
               onClick={saveBackup}
-              className="text-left rounded-lg border border-slate-200 bg-white p-5 hover:border-slate-300 transition"
+              className="text-left rounded-lg border border-line bg-surface p-5 hover:border-line-strong transition"
             >
-              <div className="flex items-center gap-2 text-slate-900 font-semibold">
-                <Database size={16} className="text-teal-600" /> Full backup (JSON)
+              <div className="flex items-center gap-2 text-ink font-semibold">
+                <Database size={16} className="text-accent-ink" /> Full backup (JSON)
               </div>
-              <p className="mt-2 text-sm text-slate-600">
+              <p className="mt-2 text-sm text-ink-2">
                 Everything the CSV flattens away — checklists, medical and expense rows,
                 notes, tasks and related cases. Keep this one.
               </p>
-              <span className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-teal-700">
+              <span className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-accent-ink">
                 <Download size={12} /> {counts.matters} cases · {counts.activity} notes · {counts.tasks} tasks
               </span>
             </button>
           </div>
 
-          {last ? <p className="mt-4 text-sm text-emerald-700">{last}</p> : null}
+          {last ? <p className="mt-4 text-sm text-ok-ink">{last}</p> : null}
 
-          <div className="mt-8 rounded-lg border border-slate-200 bg-white p-5">
-            <h2 className="font-semibold text-slate-900 mb-2">What this does not cover</h2>
-            <ul className="text-sm text-slate-600 space-y-2 list-disc pl-5">
+          <div className="mt-8 rounded-lg border border-line bg-surface p-5">
+            <h2 className="font-semibold text-ink mb-2">What this does not cover</h2>
+            <ul className="text-sm text-ink-2 space-y-2 list-disc pl-5">
               <li>
                 <strong>Documents.</strong> They live in your Google Drive and always have —
                 this app only links to them. Losing this app does not touch a single file.
@@ -123,7 +123,7 @@ export default function ExportPage() {
           </div>
 
           {backend === 'local' ? (
-            <p className="mt-4 flex items-start gap-1.5 text-sm text-amber-700">
+            <p className="mt-4 flex items-start gap-1.5 text-sm text-warn-ink">
               <AlertTriangle size={14} className="mt-0.5 shrink-0" />
               Running on browser storage, so this exports only what is on this device.
             </p>

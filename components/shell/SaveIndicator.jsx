@@ -23,7 +23,7 @@ export default function SaveIndicator() {
       <span
         title={saveState.error || 'Save failed'}
         className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-white text-xs font-semibold ${
-          isSetup ? 'bg-amber-600' : 'bg-red-500'
+          isSetup ? 'bg-warn-solid' : 'bg-danger-solid-2'
         }`}
       >
         <AlertTriangle size={14} /> {isSetup ? 'Setup needed' : 'Not saved'}
@@ -31,8 +31,14 @@ export default function SaveIndicator() {
     );
   }
   if (saveState.status === 'saved') {
+    /*
+     * accent-solid-2, not accent-ink or accent-line: this sits on the dark top
+     * rail in BOTH themes, so it needs a teal that is legible on dark either
+     * way. accent-ink is dark teal in light mode and accent-line is dark teal
+     * in dark mode -- each would vanish in one of the two.
+     */
     return (
-      <span className="flex items-center gap-1 px-2 text-xs text-teal-300" aria-live="polite">
+      <span className="flex items-center gap-1 px-2 text-xs text-accent-solid-2" aria-live="polite">
         <Check size={14} /> Saved
       </span>
     );

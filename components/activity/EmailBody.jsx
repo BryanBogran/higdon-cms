@@ -19,11 +19,11 @@ import { addressLabel } from '@/lib/domain/email';
 
 /** "Dana Whitfield records@higdonlawyers.com", or just the address. */
 function Address({ addr }) {
-  if (!addr) return <span className="text-slate-400">unknown</span>;
+  if (!addr) return <span className="text-ink-4">unknown</span>;
   return (
     <>
-      {addr.name ? <span className="text-slate-700">{addr.name} </span> : null}
-      <span className="text-teal-600">{addr.email}</span>
+      {addr.name ? <span className="text-ink-2">{addr.name} </span> : null}
+      <span className="text-accent-ink">{addr.email}</span>
     </>
   );
 }
@@ -34,18 +34,18 @@ function Address({ addr }) {
  */
 function AddressList({ addrs = [] }) {
   const [all, setAll] = useState(false);
-  if (!addrs.length) return <span className="text-slate-400">—</span>;
+  if (!addrs.length) return <span className="text-ink-4">—</span>;
   const shown = all ? addrs : addrs.slice(0, 2);
   return (
     <>
       {shown.map((a, i) => (
         <span key={`${a.email}-${i}`}>
-          {i > 0 ? <span className="text-slate-400">, </span> : null}
+          {i > 0 ? <span className="text-ink-4">, </span> : null}
           <Address addr={a} />
         </span>
       ))}
       {!all && addrs.length > 2 ? (
-        <button onClick={() => setAll(true)} className="text-slate-400 hover:text-slate-700">
+        <button onClick={() => setAll(true)} className="text-ink-4 hover:text-ink-2">
           … +{addrs.length - 2} more
         </button>
       ) : null}
@@ -86,7 +86,7 @@ function AttachmentRow({ file }) {
         disabled={!file.path || busy}
         title={file.path ? 'Open — the link expires in five minutes' : 'Not stored in local mode'}
         className={`flex items-center gap-1.5 text-xs ${
-          file.path ? 'text-teal-700 hover:underline' : 'text-slate-400 cursor-not-allowed'
+          file.path ? 'text-accent-ink hover:underline' : 'text-ink-4 cursor-not-allowed'
         }`}
       >
         {busy ? (
@@ -98,11 +98,11 @@ function AttachmentRow({ file }) {
         )}
         <span className="truncate max-w-[22rem]">{file.name}</span>
         {file.size ? (
-          <span className="text-slate-400">({Math.max(1, Math.round(file.size / 1024))} KB)</span>
+          <span className="text-ink-4">({Math.max(1, Math.round(file.size / 1024))} KB)</span>
         ) : null}
-        {file.path ? <Download size={11} className="text-slate-300" /> : null}
+        {file.path ? <Download size={11} className="text-ink-4" /> : null}
       </button>
-      {error ? <p className="text-xs text-red-700 mt-0.5">{error}</p> : null}
+      {error ? <p className="text-xs text-danger-ink mt-0.5">{error}</p> : null}
     </div>
   );
 }
@@ -121,43 +121,43 @@ export default function EmailBody({ entry }) {
         aria-expanded={open}
       >
         {open ? (
-          <ChevronDown size={15} className="mt-0.5 shrink-0 text-slate-400" />
+          <ChevronDown size={15} className="mt-0.5 shrink-0 text-ink-4" />
         ) : (
-          <ChevronRight size={15} className="mt-0.5 shrink-0 text-slate-400" />
+          <ChevronRight size={15} className="mt-0.5 shrink-0 text-ink-4" />
         )}
-        <span className="text-sm font-semibold text-slate-900 group-hover:underline break-words">
+        <span className="text-sm font-semibold text-ink group-hover:underline break-words">
           {subject}
         </span>
       </button>
 
       <dl className="mt-1 ml-5 text-sm space-y-0.5">
         <div className="flex gap-1.5">
-          <dt className="text-slate-500 shrink-0">From:</dt>
+          <dt className="text-ink-3 shrink-0">From:</dt>
           <dd className="min-w-0 break-words"><Address addr={meta.from} /></dd>
         </div>
         <div className="flex gap-1.5">
-          <dt className="text-slate-500 shrink-0">To:</dt>
+          <dt className="text-ink-3 shrink-0">To:</dt>
           <dd className="min-w-0 break-words"><AddressList addrs={meta.to} /></dd>
         </div>
         {meta.cc?.length ? (
           <div className="flex gap-1.5">
-            <dt className="text-slate-500 shrink-0">Cc:</dt>
+            <dt className="text-ink-3 shrink-0">Cc:</dt>
             <dd className="min-w-0 break-words"><AddressList addrs={meta.cc} /></dd>
           </div>
         ) : null}
       </dl>
 
       {open ? (
-        <div className="ml-5 mt-2.5 pl-3 border-l-2 border-slate-200">
+        <div className="ml-5 mt-2.5 pl-3 border-l-2 border-line">
           {entry.body ? (
-            <p className="text-sm text-slate-800 whitespace-pre-wrap break-words">{entry.body}</p>
+            <p className="text-sm text-ink whitespace-pre-wrap break-words">{entry.body}</p>
           ) : (
-            <p className="text-sm text-slate-400 italic">
+            <p className="text-sm text-ink-4 italic">
               This message had no text — open the original below.
             </p>
           )}
           {meta.hasHtml ? (
-            <p className="mt-2 text-xs text-slate-400">
+            <p className="mt-2 text-xs text-ink-4">
               Shown as plain text. The formatted version is in the original message.
             </p>
           ) : null}
@@ -175,7 +175,7 @@ export default function EmailBody({ entry }) {
       {/* Local mode keeps headers but not bytes. Say so, rather than showing a
           link that fails -- a dead link on a case file reads as a lost record. */}
       {meta.filesNotStored ? (
-        <p className="mt-1.5 ml-5 text-xs text-amber-700">
+        <p className="mt-1.5 ml-5 text-xs text-warn-ink">
           Stored on this device only; attachment files were not kept. Re-file this message once
           the database is connected.
         </p>

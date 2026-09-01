@@ -36,7 +36,7 @@ export default function TopRail() {
   if (pathname.startsWith('/login')) return null;
 
   return (
-    <header className="sticky top-0 z-40 bg-slate-900 text-white">
+    <header className="sticky top-0 z-40 bg-chrome text-white">
       <div className="flex items-center gap-1 px-3 h-14">
         <button
           onClick={() => setMenuOpen(true)}
@@ -55,7 +55,7 @@ export default function TopRail() {
                 key={href}
                 href={href}
                 className={`flex items-center gap-2 px-3 py-2 rounded text-sm font-medium transition ${
-                  active ? 'bg-teal-600 text-white' : 'text-slate-200 hover:bg-white/10'
+                  active ? 'bg-accent-solid text-white' : 'text-chrome-muted hover:bg-white/10'
                 }`}
               >
                 <Icon size={17} />

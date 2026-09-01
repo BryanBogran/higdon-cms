@@ -156,37 +156,37 @@ export default function DriveSyncPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-8">
-      <Link href="/documents" className="inline-flex items-center gap-1.5 text-sm text-slate-600 hover:text-slate-900 mb-4">
+      <Link href="/documents" className="inline-flex items-center gap-1.5 text-sm text-ink-2 hover:text-ink mb-4">
         <ArrowLeft size={15} /> Documents
       </Link>
 
-      <h1 className="text-2xl font-bold text-slate-900">Google Drive sync</h1>
-      <p className="mt-1 text-sm text-slate-600">
+      <h1 className="text-2xl font-bold text-ink">Google Drive sync</h1>
+      <p className="mt-1 text-sm text-ink-2">
         Links each case to its Drive folder. Documents themselves are read live from Drive when
         a case is opened — nothing is copied, moved or renamed.
       </p>
 
       {error ? (
-        <p className="mt-4 flex items-start gap-1.5 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="mt-4 flex items-start gap-1.5 rounded border border-danger-line bg-danger-bg px-3 py-2 text-sm text-danger-ink">
           <AlertCircle size={15} className="mt-0.5 shrink-0" /> {error}
         </p>
       ) : null}
       {note ? (
-        <p className="mt-4 flex items-start gap-1.5 rounded border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-800">
+        <p className="mt-4 flex items-start gap-1.5 rounded border border-accent-line bg-accent-bg px-3 py-2 text-sm text-accent-ink-strong">
           <CheckCircle2 size={15} className="mt-0.5 shrink-0" /> {note}
         </p>
       ) : null}
 
       {/* ---- Step 1: dry run ---- */}
-      <section className="mt-6 rounded-lg border border-slate-200 bg-white p-4">
-        <h2 className="font-semibold text-slate-900">1 · See what would happen</h2>
-        <p className="mt-1 text-sm text-slate-600">
+      <section className="mt-6 rounded-lg border border-line bg-surface p-4">
+        <h2 className="font-semibold text-ink">1 · See what would happen</h2>
+        <p className="mt-1 text-sm text-ink-2">
           Reads Drive and matches folders to cases. Writes nothing.
         </p>
         <button
           onClick={dryRun}
           disabled={Boolean(busy)}
-          className="mt-3 flex items-center gap-2 px-4 py-2 rounded border border-slate-300 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          className="mt-3 flex items-center gap-2 px-4 py-2 rounded border border-line-strong text-sm font-semibold text-ink-2 hover:bg-hover disabled:opacity-50"
         >
           {busy === 'plan' ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
           Dry run
@@ -203,19 +203,19 @@ export default function DriveSyncPage() {
         ) : null}
 
         {plan?.folders === 0 ? (
-          <div className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm">
-            <p className="font-semibold text-amber-900">No folders found under the root.</p>
+          <div className="mt-3 rounded border border-warn-line bg-warn-bg px-3 py-2.5 text-sm">
+            <p className="font-semibold text-warn-ink-strong">No folders found under the root.</p>
             {/*
               Drive returns 404 for "does not exist" and for "you may not see
               it" alike, and lists a folder you cannot see as empty. So the
               server asks three follow-up questions and reports which cause it
               actually is, rather than this page listing possibilities.
             */}
-            <p className="mt-1 text-amber-800">
+            <p className="mt-1 text-warn-ink-strong">
               {plan.diagnosis?.diagnosis || 'Could not reach Drive to work out why.'}
             </p>
             {plan.diagnosis ? (
-              <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs text-amber-800">
+              <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs text-warn-ink-strong">
                 <dt>Acting as</dt>
                 <dd className="font-mono break-all">{plan.diagnosis.actingAs}</dd>
                 <dt>Root folder id</dt>
@@ -244,9 +244,9 @@ export default function DriveSyncPage() {
       </section>
 
       {/* ---- Step 2: apply ---- */}
-      <section className="mt-4 rounded-lg border border-slate-200 bg-white p-4">
-        <h2 className="font-semibold text-slate-900">2 · Link the unambiguous ones</h2>
-        <p className="mt-1 text-sm text-slate-600">
+      <section className="mt-4 rounded-lg border border-line bg-surface p-4">
+        <h2 className="font-semibold text-ink">2 · Link the unambiguous ones</h2>
+        <p className="mt-1 text-sm text-ink-2">
           Only where exactly one case matches and nothing else is close. Everything else drops into
           the queue below.
         </p>
@@ -254,7 +254,7 @@ export default function DriveSyncPage() {
           <button
             onClick={applyLinks}
             disabled={Boolean(busy)}
-            className="flex items-center gap-2 px-4 py-2 rounded bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 rounded bg-primary text-white text-sm font-semibold hover:bg-primary-2 disabled:opacity-50"
           >
             {busy === 'link' ? <Loader2 size={15} className="animate-spin" /> : <FolderSync size={15} />}
             Link folders
@@ -266,18 +266,18 @@ export default function DriveSyncPage() {
           live from Drive when someone opens them, so there is no copy to
           keep current and nothing to press.
         */}
-        <p className="mt-2 text-xs text-slate-500">
+        <p className="mt-2 text-xs text-ink-3">
           Linking is all that is needed. Documents themselves are read straight from Drive when
           a case is opened, so nothing here can fall behind.
         </p>
       </section>
 
       {/* ---- Step 2b: create ---- */}
-      <section className="mt-4 rounded-lg border border-sky-200 bg-sky-50/50 p-4">
-        <h2 className="font-semibold text-slate-900">
+      <section className="mt-4 rounded-lg border border-info-line bg-info-bg/50 p-4">
+        <h2 className="font-semibold text-ink">
           2b · Create projects for folders with no case
         </h2>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-ink-2">
           Reads the case number out of each folder name — <span className="font-mono text-xs">Rivera, Marcus 26-033</span>{' '}
           — and makes the case, already linked to that folder. This is the way to bring the
           whole Filevine case list across.
@@ -289,7 +289,7 @@ export default function DriveSyncPage() {
           populated case list will believe the SOLs are simply missing rather
           than never imported.
         */}
-        <p className="mt-2 flex items-start gap-1.5 text-sm text-amber-800">
+        <p className="mt-2 flex items-start gap-1.5 text-sm text-warn-ink-strong">
           <AlertTriangle size={14} className="mt-0.5 shrink-0" />
           <span>
             <span className="font-semibold">No SOL, no date of accident, no attorney</span> — a folder
@@ -299,7 +299,7 @@ export default function DriveSyncPage() {
           </span>
         </p>
 
-        <p className="mt-2 text-xs text-slate-500">
+        <p className="mt-2 text-xs text-ink-3">
           Folders with no case number in the name — <span className="font-mono">TEMPLATES</span>,{' '}
           <span className="font-mono">ARCHIVED FILES</span>, and any case folder named without one —
           are passed over rather than turned into cases.
@@ -310,26 +310,26 @@ export default function DriveSyncPage() {
             onClick={createProjects}
             disabled={Boolean(busy) || !plan}
             title={!plan ? 'Run the dry run first, so you can see what it would create' : undefined}
-            className="flex items-center gap-2 px-4 py-2 rounded bg-sky-700 text-white text-sm font-semibold hover:bg-sky-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-4 py-2 rounded bg-info-solid text-white text-sm font-semibold hover:bg-info-solid disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {busy === 'create' ? <Loader2 size={15} className="animate-spin" /> : <FolderPlus size={15} />}
             {plan ? `Create ${plan.counts.willCreate ?? 0} project${(plan.counts.willCreate ?? 0) === 1 ? '' : 's'}` : 'Create projects'}
           </button>
           {!plan ? (
-            <span className="text-xs text-slate-500">Run step 1 first.</span>
+            <span className="text-xs text-ink-3">Run step 1 first.</span>
           ) : null}
         </div>
 
         {/* What it would make, and what it would not. Both matter. */}
         {plan?.willCreate?.length ? (
           <details className="mt-3">
-            <summary className="text-xs text-slate-600 cursor-pointer">
+            <summary className="text-xs text-ink-2 cursor-pointer">
               Show what would be created ({plan.willCreate.length} of {plan.counts.willCreate})
             </summary>
-            <ul className="mt-2 space-y-0.5 text-xs text-slate-600 max-h-56 overflow-y-auto">
+            <ul className="mt-2 space-y-0.5 text-xs text-ink-2 max-h-56 overflow-y-auto">
               {plan.willCreate.map((c) => (
                 <li key={c.folder} className="flex gap-2">
-                  <span className="font-mono text-slate-500 shrink-0">{c.caseNumber}</span>
+                  <span className="font-mono text-ink-3 shrink-0">{c.caseNumber}</span>
                   <span className="truncate">{c.clientName}</span>
                 </li>
               ))}
@@ -339,13 +339,13 @@ export default function DriveSyncPage() {
 
         {plan?.createSkipped?.length ? (
           <details className="mt-2">
-            <summary className="text-xs text-slate-600 cursor-pointer">
+            <summary className="text-xs text-ink-2 cursor-pointer">
               Show what would be passed over ({plan.createSkipped.length} of {plan.counts.createSkipped})
             </summary>
-            <ul className="mt-2 space-y-0.5 text-xs text-slate-500 max-h-56 overflow-y-auto">
+            <ul className="mt-2 space-y-0.5 text-xs text-ink-3 max-h-56 overflow-y-auto">
               {plan.createSkipped.map((c) => (
                 <li key={c.folder} className="truncate">
-                  <span className="text-slate-700">{c.folder}</span> — {c.reason}
+                  <span className="text-ink-2">{c.folder}</span> — {c.reason}
                 </li>
               ))}
             </ul>
@@ -354,30 +354,30 @@ export default function DriveSyncPage() {
       </section>
 
       {/* ---- Step 3: review ---- */}
-      <section className="mt-4 rounded-lg border border-slate-200 bg-white p-4">
-        <h2 className="font-semibold text-slate-900">
+      <section className="mt-4 rounded-lg border border-line bg-surface p-4">
+        <h2 className="font-semibold text-ink">
           3 · Folders needing a decision{reviews.length ? ` (${reviews.length})` : ''}
         </h2>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-ink-2">
           The matcher will not guess between two clients with the same name. Filing medical records
           on the wrong case is a privilege breach; this dropdown is five seconds.
         </p>
 
         {!loaded ? (
-          <p className="mt-4 text-sm text-slate-400">Loading…</p>
+          <p className="mt-4 text-sm text-ink-4">Loading…</p>
         ) : reviewsError ? (
-          <p className="mt-4 text-sm text-amber-700">
+          <p className="mt-4 text-sm text-warn-ink">
             {reviewsError} Folders may be waiting that cannot be shown.
           </p>
         ) : reviews.length === 0 ? (
-          <p className="mt-4 text-sm text-slate-400">Nothing waiting.</p>
+          <p className="mt-4 text-sm text-ink-4">Nothing waiting.</p>
         ) : (
-          <ul className="mt-4 divide-y divide-slate-100">
+          <ul className="mt-4 divide-y divide-line-soft">
             {reviews.map((r) => (
               <li key={r.folder_id} className="py-3 flex flex-wrap items-center gap-3">
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium text-slate-900 truncate">{r.folder_name}</p>
-                  <p className="text-xs text-slate-500">
+                  <p className="font-medium text-ink truncate">{r.folder_name}</p>
+                  <p className="text-xs text-ink-3">
                     {r.reason === 'ambiguous'
                       ? `${(r.candidates || []).length} possible match${(r.candidates || []).length === 1 ? '' : 'es'}`
                       : 'No matching case'}
@@ -412,7 +412,7 @@ export default function DriveSyncPage() {
                   onClick={() => dismiss(r.folder_id)}
                   disabled={busy === r.folder_id}
                   title="Not a case folder — stop asking about it"
-                  className="p-1.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                  className="p-1.5 rounded text-ink-4 hover:text-ink-2 hover:bg-raised"
                 >
                   <X size={16} />
                 </button>
@@ -427,14 +427,14 @@ export default function DriveSyncPage() {
 
 function Stat({ label, value, tone }) {
   const colour =
-    tone === 'teal' ? 'text-teal-700'
-      : tone === 'amber' ? 'text-amber-700'
-      : tone === 'sky' ? 'text-sky-700'
-      : 'text-slate-900';
+    tone === 'teal' ? 'text-accent-ink'
+      : tone === 'amber' ? 'text-warn-ink'
+      : tone === 'sky' ? 'text-info-ink'
+      : 'text-ink';
   return (
-    <div className="rounded border border-slate-200 px-3 py-2">
+    <div className="rounded border border-line px-3 py-2">
       <p className={`text-xl font-bold ${colour}`}>{value}</p>
-      <p className="text-[11px] uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="text-[11px] uppercase tracking-wide text-ink-3">{label}</p>
     </div>
   );
 }

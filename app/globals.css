@@ -1,6 +1,431 @@
 @import "tailwindcss";
 
 /*
+ * ── THEME TOKENS ──────────────────────────────────────────────────────────
+ *
+ * Every color in this app used to be a literal Tailwind class in JSX -- about
+ * 1,200 of them across 42 files, all drawn from the `slate` ramp. That is fine
+ * until you want a second theme, at which point each one needs a `dark:` twin
+ * and every new component starts life broken in dark mode until someone
+ * remembers to add one.
+ *
+ * These tokens exist so that never happens. `bg-surface text-ink border-line`
+ * is correct in both themes, and the swap below is the only place that knows
+ * what "dark" means.
+ *
+ * ── PLAIN @theme, NOT @theme inline. LOAD-BEARING. ────────────────────────
+ *
+ * `@theme inline` substitutes the VALUE into each utility at build time, so
+ * `bg-surface` would compile to `background-color: #ffffff` and the `.dark`
+ * override below would silently do nothing -- no error, the page just stays
+ * light. Plain `@theme` compiles it to `var(--color-surface)`, which is what
+ * makes a runtime swap possible.
+ *
+ * ── LIGHT VALUES ARE THE EXACT HEXES THEY REPLACED ────────────────────────
+ *
+ * Each token is annotated with the slate step it stands in for. That is the
+ * safety property of this whole approach: converting a file cannot change how
+ * it looks in light mode, so anything that DOES move is a mis-mapped token and
+ * not a design decision. Three steps were merged into their neighbour
+ * (slate-800 into ink, slate-600 into ink-2, slate-300 into ink-4); the first
+ * is imperceptible, the last raises contrast on text that failed WCAG AA
+ * anyway, and the middle one is the only genuine judgement call.
+ */
+@theme {
+  /* Surfaces. Elevation survives inversion: canvas sits below surface in both
+     themes, so cards keep reading as lifted without a single rule changing. */
+  --color-canvas: #f8fafc; /* slate-50  -- page background, table stripes */
+  --color-surface: #ffffff; /* white     -- cards, panels, inputs          */
+  --color-raised: #f1f5f9; /* slate-100 -- hover fills, chips             */
+  --color-raised-2: #e2e8f0; /* slate-200 -- pressed / heavier chips        */
+  /*
+   * Hover on a card. Separate from `canvas` because the two only coincide in
+   * light mode: hovering a white row darkens it, but hovering a dark row has
+   * to LIGHTEN it. Mapping `hover:bg-slate-50` onto `canvas` would make rows
+   * vanish into the page background on hover in dark mode.
+   */
+  --color-hover: #f8fafc; /* slate-50 */
+
+  /* Text */
+  --color-ink: #0f172a; /* slate-900 (+800) -- headings, primary   */
+  --color-ink-2: #334155; /* slate-700 (+600) -- body                */
+  --color-ink-3: #64748b; /* slate-500        -- labels, secondary   */
+  --color-ink-4: #94a3b8; /* slate-400 (+300) -- placeholder, faint  */
+
+  /* Borders */
+  --color-line-soft: #f1f5f9; /* slate-100 -- subtle dividers */
+  --color-line: #e2e8f0; /* slate-200 -- default border  */
+  --color-line-strong: #cbd5e1; /* slate-300 -- inputs, emphasis */
+
+  /*
+   * Chrome: the surfaces that are ALREADY dark and must STAY dark.
+   *
+   * This family is the whole reason the sweep is safe. `bg-slate-900` (the top
+   * rail, the drawer, primary buttons, the sign-in panel) and
+   * `text-slate-900` (body ink) are the same color and must move in OPPOSITE
+   * directions. Splitting them into two token families makes that mechanical
+   * instead of a judgement call at 90 separate sites.
+   *
+   * Also why the firm logo keeps working: it is white lettering with no dark
+   * variant, and it only ever renders on chrome. See components/shell/Logo.jsx.
+   */
+  --color-chrome: #0f172a; /* slate-900 */
+  --color-chrome-2: #1e293b; /* slate-800 -- hover on chrome */
+  --color-chrome-muted: #cbd5e1; /* slate-300 -- labels on chrome */
+
+  /*
+   * The neutral primary button, and the selected state of a filter chip.
+   *
+   * SPLIT OUT FROM `chrome` DELIBERATELY. Both were `bg-slate-900 text-white`
+   * and both were dark, so the first pass mapped them together -- and the
+   * Sign in button promptly disappeared into the dark card behind it. The two
+   * roles only look alike in light mode: chrome is a surface that must STAY
+   * dark, whereas a primary button must CONTRAST with whatever it sits on, so
+   * on a dark page it has to get lighter. Solid accent buttons (teal) are a
+   * third thing again and use accent-solid.
+   */
+  --color-primary: #0f172a; /* slate-900 */
+  --color-primary-2: #1e293b; /* slate-800 -- hover */
+
+  /*
+   * Accents. Mid-weight text steps (text-teal-700 and friends) mostly survive
+   * inversion unchanged; it is the tinted `-50` BACKGROUNDS that glare on a
+   * dark surface, so each accent carries its own bg/ink/line/solid set.
+   */
+  /* teal -- the brand */
+  --color-accent-bg: #f0fdfa; /* teal-50  */
+  --color-accent-bg-2: #ccfbf1; /* teal-100 */
+  --color-accent-ink: #0f766e; /* teal-700 */
+  --color-accent-ink-strong: #115e59; /* teal-800 */
+  --color-accent-line: #99f6e4; /* teal-200 */
+  --color-accent-solid: #0d9488; /* teal-600 */
+  --color-accent-solid-2: #14b8a6; /* teal-500 -- hover on solid */
+
+  /* amber -- caution */
+  --color-warn-bg: #fffbeb; /* amber-50  */
+  --color-warn-bg-2: #fef3c7; /* amber-100 */
+  --color-warn-ink: #b45309; /* amber-700 */
+  --color-warn-ink-strong: #78350f; /* amber-900 */
+  --color-warn-line: #fde68a; /* amber-200 */
+  --color-warn-line-2: #fcd34d; /* amber-300 */
+  --color-warn-solid: #d97706; /* amber-600 */
+  --color-warn-solid-2: #fbbf24; /* amber-400 */
+
+  /* red + rose -- error and destructive, merged; see the note below */
+  --color-danger-bg: #fef2f2; /* red-50  */
+  --color-danger-bg-2: #fee2e2; /* red-100 */
+  --color-danger-ink: #b91c1c; /* red-700 */
+  --color-danger-ink-strong: #991b1b; /* red-800 */
+  --color-danger-line: #fecaca; /* red-200 */
+  --color-danger-solid: #dc2626; /* red-600 */
+  --color-danger-solid-2: #ef4444; /* red-500 */
+
+  /* sky -- informational */
+  --color-info-bg: #f0f9ff; /* sky-50  */
+  --color-info-bg-2: #e0f2fe; /* sky-100 */
+  --color-info-ink: #0369a1; /* sky-700 */
+  --color-info-line: #bae6fd; /* sky-200 */
+  --color-info-solid: #0284c7; /* sky-600 */
+
+  /* emerald -- positive */
+  --color-ok-bg: #ecfdf5; /* emerald-50  */
+  --color-ok-bg-2: #d1fae5; /* emerald-100 */
+  --color-ok-ink: #047857; /* emerald-700 */
+  --color-ok-line: #a7f3d0; /* emerald-200 */
+
+  /* orange -- approaching, between warn and danger */
+  --color-alert-bg: #fff7ed; /* orange-50  */
+  --color-alert-bg-2: #ffedd5; /* orange-100 */
+  --color-alert-ink: #c2410c; /* orange-700 */
+  --color-alert-line: #fed7aa; /* orange-200 */
+  --color-alert-solid: #ea580c; /* orange-600 */
+
+  /*
+   * Categorical. Named by hue rather than by role because here the hue IS the
+   * meaning -- these distinguish contact roles and calendar event types from
+   * one another, and carry no severity. Used only in the two badge maps.
+   *
+   * The saturated identity dots (AVATAR_COLORS in lib/domain/matter.js, the
+   * activity-kind dots) are deliberately NOT tokenised: they are solid -500s
+   * carrying white text, which reads correctly on either theme.
+   */
+  --color-cat-indigo-bg: #eef2ff; /* indigo-50  */
+  --color-cat-indigo-ink: #4338ca; /* indigo-700 */
+  --color-cat-indigo-line: #c7d2fe; /* indigo-200 */
+
+  --color-cat-violet-bg: #f5f3ff; /* violet-50  */
+  --color-cat-violet-ink: #6d28d9; /* violet-700 */
+  --color-cat-violet-line: #ddd6fe; /* violet-200 */
+
+  --color-cat-lime-bg: #f7fee7; /* lime-50  */
+  --color-cat-lime-ink: #3f6212; /* lime-800 */
+  --color-cat-lime-line: #d9f99d; /* lime-200 */
+
+  --color-cat-purple-bg: #f3e8ff; /* purple-100 */
+  --color-cat-purple-ink: #6b21a8; /* purple-800 */
+  --color-cat-purple-line: #e9d5ff; /* purple-200 */
+}
+
+/*
+ * ── HOW THE THEME IS APPLIED, AND WHY THERE IS NO SCRIPT ──────────────────
+ *
+ * UNLAYERED, DELIBERATELY. Tailwind emits @theme variables inside
+ * `@layer theme` at `:root`, and in the CSS cascade an unlayered rule beats a
+ * layered one regardless of specificity -- the same mechanic documented at
+ * length under .input below, used on purpose this time.
+ *
+ * There is no pre-paint script. Three were tried -- a bare <script> in a
+ * literal <head>, one as the first child of <body>, and next/script with
+ * strategy="beforeInteractive" -- and all three produced "Encountered a script
+ * tag while rendering React component" followed by a hydration failure in
+ * React 19. React then discarded the server HTML, re-rendered the whole tree,
+ * and the theme was lost: /documents rendered light while the stored
+ * preference said dark, with nothing in the UI to explain it.
+ *
+ * So the preference lives in a COOKIE, app/layout.jsx reads it on the server,
+ * and `data-theme` is in the HTML as it arrives. React renders that attribute
+ * itself, so server and client agree and there is nothing to hydrate around.
+ * "System" -- the default -- needs neither cookie nor JavaScript: branch 2
+ * below handles it in pure CSS.
+ */
+/*
+ * ── THE DARK PALETTE ──────────────────────────────────────────────────────
+ *
+ * Values live here ONCE, as inert --dk-* variables. The two branches below
+ * only remap --color-* onto them, so a dark value can never differ between
+ * "the user chose dark" and "the user's OS is dark". lib/theme.test.js parses
+ * this file and fails if the two remap lists ever drift apart.
+ */
+:root {
+  color-scheme: light;
+
+  --dk-canvas: #0b1220;
+  --dk-surface: #131c2e;
+  --dk-raised: #1c2740;
+  --dk-raised-2: #26334c;
+  --dk-hover: #1c2740;
+  --dk-ink: #e8eef7;
+  --dk-ink-2: #c2cddd;
+  --dk-ink-3: #94a3b8;
+  --dk-ink-4: #6f7f96;
+  --dk-line-soft: #1a2436;
+  --dk-line: #263349;
+  --dk-line-strong: #36455f;
+  --dk-chrome: #0e1727;
+  --dk-chrome-2: #1b2740;
+  --dk-chrome-muted: #9aa8bd;
+  --dk-primary: #334155;
+  --dk-primary-2: #475569;
+  --dk-accent-bg: #0c2b28;
+  --dk-accent-bg-2: #12403a;
+  --dk-accent-ink: #5eead4;
+  --dk-accent-ink-strong: #99f6e4;
+  --dk-accent-line: #155e56;
+  --dk-accent-solid: #0d9488;
+  --dk-accent-solid-2: #14b8a6;
+  --dk-warn-bg: #2e2208;
+  --dk-warn-bg-2: #422c08;
+  --dk-warn-ink: #fcd34d;
+  --dk-warn-ink-strong: #fde68a;
+  --dk-warn-line: #5c4410;
+  --dk-warn-line-2: #7a5a14;
+  --dk-warn-solid: #d97706;
+  --dk-warn-solid-2: #fbbf24;
+  --dk-danger-bg: #2d1112;
+  --dk-danger-bg-2: #431618;
+  --dk-danger-ink: #fca5a5;
+  --dk-danger-ink-strong: #fecaca;
+  --dk-danger-line: #5c1d1f;
+  --dk-danger-solid: #dc2626;
+  --dk-danger-solid-2: #ef4444;
+  --dk-info-bg: #0a2333;
+  --dk-info-bg-2: #0e3348;
+  --dk-info-ink: #7dd3fc;
+  --dk-info-line: #14425c;
+  --dk-info-solid: #0284c7;
+  --dk-ok-bg: #0a2a1c;
+  --dk-ok-bg-2: #0e3d2a;
+  --dk-ok-ink: #6ee7b7;
+  --dk-ok-line: #10503a;
+  --dk-alert-bg: #2b1a08;
+  --dk-alert-bg-2: #40260c;
+  --dk-alert-ink: #fdba74;
+  --dk-alert-line: #5c3410;
+  --dk-alert-solid: #ea580c;
+  --dk-cat-indigo-bg: #1a1b3d;
+  --dk-cat-indigo-ink: #a5b4fc;
+  --dk-cat-indigo-line: #312e81;
+  --dk-cat-violet-bg: #241a3d;
+  --dk-cat-violet-ink: #c4b5fd;
+  --dk-cat-violet-line: #3c2a7a;
+  --dk-cat-lime-bg: #1e2a0c;
+  --dk-cat-lime-ink: #bef264;
+  --dk-cat-lime-line: #3f5314;
+  --dk-cat-purple-bg: #2a1240;
+  --dk-cat-purple-ink: #d8b4fe;
+  --dk-cat-purple-line: #4a1d6e;
+}
+
+/*
+ * Branch 1 -- an explicit choice. `data-theme` is rendered by the server from
+ * a cookie (see app/layout.jsx), so it is already in the HTML on first paint.
+ */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+    --color-canvas: var(--dk-canvas);
+    --color-surface: var(--dk-surface);
+    --color-raised: var(--dk-raised);
+    --color-raised-2: var(--dk-raised-2);
+    --color-hover: var(--dk-hover);
+    --color-ink: var(--dk-ink);
+    --color-ink-2: var(--dk-ink-2);
+    --color-ink-3: var(--dk-ink-3);
+    --color-ink-4: var(--dk-ink-4);
+    --color-line-soft: var(--dk-line-soft);
+    --color-line: var(--dk-line);
+    --color-line-strong: var(--dk-line-strong);
+    --color-chrome: var(--dk-chrome);
+    --color-chrome-2: var(--dk-chrome-2);
+    --color-chrome-muted: var(--dk-chrome-muted);
+    --color-primary: var(--dk-primary);
+    --color-primary-2: var(--dk-primary-2);
+    --color-accent-bg: var(--dk-accent-bg);
+    --color-accent-bg-2: var(--dk-accent-bg-2);
+    --color-accent-ink: var(--dk-accent-ink);
+    --color-accent-ink-strong: var(--dk-accent-ink-strong);
+    --color-accent-line: var(--dk-accent-line);
+    --color-accent-solid: var(--dk-accent-solid);
+    --color-accent-solid-2: var(--dk-accent-solid-2);
+    --color-warn-bg: var(--dk-warn-bg);
+    --color-warn-bg-2: var(--dk-warn-bg-2);
+    --color-warn-ink: var(--dk-warn-ink);
+    --color-warn-ink-strong: var(--dk-warn-ink-strong);
+    --color-warn-line: var(--dk-warn-line);
+    --color-warn-line-2: var(--dk-warn-line-2);
+    --color-warn-solid: var(--dk-warn-solid);
+    --color-warn-solid-2: var(--dk-warn-solid-2);
+    --color-danger-bg: var(--dk-danger-bg);
+    --color-danger-bg-2: var(--dk-danger-bg-2);
+    --color-danger-ink: var(--dk-danger-ink);
+    --color-danger-ink-strong: var(--dk-danger-ink-strong);
+    --color-danger-line: var(--dk-danger-line);
+    --color-danger-solid: var(--dk-danger-solid);
+    --color-danger-solid-2: var(--dk-danger-solid-2);
+    --color-info-bg: var(--dk-info-bg);
+    --color-info-bg-2: var(--dk-info-bg-2);
+    --color-info-ink: var(--dk-info-ink);
+    --color-info-line: var(--dk-info-line);
+    --color-info-solid: var(--dk-info-solid);
+    --color-ok-bg: var(--dk-ok-bg);
+    --color-ok-bg-2: var(--dk-ok-bg-2);
+    --color-ok-ink: var(--dk-ok-ink);
+    --color-ok-line: var(--dk-ok-line);
+    --color-alert-bg: var(--dk-alert-bg);
+    --color-alert-bg-2: var(--dk-alert-bg-2);
+    --color-alert-ink: var(--dk-alert-ink);
+    --color-alert-line: var(--dk-alert-line);
+    --color-alert-solid: var(--dk-alert-solid);
+    --color-cat-indigo-bg: var(--dk-cat-indigo-bg);
+    --color-cat-indigo-ink: var(--dk-cat-indigo-ink);
+    --color-cat-indigo-line: var(--dk-cat-indigo-line);
+    --color-cat-violet-bg: var(--dk-cat-violet-bg);
+    --color-cat-violet-ink: var(--dk-cat-violet-ink);
+    --color-cat-violet-line: var(--dk-cat-violet-line);
+    --color-cat-lime-bg: var(--dk-cat-lime-bg);
+    --color-cat-lime-ink: var(--dk-cat-lime-ink);
+    --color-cat-lime-line: var(--dk-cat-lime-line);
+    --color-cat-purple-bg: var(--dk-cat-purple-bg);
+    --color-cat-purple-ink: var(--dk-cat-purple-ink);
+    --color-cat-purple-line: var(--dk-cat-purple-line);
+}
+
+/*
+ * Branch 2 -- "System", which is the default and needs NO JavaScript and no
+ * cookie at all. `:not([data-theme="light"])` is what lets an explicit Light
+ * choice still win on a dark-mode machine.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+      --color-canvas: var(--dk-canvas);
+      --color-surface: var(--dk-surface);
+      --color-raised: var(--dk-raised);
+      --color-raised-2: var(--dk-raised-2);
+      --color-hover: var(--dk-hover);
+      --color-ink: var(--dk-ink);
+      --color-ink-2: var(--dk-ink-2);
+      --color-ink-3: var(--dk-ink-3);
+      --color-ink-4: var(--dk-ink-4);
+      --color-line-soft: var(--dk-line-soft);
+      --color-line: var(--dk-line);
+      --color-line-strong: var(--dk-line-strong);
+      --color-chrome: var(--dk-chrome);
+      --color-chrome-2: var(--dk-chrome-2);
+      --color-chrome-muted: var(--dk-chrome-muted);
+      --color-primary: var(--dk-primary);
+      --color-primary-2: var(--dk-primary-2);
+      --color-accent-bg: var(--dk-accent-bg);
+      --color-accent-bg-2: var(--dk-accent-bg-2);
+      --color-accent-ink: var(--dk-accent-ink);
+      --color-accent-ink-strong: var(--dk-accent-ink-strong);
+      --color-accent-line: var(--dk-accent-line);
+      --color-accent-solid: var(--dk-accent-solid);
+      --color-accent-solid-2: var(--dk-accent-solid-2);
+      --color-warn-bg: var(--dk-warn-bg);
+      --color-warn-bg-2: var(--dk-warn-bg-2);
+      --color-warn-ink: var(--dk-warn-ink);
+      --color-warn-ink-strong: var(--dk-warn-ink-strong);
+      --color-warn-line: var(--dk-warn-line);
+      --color-warn-line-2: var(--dk-warn-line-2);
+      --color-warn-solid: var(--dk-warn-solid);
+      --color-warn-solid-2: var(--dk-warn-solid-2);
+      --color-danger-bg: var(--dk-danger-bg);
+      --color-danger-bg-2: var(--dk-danger-bg-2);
+      --color-danger-ink: var(--dk-danger-ink);
+      --color-danger-ink-strong: var(--dk-danger-ink-strong);
+      --color-danger-line: var(--dk-danger-line);
+      --color-danger-solid: var(--dk-danger-solid);
+      --color-danger-solid-2: var(--dk-danger-solid-2);
+      --color-info-bg: var(--dk-info-bg);
+      --color-info-bg-2: var(--dk-info-bg-2);
+      --color-info-ink: var(--dk-info-ink);
+      --color-info-line: var(--dk-info-line);
+      --color-info-solid: var(--dk-info-solid);
+      --color-ok-bg: var(--dk-ok-bg);
+      --color-ok-bg-2: var(--dk-ok-bg-2);
+      --color-ok-ink: var(--dk-ok-ink);
+      --color-ok-line: var(--dk-ok-line);
+      --color-alert-bg: var(--dk-alert-bg);
+      --color-alert-bg-2: var(--dk-alert-bg-2);
+      --color-alert-ink: var(--dk-alert-ink);
+      --color-alert-line: var(--dk-alert-line);
+      --color-alert-solid: var(--dk-alert-solid);
+      --color-cat-indigo-bg: var(--dk-cat-indigo-bg);
+      --color-cat-indigo-ink: var(--dk-cat-indigo-ink);
+      --color-cat-indigo-line: var(--dk-cat-indigo-line);
+      --color-cat-violet-bg: var(--dk-cat-violet-bg);
+      --color-cat-violet-ink: var(--dk-cat-violet-ink);
+      --color-cat-violet-line: var(--dk-cat-violet-line);
+      --color-cat-lime-bg: var(--dk-cat-lime-bg);
+      --color-cat-lime-ink: var(--dk-cat-lime-ink);
+      --color-cat-lime-line: var(--dk-cat-lime-line);
+      --color-cat-purple-bg: var(--dk-cat-purple-bg);
+      --color-cat-purple-ink: var(--dk-cat-purple-ink);
+      --color-cat-purple-line: var(--dk-cat-purple-line);
+  }
+}
+
+/*
+ * There is deliberately NO `dark:` variant. It could only match the explicit
+ * [data-theme="dark"] branch, so under the default "System" setting it would
+ * silently do nothing -- exactly the class of failure this file already
+ * carries one long comment about. Use a token; if you genuinely need a
+ * dark-only rule, add it to BOTH branches above.
+ */
+
+/*
  * Moved here verbatim from higdon-cms.jsx:848-853, where it was injected via
  * document.createElement("style") at MODULE IMPORT TIME -- outside React, and
  * guarded by `typeof document !== "undefined"`. Under Next that guard means it
@@ -30,14 +455,20 @@
 @layer components {
   .input {
     width: 100%;
-    border: 1px solid #e2e8f0;
+    /* Was #e2e8f0 / white / #0f172a. Tokens now, so the 65 .input call sites
+       across 19 files follow the theme without being touched. */
+    border: 1px solid var(--color-line);
     border-radius: 0.5rem;
     padding: 0.5rem 0.75rem;
     font-size: 0.875rem;
     outline: none;
-    background: white;
+    background: var(--color-surface);
+    color: var(--color-ink);
   }
   .input:focus {
-    border-color: #0f172a;
+    border-color: var(--color-ink);
+  }
+  .input::placeholder {
+    color: var(--color-ink-4);
   }
 }

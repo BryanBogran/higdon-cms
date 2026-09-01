@@ -33,15 +33,15 @@ export default function ChecklistItems({ matterId, matter, sectionLabel, title =
   if (!items.length) return null;
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-4">
-      <div className="px-5 py-3 border-b border-slate-100">
-        <h2 className="font-semibold text-slate-900">{title}</h2>
-        <p className="text-xs text-slate-500 mt-0.5">
+    <div className="bg-surface rounded-xl border border-line shadow-sm mb-4">
+      <div className="px-5 py-3 border-b border-line-soft">
+        <h2 className="font-semibold text-ink">{title}</h2>
+        <p className="text-xs text-ink-3 mt-0.5">
           Items marked • generate a deadline. A date is required for the rule to fire.
         </p>
       </div>
 
-      <div className="divide-y divide-slate-50">
+      <div className="divide-y divide-line-soft">
         {items.map((f) => {
           const item = values[f.key] || { done: false, docUrl: '', note: '', date: '' };
           const drives = Boolean(CHAIN_RULE_BY_KEY[f.key]);
@@ -60,22 +60,22 @@ export default function ChecklistItems({ matterId, matter, sectionLabel, title =
                 title={item.done ? 'Mark not done' : 'Mark done'}
               >
                 {item.done ? (
-                  <CheckCircle2 size={22} className="text-teal-600" />
+                  <CheckCircle2 size={22} className="text-accent-ink" />
                 ) : (
-                  <Circle size={22} className="text-slate-300 hover:text-slate-400" />
+                  <Circle size={22} className="text-ink-4 hover:text-ink-3" />
                 )}
               </button>
 
               <div className="flex-1 min-w-[160px]">
-                <p className={`text-sm font-medium ${item.done ? 'text-slate-900' : 'text-slate-500'}`}>
+                <p className={`text-sm font-medium ${item.done ? 'text-ink' : 'text-ink-3'}`}>
                   {f.label}
-                  {drives ? <span className="ml-1.5 text-amber-600" title="Drives a deadline">•</span> : null}
+                  {drives ? <span className="ml-1.5 text-warn-ink" title="Drives a deadline">•</span> : null}
                 </p>
                 {item.note ? (
-                  <p className="text-xs text-slate-500 mt-0.5 italic">imported note: &ldquo;{item.note}&rdquo;</p>
+                  <p className="text-xs text-ink-3 mt-0.5 italic">imported note: &ldquo;{item.note}&rdquo;</p>
                 ) : null}
                 {missingDate ? (
-                  <p className="flex items-center gap-1 text-xs text-amber-700 mt-1">
+                  <p className="flex items-center gap-1 text-xs text-warn-ink mt-1">
                     <AlertTriangle size={12} /> Marked done with no date — no deadline is being calculated
                   </p>
                 ) : null}

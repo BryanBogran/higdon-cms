@@ -31,12 +31,12 @@ import {
 } from '@/lib/domain/calendar';
 
 const TONE = {
-  red: 'bg-red-100 text-red-800 border-red-200',
-  purple: 'bg-purple-100 text-purple-800 border-purple-200',
-  orange: 'bg-orange-100 text-orange-800 border-orange-200',
-  sky: 'bg-sky-100 text-sky-800 border-sky-200',
-  teal: 'bg-teal-100 text-teal-800 border-teal-200',
-  slate: 'bg-slate-100 text-slate-700 border-slate-200',
+  red: 'bg-danger-bg-2 text-danger-ink-strong border-danger-line',
+  purple: 'bg-cat-purple-bg text-cat-purple-ink border-cat-purple-line',
+  orange: 'bg-alert-bg-2 text-alert-ink border-alert-line',
+  sky: 'bg-info-bg-2 text-info-ink border-info-line',
+  teal: 'bg-accent-bg-2 text-accent-ink-strong border-accent-line',
+  slate: 'bg-raised text-ink-2 border-line',
 };
 
 const FILTERS = [
@@ -72,7 +72,7 @@ export default function CalendarPage() {
 
   const rail = (
     <>
-      <p className="px-3 pt-2 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <p className="px-3 pt-2 pb-1 text-xs font-semibold uppercase tracking-wide text-ink-3">
         Show
       </p>
       {FILTERS.map((f) => (
@@ -85,12 +85,12 @@ export default function CalendarPage() {
         />
       ))}
 
-      <div className="px-3 pt-4 mt-3 border-t border-slate-200">
-        <p className="text-xs text-slate-500 leading-snug">
+      <div className="px-3 pt-4 mt-3 border-t border-line">
+        <p className="text-xs text-ink-3 leading-snug">
           Every date here comes from the same records as the Tasks list, so the two cannot
           disagree.
         </p>
-        <p className="mt-2 text-xs text-slate-400 leading-snug">
+        <p className="mt-2 text-xs text-ink-4 leading-snug">
           Google and Outlook sync is not built yet.
         </p>
       </div>
@@ -102,25 +102,25 @@ export default function CalendarPage() {
   return (
     <RailLayout rail={rail}>
       <div className="flex items-center gap-3 mb-4">
-        <h1 className="text-2xl font-bold text-slate-900">{monthLabel(cursor)}</h1>
+        <h1 className="text-2xl font-bold text-ink">{monthLabel(cursor)}</h1>
         <div className="flex items-center gap-1">
           <button
             onClick={() => setCursor((c) => shiftMonth(c, -1))}
             aria-label="Previous month"
-            className="p-1.5 rounded border border-slate-300 text-slate-600 hover:bg-slate-100"
+            className="p-1.5 rounded border border-line-strong text-ink-2 hover:bg-raised"
           >
             <ChevronLeft size={16} />
           </button>
           <button
             onClick={() => setCursor((c) => shiftMonth(c, 1))}
             aria-label="Next month"
-            className="p-1.5 rounded border border-slate-300 text-slate-600 hover:bg-slate-100"
+            className="p-1.5 rounded border border-line-strong text-ink-2 hover:bg-raised"
           >
             <ChevronRight size={16} />
           </button>
           <button
             onClick={() => { setCursor(monthOf(today)); setSelected(null); }}
-            className="ml-1 px-3 py-1.5 rounded border border-slate-300 text-sm text-slate-700 hover:bg-slate-100"
+            className="ml-1 px-3 py-1.5 rounded border border-line-strong text-sm text-ink-2 hover:bg-raised"
           >
             Today
           </button>
@@ -136,7 +136,7 @@ export default function CalendarPage() {
         {undated > 0 ? (
           <Link
             href="/tasks"
-            className="flex items-center gap-1.5 text-sm text-amber-700 hover:underline"
+            className="flex items-center gap-1.5 text-sm text-warn-ink hover:underline"
           >
             <AlertCircle size={14} />
             {undated} item{undated === 1 ? '' : 's'} with no date — not shown
@@ -145,19 +145,19 @@ export default function CalendarPage() {
       </div>
 
       {!loaded ? (
-        <p className="py-16 text-center text-sm text-slate-400">Loading…</p>
+        <p className="py-16 text-center text-sm text-ink-4">Loading…</p>
       ) : (
-        <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
-          <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
+        <div className="rounded-lg border border-line bg-surface overflow-hidden">
+          <div className="grid grid-cols-7 border-b border-line bg-canvas">
             {WEEKDAYS.map((d) => (
-              <div key={d} className="px-2 py-1.5 text-xs font-semibold text-slate-500 text-center">
+              <div key={d} className="px-2 py-1.5 text-xs font-semibold text-ink-3 text-center">
                 {d}
               </div>
             ))}
           </div>
 
           {weeks.map((week, wi) => (
-            <div key={wi} className="grid grid-cols-7 border-b border-slate-200 last:border-b-0">
+            <div key={wi} className="grid grid-cols-7 border-b border-line last:border-b-0">
               {week.map((day) => {
                 const events = byDate[day.date] || [];
                 const shown = events.slice(0, 3);
@@ -165,17 +165,17 @@ export default function CalendarPage() {
                   <button
                     key={day.date}
                     onClick={() => setSelected(day.date === selected ? null : day.date)}
-                    className={`min-h-[6.5rem] p-1.5 text-left border-r border-slate-200 last:border-r-0 align-top transition ${
-                      day.inMonth ? 'bg-white' : 'bg-slate-50/60'
-                    } ${selected === day.date ? 'ring-2 ring-inset ring-teal-500' : 'hover:bg-slate-50'}`}
+                    className={`min-h-[6.5rem] p-1.5 text-left border-r border-line last:border-r-0 align-top transition ${
+                      day.inMonth ? 'bg-surface' : 'bg-canvas/60'
+                    } ${selected === day.date ? 'ring-2 ring-inset ring-accent-solid-2' : 'hover:bg-hover'}`}
                   >
                     <span
                       className={`inline-grid place-items-center w-6 h-6 rounded-full text-xs font-semibold ${
                         day.isToday
-                          ? 'bg-teal-600 text-white'
+                          ? 'bg-accent-solid text-white'
                           : day.inMonth
-                            ? 'text-slate-700'
-                            : 'text-slate-400'
+                            ? 'text-ink-2'
+                            : 'text-ink-4'
                       }`}
                     >
                       {day.day}
@@ -193,7 +193,7 @@ export default function CalendarPage() {
                         </span>
                       ))}
                       {events.length > shown.length ? (
-                        <span className="block px-1 text-[11px] text-slate-500">
+                        <span className="block px-1 text-[11px] text-ink-3">
                           +{events.length - shown.length} more
                         </span>
                       ) : null}
@@ -207,17 +207,17 @@ export default function CalendarPage() {
       )}
 
       {selected ? (
-        <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4">
+        <div className="mt-4 rounded-lg border border-line bg-surface p-4">
           <div className="flex items-center gap-2 mb-3">
-            <CalendarDays size={16} className="text-slate-400" />
-            <h2 className="font-semibold text-slate-900">{fmt(selected)}</h2>
-            <span className="text-sm text-slate-500">
+            <CalendarDays size={16} className="text-ink-4" />
+            <h2 className="font-semibold text-ink">{fmt(selected)}</h2>
+            <span className="text-sm text-ink-3">
               {dayEvents.length} item{dayEvents.length === 1 ? '' : 's'}
             </span>
           </div>
 
           {dayEvents.length === 0 ? (
-            <p className="text-sm text-slate-400">Nothing on this day.</p>
+            <p className="text-sm text-ink-4">Nothing on this day.</p>
           ) : (
             <ul className="space-y-1.5">
               {dayEvents.map((e) => (
@@ -225,13 +225,13 @@ export default function CalendarPage() {
                   <span className={`px-1.5 py-0.5 rounded border text-[11px] ${TONE[e.tone] || TONE.slate}`}>
                     {e.kind === 'task' ? 'Task' : e.title}
                   </span>
-                  {e.kind === 'task' ? <span className="text-slate-800">{e.title}</span> : null}
+                  {e.kind === 'task' ? <span className="text-ink">{e.title}</span> : null}
                   {e.matterId ? (
-                    <Link href={`/matters/${e.matterId}`} className="text-teal-700 hover:underline">
+                    <Link href={`/matters/${e.matterId}`} className="text-accent-ink hover:underline">
                       {clientOf(matters, e.matterId)}
                     </Link>
                   ) : null}
-                  {e.assignedTo ? <span className="text-slate-500">· {e.assignedTo}</span> : null}
+                  {e.assignedTo ? <span className="text-ink-3">· {e.assignedTo}</span> : null}
                 </li>
               ))}
             </ul>

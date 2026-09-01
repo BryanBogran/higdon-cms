@@ -26,8 +26,8 @@ export default function ActivitySection({ matterId }) {
       {pinned.length > 0 ? (
         <>
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-semibold text-slate-700">Pinned</h3>
-            <span className="text-xs text-slate-500">{pinned.length} items</span>
+            <h3 className="text-sm font-semibold text-ink-2">Pinned</h3>
+            <span className="text-xs text-ink-3">{pinned.length} items</span>
           </div>
           {pinned.map((a) => (
             <ActivityCard key={a.id} entry={a} showMatter={false} />
@@ -37,7 +37,7 @@ export default function ActivitySection({ matterId }) {
 
       {rest.length > 0 ? (
         <>
-          {pinned.length > 0 ? <h3 className="text-sm font-semibold text-slate-700 mt-6 mb-2">Activity</h3> : null}
+          {pinned.length > 0 ? <h3 className="text-sm font-semibold text-ink-2 mt-6 mb-2">Activity</h3> : null}
           {rest.map((a) => (
             <ActivityCard key={a.id} entry={a} showMatter={false} />
           ))}
@@ -45,7 +45,7 @@ export default function ActivitySection({ matterId }) {
       ) : null}
 
       {pinned.length === 0 && rest.length === 0 ? (
-        <p className="py-10 text-center text-sm text-slate-400">
+        <p className="py-10 text-center text-sm text-ink-4">
           No activity yet. Add a note above.
         </p>
       ) : null}

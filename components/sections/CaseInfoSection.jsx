@@ -18,16 +18,16 @@ export default function CaseInfoSection({ matterId, matter }) {
         const fields = FIELDS.filter((f) => f.section === group && f.type !== 'yesnoDoc');
         if (fields.length === 0) return null;
         return (
-          <div key={group} className="bg-white rounded-xl border border-slate-200 shadow-sm">
-            <div className="px-5 py-3 border-b border-slate-100">
-              <h2 className="font-semibold text-slate-900">{group}</h2>
+          <div key={group} className="bg-surface rounded-xl border border-line shadow-sm">
+            <div className="px-5 py-3 border-b border-line-soft">
+              <h2 className="font-semibold text-ink">{group}</h2>
             </div>
             <div className="p-5 grid gap-4 sm:grid-cols-2">
               {fields.map((f) => (
                 <div key={f.key} className={f.type === 'textarea' ? 'sm:col-span-2' : ''}>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-ink-4 mb-1">
                     {f.label}
-                    {f.highStakes ? <span className="ml-1 text-amber-600" title="Confirm with attorney">•</span> : null}
+                    {f.highStakes ? <span className="ml-1 text-warn-ink" title="Confirm with attorney">•</span> : null}
                   </label>
                   <FieldInput
                     field={f}

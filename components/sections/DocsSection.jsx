@@ -215,7 +215,7 @@ export default function DocsSection({ matterId, matter }) {
   if (backend !== 'supabase') {
     return (
       <Card>
-        <p className="px-5 py-10 text-center text-sm text-slate-400">
+        <p className="px-5 py-10 text-center text-sm text-ink-4">
           Browsing Drive needs a server. Running on local storage.
         </p>
       </Card>
@@ -226,21 +226,21 @@ export default function DocsSection({ matterId, matter }) {
     return (
       <Card>
         <div className="px-5 py-10 text-center">
-          <p className="text-sm text-slate-500">This case has no Drive folder yet.</p>
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="text-sm text-ink-3">This case has no Drive folder yet.</p>
+          <p className="mt-1 text-xs text-ink-4">
             One will be created, or an existing folder of the same name adopted.
           </p>
-          {error ? <p className="mt-2 text-sm text-amber-700">{error}</p> : null}
+          {error ? <p className="mt-2 text-sm text-warn-ink">{error}</p> : null}
           <div className="mt-3 flex items-center justify-center gap-3">
             <button
               onClick={provision}
               disabled={provisioning}
-              className="flex items-center gap-1.5 px-4 py-2 rounded bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 disabled:opacity-50"
+              className="flex items-center gap-1.5 px-4 py-2 rounded bg-primary text-white text-sm font-semibold hover:bg-primary-2 disabled:opacity-50"
             >
               {provisioning ? <Loader2 size={14} className="animate-spin" /> : <FolderPlus size={14} />}
               {provisioning ? 'Setting up…' : 'Create Drive folder'}
             </button>
-            <Link href="/documents/drive" className="text-sm text-teal-700 hover:underline">
+            <Link href="/documents/drive" className="text-sm text-accent-ink hover:underline">
               or link an existing one
             </Link>
           </div>
@@ -267,19 +267,19 @@ export default function DocsSection({ matterId, matter }) {
     >
       <Card>
         {/* ---- breadcrumb + search ---- */}
-        <div className="px-5 py-3 border-b border-slate-100 flex flex-wrap items-center gap-x-1 gap-y-2">
+        <div className="px-5 py-3 border-b border-line-soft flex flex-wrap items-center gap-x-1 gap-y-2">
           <button
             onClick={() => open(null)}
-            className={`text-sm ${trail.length ? 'text-teal-700 hover:underline' : 'font-semibold text-slate-900'}`}
+            className={`text-sm ${trail.length ? 'text-accent-ink hover:underline' : 'font-semibold text-ink'}`}
           >
             {view?.rootName || matter?.driveFolderName || 'Case folder'}
           </button>
           {trail.map((c, i) => (
             <span key={c.id} className="flex items-center gap-1">
-              <ChevronRight size={13} className="text-slate-300" />
+              <ChevronRight size={13} className="text-ink-4" />
               <button
                 onClick={() => open(c.id)}
-                className={`text-sm ${i === trail.length - 1 ? 'font-semibold text-slate-900' : 'text-teal-700 hover:underline'}`}
+                className={`text-sm ${i === trail.length - 1 ? 'font-semibold text-ink' : 'text-accent-ink hover:underline'}`}
               >
                 {c.name}
               </button>
@@ -289,7 +289,7 @@ export default function DocsSection({ matterId, matter }) {
           <div className="flex-1" />
 
           <form onSubmit={runSearch} className="flex items-center gap-1.5 min-w-[210px]">
-            <Search size={14} className="text-slate-400 shrink-0" />
+            <Search size={14} className="text-ink-4 shrink-0" />
             <input
               className="input"
               placeholder="Search this case…"
@@ -301,14 +301,14 @@ export default function DocsSection({ matterId, matter }) {
           <button
             onClick={() => setCreating((v) => !v)}
             title="Create a folder here"
-            className="p-1.5 rounded text-slate-400 hover:text-slate-800 hover:bg-slate-100"
+            className="p-1.5 rounded text-ink-4 hover:text-ink hover:bg-raised"
           >
             <FolderPlus size={16} />
           </button>
           <button
             onClick={() => filePicker.current?.click()}
             title="Upload into this folder"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary text-white text-sm font-semibold hover:bg-primary-2"
           >
             <Upload size={14} /> Upload
           </button>
@@ -322,26 +322,26 @@ export default function DocsSection({ matterId, matter }) {
         </div>
 
         {dragging ? (
-          <p className="px-5 py-6 text-center text-sm font-semibold text-teal-800 bg-teal-50 border-b border-teal-100">
+          <p className="px-5 py-6 text-center text-sm font-semibold text-accent-ink-strong bg-accent-bg border-b border-accent-line">
             Drop to upload into {trail.length ? trail[trail.length - 1].name : view?.rootName || 'this case'}
           </p>
         ) : null}
 
         {uploads.length ? (
-          <ul className="px-5 py-2.5 border-b border-slate-100 space-y-1.5">
+          <ul className="px-5 py-2.5 border-b border-line-soft space-y-1.5">
             {uploads.map((u, i) => (
               <li key={`${u.name}-${i}`} className="text-sm">
                 <div className="flex items-center gap-2">
-                  <span className="truncate flex-1 text-slate-700">{u.name}</span>
-                  <span className={`text-xs shrink-0 ${u.error ? 'text-red-700' : 'text-slate-500'}`}>
+                  <span className="truncate flex-1 text-ink-2">{u.name}</span>
+                  <span className={`text-xs shrink-0 ${u.error ? 'text-danger-ink' : 'text-ink-3'}`}>
                     {u.error ? 'failed' : `${u.percent}%`}
                   </span>
                 </div>
                 {u.error ? (
-                  <p className="text-xs text-red-700 mt-0.5">{u.error}</p>
+                  <p className="text-xs text-danger-ink mt-0.5">{u.error}</p>
                 ) : (
-                  <div className="mt-1 h-1 rounded bg-slate-100 overflow-hidden">
-                    <div className="h-full bg-teal-500 transition-all" style={{ width: `${u.percent}%` }} />
+                  <div className="mt-1 h-1 rounded bg-raised overflow-hidden">
+                    <div className="h-full bg-accent-solid-2 transition-all" style={{ width: `${u.percent}%` }} />
                   </div>
                 )}
               </li>
@@ -350,7 +350,7 @@ export default function DocsSection({ matterId, matter }) {
         ) : null}
 
         {creating ? (
-          <div className="px-5 py-2.5 border-b border-slate-100 bg-slate-50/60 flex items-center gap-2">
+          <div className="px-5 py-2.5 border-b border-line-soft bg-canvas/60 flex items-center gap-2">
             <input
               autoFocus
               className="input max-w-xs"
@@ -362,25 +362,25 @@ export default function DocsSection({ matterId, matter }) {
             <button
               onClick={createFolder}
               disabled={!newName.trim()}
-              className="px-3 py-1.5 rounded bg-slate-900 text-white text-sm font-semibold disabled:opacity-40"
+              className="px-3 py-1.5 rounded bg-primary text-white text-sm font-semibold disabled:opacity-40"
             >
               Create
             </button>
-            <button onClick={() => setCreating(false)} className="text-sm text-slate-500 hover:text-slate-800">
+            <button onClick={() => setCreating(false)} className="text-sm text-ink-3 hover:text-ink">
               Cancel
             </button>
           </div>
         ) : null}
 
         {error ? (
-          <p className="px-5 py-2.5 flex items-start gap-1.5 text-sm text-amber-800 bg-amber-50 border-b border-amber-100">
+          <p className="px-5 py-2.5 flex items-start gap-1.5 text-sm text-warn-ink-strong bg-warn-bg border-b border-warn-line">
             <AlertCircle size={15} className="mt-0.5 shrink-0" /> {error}
           </p>
         ) : null}
 
         {/* ---- listing ---- */}
         {loading || searching ? (
-          <p className="px-5 py-10 text-center text-sm text-slate-400">
+          <p className="px-5 py-10 text-center text-sm text-ink-4">
             <Loader2 size={15} className="inline animate-spin mr-1.5" />
             {searching ? 'Searching Drive…' : 'Reading Drive…'}
           </p>
@@ -392,7 +392,7 @@ export default function DocsSection({ matterId, matter }) {
             note="Drive searches inside PDFs and Docs, not just filenames."
           />
         ) : children.length === 0 ? (
-          <p className="px-5 py-10 text-center text-sm text-slate-400">
+          <p className="px-5 py-10 text-center text-sm text-ink-4">
             This folder is empty.
           </p>
         ) : (
@@ -433,48 +433,48 @@ function putWithProgress(sessionUrl, file, onProgress) {
 }
 
 function Card({ children }) {
-  return <div className="bg-white rounded-xl border border-slate-200 shadow-sm">{children}</div>;
+  return <div className="bg-surface rounded-xl border border-line shadow-sm">{children}</div>;
 }
 
 function Listing({ rows, onOpenFolder, onPreview, emptyText, note }) {
   if (!rows.length) {
-    return <p className="px-5 py-10 text-center text-sm text-slate-400">{emptyText || 'Nothing here.'}</p>;
+    return <p className="px-5 py-10 text-center text-sm text-ink-4">{emptyText || 'Nothing here.'}</p>;
   }
   return (
     <>
-      {note ? <p className="px-5 pt-2.5 text-xs text-slate-400">{note}</p> : null}
-      <ul className="divide-y divide-slate-50">
+      {note ? <p className="px-5 pt-2.5 text-xs text-ink-4">{note}</p> : null}
+      <ul className="divide-y divide-line-soft">
         {rows.map((r) => {
           const isFolder = r.isFolder ?? false;
           return (
-            <li key={r.id} className="px-5 py-2.5 flex items-center gap-3 hover:bg-slate-50">
+            <li key={r.id} className="px-5 py-2.5 flex items-center gap-3 hover:bg-hover">
               {isFolder ? (
-                <Folder size={16} className="text-sky-500 shrink-0" />
+                <Folder size={16} className="text-info-solid shrink-0" />
               ) : (
-                <FileText size={16} className="text-slate-400 shrink-0" />
+                <FileText size={16} className="text-ink-4 shrink-0" />
               )}
 
               {isFolder ? (
                 <button
                   onClick={() => onOpenFolder?.(r.id)}
-                  className="flex-1 min-w-0 text-left font-medium text-slate-900 hover:underline truncate"
+                  className="flex-1 min-w-0 text-left font-medium text-ink hover:underline truncate"
                 >
                   {r.name}
                 </button>
               ) : (
-                <span className="flex-1 min-w-0 truncate text-slate-800">{r.name}</span>
+                <span className="flex-1 min-w-0 truncate text-ink">{r.name}</span>
               )}
 
               {/* Google Docs carry no byte size at all -- absent, not zero. */}
               {r.sizeBytes ? (
-                <span className="text-xs text-slate-400 shrink-0">
+                <span className="text-xs text-ink-4 shrink-0">
                   {Math.max(1, Math.round(r.sizeBytes / 1024))} KB
                 </span>
               ) : null}
               {r.matterLabel ? (
-                <span className="text-xs text-slate-500 shrink-0 truncate max-w-[14rem]">{r.matterLabel}</span>
+                <span className="text-xs text-ink-3 shrink-0 truncate max-w-[14rem]">{r.matterLabel}</span>
               ) : null}
-              <span className="text-xs text-slate-400 shrink-0 w-24 text-right">
+              <span className="text-xs text-ink-4 shrink-0 w-24 text-right">
                 {r.modifiedTime ? r.modifiedTime.slice(0, 10) : ''}
               </span>
 
@@ -482,7 +482,7 @@ function Listing({ rows, onOpenFolder, onPreview, emptyText, note }) {
                 <button
                   onClick={() => onPreview(r)}
                   title="Preview"
-                  className="p-1 text-slate-300 hover:text-slate-700 shrink-0"
+                  className="p-1 text-ink-4 hover:text-ink-2 shrink-0"
                 >
                   <Eye size={15} />
                 </button>
@@ -493,7 +493,7 @@ function Listing({ rows, onOpenFolder, onPreview, emptyText, note }) {
                   target="_blank"
                   rel="noopener noreferrer"
                   title="Open in Google Drive"
-                  className="p-1 text-slate-300 hover:text-teal-700 shrink-0"
+                  className="p-1 text-ink-4 hover:text-accent-ink shrink-0"
                 >
                   <ExternalLink size={15} />
                 </a>
@@ -513,22 +513,22 @@ function Listing({ rows, onOpenFolder, onPreview, emptyText, note }) {
  */
 function Preview({ file, onClose }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="px-5 py-2.5 border-b border-slate-100 flex items-center gap-3">
-        <FileText size={15} className="text-slate-400 shrink-0" />
-        <span className="font-medium text-slate-900 truncate">{file.name}</span>
+    <div className="bg-surface rounded-xl border border-line shadow-sm overflow-hidden">
+      <div className="px-5 py-2.5 border-b border-line-soft flex items-center gap-3">
+        <FileText size={15} className="text-ink-4 shrink-0" />
+        <span className="font-medium text-ink truncate">{file.name}</span>
         <div className="flex-1" />
         {file.webViewLink ? (
           <a
             href={file.webViewLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-teal-700 hover:underline"
+            className="text-xs text-accent-ink hover:underline"
           >
             Open in Drive
           </a>
         ) : null}
-        <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-800" title="Close">
+        <button onClick={onClose} className="p-1 text-ink-4 hover:text-ink" title="Close">
           <X size={16} />
         </button>
       </div>

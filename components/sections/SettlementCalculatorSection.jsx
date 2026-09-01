@@ -76,13 +76,13 @@ export default function SettlementCalculatorSection({ matterId, matter }) {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-        <div className="px-5 py-3 border-b border-slate-100">
-          <h2 className="font-semibold text-slate-900">Inputs</h2>
+      <div className="bg-surface rounded-xl border border-line shadow-sm">
+        <div className="px-5 py-3 border-b border-line-soft">
+          <h2 className="font-semibold text-ink">Inputs</h2>
         </div>
         <div className="p-5 grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">
+            <label className="block text-[11px] font-semibold uppercase tracking-wide text-ink-4 mb-1">
               Offer
             </label>
             <input
@@ -91,13 +91,13 @@ export default function SettlementCalculatorSection({ matterId, matter }) {
               value={matter?.values?.settlementAmount || ''}
               onChange={(e) => updateMatterField(matterId, 'settlementAmount', e.target.value)}
             />
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-ink-3">
               The matter&apos;s Settlement Amount. Editing it here edits it everywhere.
             </p>
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">
+            <label className="block text-[11px] font-semibold uppercase tracking-wide text-ink-4 mb-1">
               Attorney %
             </label>
             <input
@@ -119,7 +119,7 @@ export default function SettlementCalculatorSection({ matterId, matter }) {
             statement below states which basis it used.
           */}
           <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">
+            <label className="block text-[11px] font-semibold uppercase tracking-wide text-ink-4 mb-1">
               Fee calculated on
             </label>
             <select
@@ -130,11 +130,11 @@ export default function SettlementCalculatorSection({ matterId, matter }) {
               <option value={FEE_BASIS.GROSS}>Gross settlement</option>
               <option value={FEE_BASIS.NET_OF_EXPENSES}>Gross less case expenses</option>
             </select>
-            <p className="mt-1 text-xs text-slate-500">Check the fee agreement — the two differ.</p>
+            <p className="mt-1 text-xs text-ink-3">Check the fee agreement — the two differ.</p>
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">
+            <label className="block text-[11px] font-semibold uppercase tracking-wide text-ink-4 mb-1">
               Also deduct liens
             </label>
             <select
@@ -145,14 +145,14 @@ export default function SettlementCalculatorSection({ matterId, matter }) {
               <option value="no">No — medical bills already cover them</option>
               <option value="yes">Yes — liens are separate on this file</option>
             </select>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-ink-3">
               Off by default. On a PI file the provider bills usually are the liens, and
               deducting both takes the same money off the client twice.
             </p>
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">
+            <label className="block text-[11px] font-semibold uppercase tracking-wide text-ink-4 mb-1">
               Expenses recouped at
             </label>
             <select
@@ -167,7 +167,7 @@ export default function SettlementCalculatorSection({ matterId, matter }) {
 
           {OWN_FIELDS.map((f) => (
             <div key={f.key} className={f.type === 'textarea' ? 'sm:col-span-2' : ''}>
-              <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wide text-ink-4 mb-1">
                 {f.label}
               </label>
               <FieldInput
@@ -181,22 +181,22 @@ export default function SettlementCalculatorSection({ matterId, matter }) {
       </div>
 
       {result.warnings.length ? (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-1.5">
+        <div className="rounded-xl border border-warn-line bg-warn-bg p-4 space-y-1.5">
           {result.warnings.map((w, i) => (
-            <p key={i} className="flex items-start gap-1.5 text-sm text-amber-800">
+            <p key={i} className="flex items-start gap-1.5 text-sm text-warn-ink-strong">
               <AlertTriangle size={15} className="mt-0.5 shrink-0" /> {w}
             </p>
           ))}
         </div>
       ) : null}
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-        <div className="px-5 py-3 border-b border-slate-100">
-          <h2 className="font-semibold text-slate-900">Disbursement</h2>
+      <div className="bg-surface rounded-xl border border-line shadow-sm">
+        <div className="px-5 py-3 border-b border-line-soft">
+          <h2 className="font-semibold text-ink">Disbursement</h2>
         </div>
 
         {!result.ok ? (
-          <p className="px-5 py-10 text-center text-sm text-slate-400">
+          <p className="px-5 py-10 text-center text-sm text-ink-4">
             Enter a gross settlement amount above.
           </p>
         ) : (
@@ -205,16 +205,16 @@ export default function SettlementCalculatorSection({ matterId, matter }) {
               {lines.map((l, i) => (
                 <tr
                   key={i}
-                  className={`border-b border-slate-100 last:border-0 ${
-                    l.kind === 'net' ? 'bg-slate-50 font-semibold' : ''
+                  className={`border-b border-line-soft last:border-0 ${
+                    l.kind === 'net' ? 'bg-canvas font-semibold' : ''
                   }`}
                 >
-                  <td className="px-5 py-2.5 text-slate-700">{l.label}</td>
+                  <td className="px-5 py-2.5 text-ink-2">{l.label}</td>
                   <td
                     className={`px-5 py-2.5 text-right tabular-nums ${
                       l.kind === 'net'
-                        ? l.cents < 0 ? 'text-red-700' : 'text-slate-900'
-                        : l.kind === 'deduction' ? 'text-slate-600' : 'text-slate-900'
+                        ? l.cents < 0 ? 'text-danger-ink' : 'text-ink'
+                        : l.kind === 'deduction' ? 'text-ink-2' : 'text-ink'
                     }`}
                   >
                     {formatMoney(l.cents)}
@@ -225,14 +225,14 @@ export default function SettlementCalculatorSection({ matterId, matter }) {
           </table>
         )}
 
-        <div className="px-5 py-3 border-t border-slate-100 flex flex-wrap gap-4 text-xs text-slate-500">
-          <Link href={`/matters/${matterId}/medicals`} className="flex items-center gap-1 text-teal-700 hover:underline">
+        <div className="px-5 py-3 border-t border-line-soft flex flex-wrap gap-4 text-xs text-ink-3">
+          <Link href={`/matters/${matterId}/medicals`} className="flex items-center gap-1 text-accent-ink hover:underline">
             {result.counts?.medicals ?? 0} provider{(result.counts?.medicals ?? 0) === 1 ? '' : 's'} <ArrowRight size={12} />
           </Link>
-          <Link href={`/matters/${matterId}/expenses`} className="flex items-center gap-1 text-teal-700 hover:underline">
+          <Link href={`/matters/${matterId}/expenses`} className="flex items-center gap-1 text-accent-ink hover:underline">
             {result.counts?.expenses ?? 0} expense row{(result.counts?.expenses ?? 0) === 1 ? '' : 's'} <ArrowRight size={12} />
           </Link>
-          <Link href={`/matters/${matterId}/liens`} className="flex items-center gap-1 text-teal-700 hover:underline">
+          <Link href={`/matters/${matterId}/liens`} className="flex items-center gap-1 text-accent-ink hover:underline">
             {result.counts?.liens ?? 0} lien{(result.counts?.liens ?? 0) === 1 ? '' : 's'}
             {includeLiens ? '' : ' (not deducted)'} <ArrowRight size={12} />
           </Link>
@@ -264,7 +264,7 @@ export default function SettlementCalculatorSection({ matterId, matter }) {
         emptyLabel="No expense rows yet."
       />
 
-      <p className="text-xs text-amber-700">
+      <p className="text-xs text-warn-ink">
         A working figure, not a disbursement statement. Confirm the fee basis against the fee
         agreement and every lien balance in writing before anything is paid out.
       </p>
@@ -282,30 +282,30 @@ export default function SettlementCalculatorSection({ matterId, matter }) {
  */
 function LineTable({ title, lines, total, original, onReduction, emptyHref, emptyLabel }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-      <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-        <h2 className="font-semibold text-slate-900">{title}</h2>
-        <span className="text-sm tabular-nums text-slate-700">
+    <div className="bg-surface rounded-xl border border-line shadow-sm">
+      <div className="px-5 py-3 border-b border-line-soft flex items-center justify-between">
+        <h2 className="font-semibold text-ink">{title}</h2>
+        <span className="text-sm tabular-nums text-ink-2">
           {original !== total ? (
-            <span className="text-slate-400 line-through mr-2">{formatMoney(original)}</span>
+            <span className="text-ink-4 line-through mr-2">{formatMoney(original)}</span>
           ) : null}
           {formatMoney(total)}
         </span>
       </div>
 
       {lines.length === 0 ? (
-        <p className="px-5 py-6 text-center text-sm text-slate-400">
+        <p className="px-5 py-6 text-center text-sm text-ink-4">
           {emptyLabel}{' '}
-          <Link href={emptyHref} className="text-teal-700 hover:underline">Add one</Link>
+          <Link href={emptyHref} className="text-accent-ink hover:underline">Add one</Link>
         </p>
       ) : (
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-100 bg-slate-50">
+            <tr className="border-b border-line-soft bg-canvas">
               {['Provider', 'Original Amount', 'Red. (%)', 'Reduced Amount'].map((h, i) => (
                 <th
                   key={h}
-                  className={`px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400 ${i ? 'text-right' : 'text-left'}`}
+                  className={`px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-ink-4 ${i ? 'text-right' : 'text-left'}`}
                 >
                   {h}
                 </th>
@@ -314,9 +314,9 @@ function LineTable({ title, lines, total, original, onReduction, emptyHref, empt
           </thead>
           <tbody>
             {lines.map((l) => (
-              <tr key={l.id} className="border-b border-slate-50 last:border-0">
-                <td className="px-4 py-2 text-slate-800">{l.label}</td>
-                <td className="px-4 py-2 text-right tabular-nums text-slate-600">
+              <tr key={l.id} className="border-b border-line-soft last:border-0">
+                <td className="px-4 py-2 text-ink">{l.label}</td>
+                <td className="px-4 py-2 text-right tabular-nums text-ink-2">
                   {formatMoney(l.originalCents)}
                 </td>
                 <td className="px-4 py-2 text-right">
@@ -329,7 +329,7 @@ function LineTable({ title, lines, total, original, onReduction, emptyHref, empt
                     className="input w-20 text-right"
                   />
                 </td>
-                <td className="px-4 py-2 text-right tabular-nums font-medium text-slate-900">
+                <td className="px-4 py-2 text-right tabular-nums font-medium text-ink">
                   {formatMoney(l.reducedCents)}
                 </td>
               </tr>

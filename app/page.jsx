@@ -25,10 +25,10 @@ import {
 import { todayInFirmTz, daysFromToday, fmt, urgency } from '@/lib/domain/dates';
 
 const TIER_STYLES = {
-  30: 'border-red-200 bg-red-50 text-red-800',
-  60: 'border-orange-200 bg-orange-50 text-orange-800',
-  90: 'border-amber-200 bg-amber-50 text-amber-800',
-  120: 'border-slate-200 bg-slate-50 text-slate-700',
+  30: 'border-danger-line bg-danger-bg text-danger-ink-strong',
+  60: 'border-alert-line bg-alert-bg text-alert-ink',
+  90: 'border-warn-line bg-warn-bg text-warn-ink-strong',
+  120: 'border-line bg-canvas text-ink-2',
 };
 
 export default function DashboardPage() {
@@ -78,7 +78,7 @@ export default function DashboardPage() {
     };
   }, [matters, tasks, today]);
 
-  if (!loaded) return <p className="p-8 text-sm text-slate-500">Loading…</p>;
+  if (!loaded) return <p className="p-8 text-sm text-ink-3">Loading…</p>;
 
   const totalTrial = TRIAL_TIERS.reduce((n, t) => n + stats.countdown[t].length, 0);
 
@@ -96,8 +96,8 @@ export default function DashboardPage() {
      */
     <div className="p-4 sm:p-6 max-w-[1800px] mx-auto">
       <div className="flex items-baseline gap-3 mb-5 flex-wrap">
-        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-        <span className="text-sm text-slate-500">
+        <h1 className="text-2xl font-bold text-ink">Dashboard</h1>
+        <span className="text-sm text-ink-3">
           {new Date(`${today}T12:00:00Z`).toLocaleDateString('en-US', {
             timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
           })}
@@ -153,13 +153,13 @@ export default function DashboardPage() {
           {stats.stale.length === 0 ? (
             <Empty>Every active case has recent activity.</Empty>
           ) : (
-            <ul className="divide-y divide-slate-50">
+            <ul className="divide-y divide-line-soft">
               {stats.stale.slice(0, 8).map(([id, m]) => (
                 <li key={id} className="px-4 py-2.5 flex items-center justify-between gap-3">
-                  <Link href={`/matters/${id}`} className="text-sm font-medium text-teal-700 hover:underline truncate">
+                  <Link href={`/matters/${id}`} className="text-sm font-medium text-accent-ink hover:underline truncate">
                     {matterTitle(m)}
                   </Link>
-                  <span className="text-xs text-slate-500 shrink-0">
+                  <span className="text-xs text-ink-3 shrink-0">
                     {daysSinceActivity(m, today)}d ago
                   </span>
                 </li>
@@ -176,16 +176,16 @@ export default function DashboardPage() {
           {stats.missingDates.length === 0 ? (
             <Empty>Every active case has an SOL and a trial date.</Empty>
           ) : (
-            <ul className="divide-y divide-slate-50">
+            <ul className="divide-y divide-line-soft">
               {stats.missingDates.slice(0, 8).map(([id, m]) => {
                 const v = m.values || {};
                 const missing = [!v.sol && 'SOL', !v.trialDate && 'trial date'].filter(Boolean);
                 return (
                   <li key={id} className="px-4 py-2.5 flex items-center justify-between gap-3">
-                    <Link href={`/matters/${id}`} className="text-sm font-medium text-teal-700 hover:underline truncate">
+                    <Link href={`/matters/${id}`} className="text-sm font-medium text-accent-ink hover:underline truncate">
                       {matterTitle(m)}
                     </Link>
-                    <span className="text-xs text-amber-700 font-medium shrink-0">
+                    <span className="text-xs text-warn-ink font-medium shrink-0">
                       no {missing.join(', no ')}
                     </span>
                   </li>
@@ -196,7 +196,7 @@ export default function DashboardPage() {
         </Panel>
       </div>
 
-      <p className="mt-6 text-xs text-slate-400 max-w-2xl">
+      <p className="mt-6 text-xs text-ink-4 max-w-2xl">
         Every generated deadline is computed from matter data and must be confirmed with the
         attorney. This system is not the sole source of truth for any real deadline.
       </p>
@@ -207,16 +207,16 @@ export default function DashboardPage() {
 function Card({ icon: Icon, label, value, href, accent }) {
   const inner = (
     <div
-      className={`bg-white rounded-xl border shadow-sm p-4 h-full transition ${
-        accent ? 'border-amber-200' : 'border-slate-200'
-      } ${href ? 'hover:border-teal-300' : ''}`}
+      className={`bg-surface rounded-xl border shadow-sm p-4 h-full transition ${
+        accent ? 'border-warn-line' : 'border-line'
+      } ${href ? 'hover:border-accent-solid' : ''}`}
     >
       <div className={`flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide mb-1.5 ${
-        accent ? 'text-amber-600' : 'text-slate-400'
+        accent ? 'text-warn-ink' : 'text-ink-4'
       }`}>
         <Icon size={14} /> <span className="truncate">{label}</span>
       </div>
-      <div className="text-3xl font-bold text-slate-900">{value}</div>
+      <div className="text-3xl font-bold text-ink">{value}</div>
     </div>
   );
   return href ? <Link href={href}>{inner}</Link> : inner;
@@ -224,16 +224,16 @@ function Card({ icon: Icon, label, value, href, accent }) {
 
 function Panel({ title, subtitle, count, href, children }) {
   return (
-    <section className="bg-white rounded-xl border border-slate-200 shadow-sm mb-4 overflow-hidden">
-      <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+    <section className="bg-surface rounded-xl border border-line shadow-sm mb-4 overflow-hidden">
+      <div className="px-4 py-3 border-b border-line-soft flex items-center gap-2">
         <div className="min-w-0">
-          <h2 className="font-semibold text-slate-900 truncate">{title}</h2>
-          {subtitle ? <p className="text-xs text-slate-500">{subtitle}</p> : null}
+          <h2 className="font-semibold text-ink truncate">{title}</h2>
+          {subtitle ? <p className="text-xs text-ink-3">{subtitle}</p> : null}
         </div>
         <div className="flex-1" />
-        {count !== undefined ? <span className="text-sm text-slate-500 shrink-0">{count}</span> : null}
+        {count !== undefined ? <span className="text-sm text-ink-3 shrink-0">{count}</span> : null}
         {href ? (
-          <Link href={href} className="text-teal-700 hover:text-teal-900 shrink-0" title="See all">
+          <Link href={href} className="text-accent-ink hover:text-accent-ink-strong shrink-0" title="See all">
             <ArrowRight size={16} />
           </Link>
         ) : null}
@@ -244,13 +244,13 @@ function Panel({ title, subtitle, count, href, children }) {
 }
 
 function Empty({ children }) {
-  return <p className="px-4 py-8 text-center text-sm text-slate-400">{children}</p>;
+  return <p className="px-4 py-8 text-center text-sm text-ink-4">{children}</p>;
 }
 
 function TaskList({ rows, matters, today, empty }) {
   if (rows.length === 0) return <Empty>{empty}</Empty>;
   return (
-    <ul className="divide-y divide-slate-50">
+    <ul className="divide-y divide-line-soft">
       {rows.map((t) => {
         const { level, days } = urgency(t.dueDate, { today });
         const matter = t.matterId ? matters[t.matterId] : null;
@@ -259,14 +259,14 @@ function TaskList({ rows, matters, today, empty }) {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 {matter ? (
-                  <Link href={`/matters/${t.matterId}`} className="text-xs text-teal-700 hover:underline block truncate">
+                  <Link href={`/matters/${t.matterId}`} className="text-xs text-accent-ink hover:underline block truncate">
                     {matterTitle(matter)}
                   </Link>
                 ) : null}
-                <p className="text-sm font-medium text-slate-900 truncate">{t.title}</p>
+                <p className="text-sm font-medium text-ink truncate">{t.title}</p>
               </div>
               <span className={`text-xs font-semibold shrink-0 ${
-                level === 'overdue' ? 'text-red-600' : level === 'critical' ? 'text-orange-600' : 'text-slate-500'
+                level === 'overdue' ? 'text-danger-ink' : level === 'critical' ? 'text-alert-ink' : 'text-ink-3'
               }`}>
                 {days === null ? '—' : days < 0 ? `${Math.abs(days)}d over` : `${days}d`}
               </span>

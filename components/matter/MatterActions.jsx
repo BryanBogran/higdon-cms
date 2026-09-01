@@ -118,28 +118,28 @@ export default function MatterActions({ matterId, matter }) {
     <div ref={boxRef} className="relative">
       <button
         onClick={() => { setOpen((v) => !v); setConfirming(false); setError(''); }}
-        className="p-2 rounded border border-slate-300 text-slate-500 hover:bg-slate-50"
+        className="p-2 rounded border border-line-strong text-ink-3 hover:bg-hover"
         title="Matter actions"
       >
         {busy ? <Loader2 size={16} className="animate-spin" /> : <MoreVertical size={16} />}
       </button>
 
       {open ? (
-        <div className="absolute right-0 mt-1.5 w-80 bg-white rounded-lg shadow-xl border border-slate-200 overflow-hidden z-50">
+        <div className="absolute right-0 mt-1.5 w-80 bg-surface rounded-lg shadow-xl border border-line overflow-hidden z-50">
           <button
             onClick={toggleArchive}
-            className="w-full flex items-start gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-slate-50"
+            className="w-full flex items-start gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-hover"
           >
             {archived ? (
-              <ArchiveRestore size={16} className="mt-0.5 text-teal-600 shrink-0" />
+              <ArchiveRestore size={16} className="mt-0.5 text-accent-ink shrink-0" />
             ) : (
-              <Archive size={16} className="mt-0.5 text-slate-500 shrink-0" />
+              <Archive size={16} className="mt-0.5 text-ink-3 shrink-0" />
             )}
             <span>
-              <span className="block font-medium text-slate-900">
+              <span className="block font-medium text-ink">
                 {archived ? 'Restore matter' : 'Archive matter'}
               </span>
-              <span className="block text-xs text-slate-500">
+              <span className="block text-xs text-ink-3">
                 {archived
                   ? 'Return it to the active case list.'
                   : 'Hide from active lists. Nothing is deleted.'}
@@ -148,13 +148,13 @@ export default function MatterActions({ matterId, matter }) {
           </button>
 
           {/* ---- permanent deletion ---- */}
-          <div className="border-t border-slate-100">
+          <div className="border-t border-line-soft">
             {!archived ? (
               <div className="px-4 py-2.5 flex items-start gap-2.5">
-                <Trash2 size={16} className="mt-0.5 text-slate-300 shrink-0" />
+                <Trash2 size={16} className="mt-0.5 text-ink-4 shrink-0" />
                 <span>
-                  <span className="block text-sm font-medium text-slate-400">Delete permanently</span>
-                  <span className="block text-xs text-slate-400">
+                  <span className="block text-sm font-medium text-ink-4">Delete permanently</span>
+                  <span className="block text-xs text-ink-4">
                     Archive it first. A case has to sit removed before it can be destroyed.
                   </span>
                 </span>
@@ -162,38 +162,38 @@ export default function MatterActions({ matterId, matter }) {
             ) : !confirming ? (
               <button
                 onClick={() => { setConfirming(true); setTyped(''); setReason(''); setError(''); }}
-                className="w-full flex items-start gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-rose-50"
+                className="w-full flex items-start gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-danger-bg"
               >
-                <Trash2 size={16} className="mt-0.5 text-rose-600 shrink-0" />
+                <Trash2 size={16} className="mt-0.5 text-danger-ink shrink-0" />
                 <span>
-                  <span className="block font-medium text-rose-700">Delete permanently</span>
-                  <span className="block text-xs text-slate-500">
+                  <span className="block font-medium text-danger-ink">Delete permanently</span>
+                  <span className="block text-xs text-ink-3">
                     Removes the case and everything on it. Cannot be undone.
                   </span>
                 </span>
               </button>
             ) : (
-              <div className="p-4 bg-rose-50/60">
-                <p className="flex items-start gap-1.5 text-sm font-semibold text-rose-800">
+              <div className="p-4 bg-danger-bg/60">
+                <p className="flex items-start gap-1.5 text-sm font-semibold text-danger-ink-strong">
                   <AlertTriangle size={15} className="mt-0.5 shrink-0" />
                   Delete {matterTitle(matter)}?
                 </p>
 
-                <ul className="mt-2 space-y-1 text-xs text-slate-600 list-disc pl-4">
+                <ul className="mt-2 space-y-1 text-xs text-ink-2 list-disc pl-4">
                   <li>Its notes, tasks, checklist, deadlines and section rows go with it.</li>
                   <li>
-                    Its <span className="font-semibold text-slate-800">audit history is kept</span> —
+                    Its <span className="font-semibold text-ink">audit history is kept</span> —
                     who changed what, and when. That is what the log is for, and it stays
                     whether or not the case does.
                   </li>
                   <li>
-                    <span className="font-semibold text-slate-800">The Google Drive folder is not touched.</span>{' '}
+                    <span className="font-semibold text-ink">The Google Drive folder is not touched.</span>{' '}
                     {driveFolderId ? (
                       <a
                         href={`https://drive.google.com/drive/folders/${driveFolderId}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-0.5 text-teal-700 hover:underline"
+                        className="inline-flex items-center gap-0.5 text-accent-ink hover:underline"
                       >
                         Open it <ExternalLink size={10} />
                       </a>
@@ -203,8 +203,8 @@ export default function MatterActions({ matterId, matter }) {
                   <li>This cannot be undone.</li>
                 </ul>
 
-                <label className="block mt-3 text-xs text-slate-600">
-                  Type <span className="font-mono font-semibold text-slate-900">{phrase}</span> to confirm
+                <label className="block mt-3 text-xs text-ink-2">
+                  Type <span className="font-mono font-semibold text-ink">{phrase}</span> to confirm
                   <input
                     autoFocus
                     className="input mt-1 w-full text-sm"
@@ -217,8 +217,8 @@ export default function MatterActions({ matterId, matter }) {
                   />
                 </label>
 
-                <label className="block mt-2 text-xs text-slate-600">
-                  Why <span className="text-slate-400">(optional — kept in the audit record)</span>
+                <label className="block mt-2 text-xs text-ink-2">
+                  Why <span className="text-ink-4">(optional — kept in the audit record)</span>
                   <input
                     className="input mt-1 w-full text-sm"
                     value={reason}
@@ -228,7 +228,7 @@ export default function MatterActions({ matterId, matter }) {
                 </label>
 
                 {error ? (
-                  <p className="mt-2 flex items-start gap-1.5 text-xs text-rose-800">
+                  <p className="mt-2 flex items-start gap-1.5 text-xs text-danger-ink-strong">
                     <AlertTriangle size={12} className="mt-0.5 shrink-0" /> {error}
                   </p>
                 ) : null}
@@ -237,14 +237,14 @@ export default function MatterActions({ matterId, matter }) {
                   <button
                     onClick={doDelete}
                     disabled={!matches || busy}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-rose-600 text-white text-xs font-semibold hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-danger-solid text-white text-xs font-semibold hover:bg-danger-solid-2 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     {busy ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
                     Delete for good
                   </button>
                   <button
                     onClick={() => setConfirming(false)}
-                    className="px-3 py-1.5 rounded border border-slate-300 text-xs text-slate-600 hover:bg-white"
+                    className="px-3 py-1.5 rounded border border-line-strong text-xs text-ink-2 hover:bg-surface"
                   >
                     Cancel
                   </button>

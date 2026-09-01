@@ -42,9 +42,9 @@ export default function MatterHeader({ matterId, matter }) {
   const email = contact?.emails?.[0]?.value || v.clientEmail || '';
 
   return (
-    <div className="bg-white border-b border-slate-200">
+    <div className="bg-surface border-b border-line">
       {matter?.archivedAt ? (
-        <div className="flex items-center gap-2 px-5 py-2 bg-amber-50 border-b border-amber-200 text-sm text-amber-800">
+        <div className="flex items-center gap-2 px-5 py-2 bg-warn-bg border-b border-warn-line text-sm text-warn-ink-strong">
           <Archive size={15} />
           This matter is archived — it does not appear in the case list, task list or dashboard.
         </div>
@@ -57,27 +57,27 @@ export default function MatterHeader({ matterId, matter }) {
         </div>
 
         <div className="min-w-0 flex-1">
-          <h1 className="text-2xl font-bold text-teal-700 truncate">{matterTitle(matter)}</h1>
+          <h1 className="text-2xl font-bold text-accent-ink truncate">{matterTitle(matter)}</h1>
 
           <div className="flex items-center gap-5 mt-1.5 flex-wrap text-sm">
             <ClientCard matterId={matterId} matter={matter} />
 
             {phone ? (
-              <a href={`tel:${phone.replace(/[^\d+]/g, '')}`} className="flex items-center gap-1.5 text-teal-700 hover:underline">
+              <a href={`tel:${phone.replace(/[^\d+]/g, '')}`} className="flex items-center gap-1.5 text-accent-ink hover:underline">
                 <Phone size={15} /> {phone}
               </a>
             ) : (
-              <span className="flex items-center gap-1.5 text-slate-400">
+              <span className="flex items-center gap-1.5 text-ink-4">
                 <Phone size={15} /> no phone on file
               </span>
             )}
 
             {email ? (
-              <a href={`mailto:${email}`} className="flex items-center gap-1.5 text-teal-700 hover:underline">
+              <a href={`mailto:${email}`} className="flex items-center gap-1.5 text-accent-ink hover:underline">
                 <Mail size={15} /> {email}
               </a>
             ) : (
-              <span className="flex items-center gap-1.5 text-slate-400">
+              <span className="flex items-center gap-1.5 text-ink-4">
                 <Mail size={15} /> no email on file
               </span>
             )}
@@ -89,7 +89,7 @@ export default function MatterHeader({ matterId, matter }) {
           <select
             value={v.commercial || ''}
             onChange={(e) => updateMatterField(matterId, 'commercial', e.target.value)}
-            className="border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 bg-white"
+            className="border border-line-strong rounded px-3 py-2 text-sm text-ink-2 bg-surface"
             title="Coverage type"
           >
             <option value="">Coverage — not set</option>
@@ -99,7 +99,7 @@ export default function MatterHeader({ matterId, matter }) {
           </select>
           <Link
             href={`/matters/${matterId}/case-info`}
-            className="px-3 py-2 rounded bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700"
+            className="px-3 py-2 rounded bg-accent-solid text-white text-sm font-semibold hover:bg-accent-solid-2"
           >
             Case Info
           </Link>

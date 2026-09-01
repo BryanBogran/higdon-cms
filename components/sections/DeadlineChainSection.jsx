@@ -20,14 +20,7 @@ import { AlertTriangle, RotateCcw, CheckCircle2, Circle, CalendarClock } from 'l
 import { fmt, urgency, nextBusinessDay, checkBadDate } from '@/lib/domain/dates';
 import { useData } from '@/lib/data/DataProvider';
 import { useMatter } from '@/lib/data/DataProvider';
-
-const LEVEL_STYLES = {
-  overdue: 'bg-red-50 text-red-700 border-red-200',
-  critical: 'bg-orange-50 text-orange-700 border-orange-200',
-  warning: 'bg-amber-50 text-amber-700 border-amber-200',
-  ok: 'bg-slate-50 text-slate-600 border-slate-200',
-  unknown: 'bg-slate-100 text-slate-500 border-slate-300',
-};
+import { urgencyBadgeClass } from '@/lib/ui/tone';
 
 function DueBadge({ date }) {
   const { level, days } = urgency(date);
@@ -40,7 +33,7 @@ function DueBadge({ date }) {
           ? 'today'
           : `in ${days}d`;
   return (
-    <span className={`px-2 py-0.5 rounded text-[11px] font-semibold border ${LEVEL_STYLES[level]}`}>
+    <span className={urgencyBadgeClass(level)}>
       {label}
     </span>
   );
@@ -58,22 +51,22 @@ export default function DeadlineChainSection({ matterId }) {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-        <div className="px-5 py-3 border-b border-slate-100">
-          <h2 className="font-semibold text-slate-900">Generated Deadlines</h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+      <div className="bg-surface rounded-xl border border-line shadow-sm">
+        <div className="px-5 py-3 border-b border-line-soft">
+          <h2 className="font-semibold text-ink">Generated Deadlines</h2>
+          <p className="text-xs text-ink-3 mt-0.5">
             Computed from matter data. Never a source of truth for a real deadline — confirm every
             date with the attorney.
           </p>
         </div>
 
         {auto.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-slate-400">
+          <p className="px-5 py-8 text-center text-sm text-ink-4">
             No deadlines yet. Set an SOL, trial date, or DCO — or mark a checklist item done
             <em> with a date</em>.
           </p>
         ) : (
-          <div className="divide-y divide-slate-50">
+          <div className="divide-y divide-line-soft">
             {auto.map((t) => {
               const bad = checkBadDate(t.dueDate);
               return (
@@ -81,25 +74,25 @@ export default function DeadlineChainSection({ matterId }) {
                   <div className="flex items-start gap-3 flex-wrap">
                     <button onClick={() => setTaskComplete(t.id, !t.completed)} className="mt-0.5 shrink-0">
                       {t.completed ? (
-                        <CheckCircle2 size={19} className="text-teal-600" />
+                        <CheckCircle2 size={19} className="text-accent-ink" />
                       ) : (
-                        <Circle size={19} className="text-slate-300 hover:text-slate-400" />
+                        <Circle size={19} className="text-ink-4 hover:text-ink-3" />
                       )}
                     </button>
 
                     <div className="flex-1 min-w-[200px]">
-                      <p className={`text-sm font-semibold ${t.completed ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                      <p className={`text-sm font-semibold ${t.completed ? 'text-ink-4 line-through' : 'text-ink'}`}>
                         {t.title}
                       </p>
-                      <p className="text-xs text-slate-500 mt-0.5">{t.note}</p>
+                      <p className="text-xs text-ink-3 mt-0.5">{t.note}</p>
 
                       {bad ? (
-                        <p className="flex items-center gap-1.5 text-xs text-amber-700 mt-1.5">
+                        <p className="flex items-center gap-1.5 text-xs text-warn-ink mt-1.5">
                           <AlertTriangle size={13} />
                           Falls on a {bad}.
                           <button
                             onClick={() => updateTask(t.id, { dueDate: nextBusinessDay(t.dueDate) })}
-                            className="underline font-semibold hover:text-amber-900"
+                            className="underline font-semibold hover:text-warn-ink-strong"
                           >
                             Move to {fmt(nextBusinessDay(t.dueDate))}
                           </button>
@@ -107,12 +100,12 @@ export default function DeadlineChainSection({ matterId }) {
                       ) : null}
 
                       {t.manualOverride ? (
-                        <p className="flex items-center gap-1.5 text-xs text-slate-500 mt-1.5">
+                        <p className="flex items-center gap-1.5 text-xs text-ink-3 mt-1.5">
                           <CalendarClock size={13} />
                           Overridden. Computed date was {fmt(t.autoDueDate)}.
                           <button
                             onClick={() => clearTaskOverride(t.id)}
-                            className="underline font-semibold hover:text-slate-800 inline-flex items-center gap-1"
+                            className="underline font-semibold hover:text-ink inline-flex items-center gap-1"
                           >
                             <RotateCcw size={11} /> Restore
                           </button>
@@ -134,7 +127,7 @@ export default function DeadlineChainSection({ matterId }) {
                       ) : (
                         <button
                           onClick={() => setEditing(t.id)}
-                          className="text-sm font-medium text-slate-700 hover:text-teal-700 hover:underline w-[110px] text-right"
+                          className="text-sm font-medium text-ink-2 hover:text-accent-ink hover:underline w-[110px] text-right"
                           title="Edit this deadline"
                         >
                           {fmt(t.dueDate)}
@@ -150,25 +143,25 @@ export default function DeadlineChainSection({ matterId }) {
       </div>
 
       {manual.length > 0 ? (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-          <div className="px-5 py-3 border-b border-slate-100">
-            <h2 className="font-semibold text-slate-900">Manual Tasks</h2>
+        <div className="bg-surface rounded-xl border border-line shadow-sm">
+          <div className="px-5 py-3 border-b border-line-soft">
+            <h2 className="font-semibold text-ink">Manual Tasks</h2>
           </div>
-          <div className="divide-y divide-slate-50">
+          <div className="divide-y divide-line-soft">
             {manual.map((t) => (
               <div key={t.id} className="px-5 py-3 flex items-center gap-3">
                 <button onClick={() => setTaskComplete(t.id, !t.completed)} className="shrink-0">
                   {t.completed ? (
-                    <CheckCircle2 size={19} className="text-teal-600" />
+                    <CheckCircle2 size={19} className="text-accent-ink" />
                   ) : (
-                    <Circle size={19} className="text-slate-300" />
+                    <Circle size={19} className="text-ink-4" />
                   )}
                 </button>
-                <span className={`flex-1 text-sm ${t.completed ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                <span className={`flex-1 text-sm ${t.completed ? 'text-ink-4 line-through' : 'text-ink'}`}>
                   {t.title}
                 </span>
                 <DueBadge date={t.dueDate} />
-                <span className="text-sm text-slate-600 w-[110px] text-right">{fmt(t.dueDate)}</span>
+                <span className="text-sm text-ink-2 w-[110px] text-right">{fmt(t.dueDate)}</span>
               </div>
             ))}
           </div>

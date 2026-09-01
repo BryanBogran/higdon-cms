@@ -34,13 +34,13 @@ import { assigneeOptions, UNASSIGNED } from '@/lib/domain/team';
 import EmailBody from './EmailBody';
 
 const KIND_ICON_BG = {
-  note: 'bg-amber-400',
-  task: 'bg-teal-500',
-  call: 'bg-sky-500',
+  note: 'bg-warn-solid-2',
+  task: 'bg-accent-solid-2',
+  call: 'bg-info-solid',
   text: 'bg-violet-500',
   email: 'bg-indigo-500',
-  fax: 'bg-slate-500',
-  system: 'bg-slate-300',
+  fax: 'bg-ink-3',
+  system: 'bg-line-strong',
 };
 
 /** The assignee picker. One control, used by the promote form and the footer. */
@@ -48,7 +48,7 @@ function AssigneeSelect({ value, onChange, options, id }) {
   return (
     <select
       id={id}
-      className="rounded border border-slate-300 px-2 py-1 text-sm bg-white"
+      className="rounded border border-line-strong px-2 py-1 text-sm bg-surface"
       value={value || ''}
       onChange={(e) => onChange(e.target.value)}
     >
@@ -77,16 +77,16 @@ function DueDateInput({ value, onChange, id }) {
       <input
         id={id}
         type="date"
-        className="rounded border border-slate-300 px-2 py-1 text-sm bg-white"
+        className="rounded border border-line-strong px-2 py-1 text-sm bg-surface"
         value={value || ''}
         onChange={(e) => onChange(e.target.value)}
       />
       <button type="button" onClick={() => onChange(todayInFirmTz())}
-        className="text-[11px] text-teal-700 hover:underline">Today</button>
+        className="text-[11px] text-accent-ink hover:underline">Today</button>
       <button type="button" onClick={() => onChange(nextBusinessDay(todayInFirmTz()))}
-        className="text-[11px] text-teal-700 hover:underline">Next business day</button>
+        className="text-[11px] text-accent-ink hover:underline">Next business day</button>
       {bad ? (
-        <span className="flex items-center gap-1 text-[11px] text-amber-700">
+        <span className="flex items-center gap-1 text-[11px] text-warn-ink">
           <AlertTriangle size={12} /> Falls on a {bad}.
           <button type="button" onClick={() => onChange(nextBusinessDay(value))}
             className="underline font-semibold">Move to {fmt(nextBusinessDay(value))}</button>
@@ -151,8 +151,8 @@ export default function ActivityCard({ entry, showMatter = true }) {
     <article
       className={`rounded-lg border shadow-sm mb-3 ${
         entry.pinned
-          ? 'bg-sky-50 border-sky-200 border-l-4 border-l-sky-500'
-          : 'bg-white border-slate-200'
+          ? 'bg-info-bg border-info-line border-l-4 border-l-sky-500'
+          : 'bg-surface border-line'
       }`}
     >
       <div className="p-4">
@@ -167,19 +167,19 @@ export default function ActivityCard({ entry, showMatter = true }) {
             {showMatter && matter ? (
               <Link
                 href={`/matters/${entry.matterId}`}
-                className="block font-semibold text-teal-700 hover:underline truncate"
+                className="block font-semibold text-accent-ink hover:underline truncate"
               >
                 {matterTitle(matter)}
               </Link>
             ) : null}
 
-            <p className="text-xs text-slate-600 mt-0.5">
-              <span className="font-semibold text-slate-800">{entry.author}</span>{' '}
+            <p className="text-xs text-ink-2 mt-0.5">
+              <span className="font-semibold text-ink">{entry.author}</span>{' '}
               {isTask ? 'created a task' : isEmail ? 'filed an email' : `created a ${entry.kind}`}
               {isEmail ? (
                 <>
                   {' '}
-                  <span className="px-1.5 py-0.5 rounded border border-slate-300 text-slate-600 text-[11px]">
+                  <span className="px-1.5 py-0.5 rounded border border-line-strong text-ink-2 text-[11px]">
                     {entry.meta?.direction === 'sent' ? 'Sent' : 'Received'}
                   </span>
                 </>
@@ -197,14 +197,14 @@ export default function ActivityCard({ entry, showMatter = true }) {
 
           <div className="flex items-center gap-1 shrink-0">
             {isTask && due && due.level === 'overdue' ? (
-              <span className="px-2 py-0.5 rounded-full bg-red-600 text-white text-[11px] font-semibold">
+              <span className="px-2 py-0.5 rounded-full bg-danger-solid text-white text-[11px] font-semibold">
                 Overdue
               </span>
             ) : null}
             <button
               onClick={() => updateActivity(entry.id, { pinned: !entry.pinned })}
               className={`p-1.5 rounded ${
-                entry.pinned ? 'text-amber-500 bg-amber-100' : 'text-slate-300 hover:text-slate-600'
+                entry.pinned ? 'text-warn-solid bg-warn-bg-2' : 'text-ink-4 hover:text-ink-2'
               }`}
               title={entry.pinned ? 'Unpin' : 'Pin'}
             >
@@ -213,31 +213,31 @@ export default function ActivityCard({ entry, showMatter = true }) {
             <div ref={menuRef} className="relative">
               <button
                 onClick={() => setMenuOpen((v) => !v)}
-                className="p-1.5 text-slate-300 hover:text-slate-600"
+                className="p-1.5 text-ink-4 hover:text-ink-2"
                 title="More"
               >
                 <MoreVertical size={15} />
               </button>
               {menuOpen ? (
-                <div className="absolute right-0 mt-1 w-44 bg-white rounded-lg shadow-xl border border-slate-200 overflow-hidden z-50">
+                <div className="absolute right-0 mt-1 w-44 bg-surface rounded-lg shadow-xl border border-line overflow-hidden z-50">
                   <button
                     onClick={() => { setDraft(entry.body || ''); setEditing(true); setMenuOpen(false); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-slate-50"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-hover"
                   >
-                    <Pencil size={14} className="text-slate-400" /> Edit
+                    <Pencil size={14} className="text-ink-4" /> Edit
                   </button>
                   <button
                     onClick={() => { updateActivity(entry.id, { pinned: !entry.pinned }); setMenuOpen(false); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-slate-50"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-hover"
                   >
-                    <Pin size={14} className="text-slate-400" /> {entry.pinned ? 'Unpin' : 'Pin'}
+                    <Pin size={14} className="text-ink-4" /> {entry.pinned ? 'Unpin' : 'Pin'}
                   </button>
                   <button
                     onClick={() => {
                       if (confirm('Delete this entry? This cannot be undone.')) deleteActivity(entry.id);
                       setMenuOpen(false);
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-red-700 hover:bg-red-50 border-t border-slate-100"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-danger-ink hover:bg-danger-bg border-t border-line-soft"
                   >
                     <Trash2 size={14} /> Delete
                   </button>
@@ -248,14 +248,14 @@ export default function ActivityCard({ entry, showMatter = true }) {
         </div>
 
         <div className="flex items-start gap-3 mt-2.5">
-          <span className={`w-7 h-7 rounded shrink-0 ${KIND_ICON_BG[entry.kind] || 'bg-slate-400'}`} />
+          <span className={`w-7 h-7 rounded shrink-0 ${KIND_ICON_BG[entry.kind] || 'bg-ink-4'}`} />
           <div className="min-w-0 flex-1">
             {entry.mentions?.length ? (
               <span className="mr-1.5">
                 {entry.mentions.map((m) => (
                   <span
                     key={m}
-                    className="inline-block px-1.5 py-0.5 mr-1 rounded bg-sky-100 text-sky-800 text-xs font-semibold"
+                    className="inline-block px-1.5 py-0.5 mr-1 rounded bg-info-bg-2 text-info-ink text-xs font-semibold"
                   >
                     @{m}
                   </span>
@@ -266,7 +266,7 @@ export default function ActivityCard({ entry, showMatter = true }) {
               <EmailBody entry={entry} />
             ) : null}
             {!isEmail && entry.title && !editing ? (
-              <span className="block text-sm font-semibold text-slate-900">{entry.title}</span>
+              <span className="block text-sm font-semibold text-ink">{entry.title}</span>
             ) : null}
             {!isEmail && editing ? (
               <div>
@@ -283,20 +283,20 @@ export default function ActivityCard({ entry, showMatter = true }) {
                 <div className="flex items-center gap-2 mt-1.5">
                   <button
                     onClick={saveEdit}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-900 text-white text-xs font-semibold"
+                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-primary text-white text-xs font-semibold"
                   >
                     <Check size={13} /> Save
                   </button>
                   <button
                     onClick={() => setEditing(false)}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded border border-slate-300 text-xs text-slate-600"
+                    className="flex items-center gap-1 px-2.5 py-1 rounded border border-line-strong text-xs text-ink-2"
                   >
                     <X size={13} /> Cancel
                   </button>
                 </div>
               </div>
             ) : isEmail ? null : (
-              <span className="text-sm text-slate-800 whitespace-pre-wrap break-words">{entry.body}</span>
+              <span className="text-sm text-ink whitespace-pre-wrap break-words">{entry.body}</span>
             )}
 
             {/* EmailBody renders its own attachment list, with signed URLs. */}
@@ -308,7 +308,7 @@ export default function ActivityCard({ entry, showMatter = true }) {
                     href={a.url || '#'}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 text-xs text-teal-700 hover:underline"
+                    className="flex items-center gap-1.5 text-xs text-accent-ink hover:underline"
                   >
                     <Paperclip size={12} /> {a.name}
                   </a>
@@ -319,7 +319,7 @@ export default function ActivityCard({ entry, showMatter = true }) {
         </div>
       </div>
 
-      <div className="px-4 py-2.5 border-t border-dashed border-slate-200 flex items-center gap-x-4 gap-y-2 flex-wrap text-sm">
+      <div className="px-4 py-2.5 border-t border-dashed border-line flex items-center gap-x-4 gap-y-2 flex-wrap text-sm">
         {isTask ? (
           <>
             {/*
@@ -328,7 +328,7 @@ export default function ActivityCard({ entry, showMatter = true }) {
               between people constantly. Saved on change: there is no Save
               button on any other control on this card either.
             */}
-            <label className="flex items-center gap-1.5 text-slate-600">
+            <label className="flex items-center gap-1.5 text-ink-2">
               Assigned to
               <AssigneeSelect
                 id={`assignee-${entry.id}`}
@@ -337,7 +337,7 @@ export default function ActivityCard({ entry, showMatter = true }) {
                 onChange={(name) => updateActivity(entry.id, { assignedTo: name || UNASSIGNED })}
               />
             </label>
-            <label className="flex items-center gap-1.5 text-slate-600">
+            <label className="flex items-center gap-1.5 text-ink-2">
               Due
               <DueDateInput
                 id={`due-${entry.id}`}
@@ -347,10 +347,10 @@ export default function ActivityCard({ entry, showMatter = true }) {
             </label>
             <button
               onClick={() => updateActivity(entry.id, { completed: !entry.completed })}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-slate-300 text-slate-700 text-sm hover:bg-slate-50"
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-line-strong text-ink-2 text-sm hover:bg-hover"
             >
               {entry.completed ? (
-                <CheckCircle2 size={15} className="text-teal-600" />
+                <CheckCircle2 size={15} className="text-accent-ink" />
               ) : (
                 <Circle size={15} />
               )}
@@ -360,7 +360,7 @@ export default function ActivityCard({ entry, showMatter = true }) {
         ) : promoting ? (
           <div className="w-full space-y-2">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-              <label className="flex items-center gap-1.5 text-slate-600">
+              <label className="flex items-center gap-1.5 text-ink-2">
                 Assign to
                 <AssigneeSelect
                   id={`promote-assignee-${entry.id}`}
@@ -369,7 +369,7 @@ export default function ActivityCard({ entry, showMatter = true }) {
                   onChange={setAssignTo}
                 />
               </label>
-              <label className="flex items-center gap-1.5 text-slate-600">
+              <label className="flex items-center gap-1.5 text-ink-2">
                 Due
                 <DueDateInput
                   id={`promote-due-${entry.id}`}
@@ -381,18 +381,18 @@ export default function ActivityCard({ entry, showMatter = true }) {
             <div className="flex items-center gap-2">
               <button
                 onClick={confirmPromote}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-teal-600 text-white text-xs font-semibold hover:bg-teal-500"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-accent-solid text-white text-xs font-semibold hover:bg-accent-solid-2"
               >
                 <ListPlus size={14} /> Make it a task
               </button>
               <button
                 onClick={() => setPromoting(false)}
-                className="px-3 py-1.5 rounded border border-slate-300 text-xs text-slate-600 hover:bg-slate-50"
+                className="px-3 py-1.5 rounded border border-line-strong text-xs text-ink-2 hover:bg-hover"
               >
                 Cancel
               </button>
               {!roster.length ? (
-                <span className="text-[11px] text-amber-700">
+                <span className="text-[11px] text-warn-ink">
                   Nobody to assign to yet — staff appear here once they have signed in.
                 </span>
               ) : null}
@@ -401,7 +401,7 @@ export default function ActivityCard({ entry, showMatter = true }) {
         ) : (
           <button
             onClick={openPromote}
-            className="flex items-center gap-1.5 text-teal-700 font-semibold hover:underline"
+            className="flex items-center gap-1.5 text-accent-ink font-semibold hover:underline"
             title="Promote this note to a task, in place"
           >
             <ListPlus size={15} /> Assign as Task

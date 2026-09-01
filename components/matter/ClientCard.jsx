@@ -94,13 +94,13 @@ export default function ClientCard({ matterId, matter }) {
             type="button"
             onClick={() => setEditing(linked)}
             title={`Open ${cardName}'s contact card`}
-            className="flex items-center gap-1.5 text-teal-700 hover:underline"
+            className="flex items-center gap-1.5 text-accent-ink hover:underline"
           >
-            <IdCard size={15} className="text-teal-600" />
+            <IdCard size={15} className="text-accent-ink" />
             {clientName || cardName}
           </button>
           {differs ? (
-            <span className="text-xs text-slate-400" title="The contact card is filed under a different name">
+            <span className="text-xs text-ink-4" title="The contact card is filed under a different name">
               (card: {cardName})
             </span>
           ) : null}
@@ -109,7 +109,7 @@ export default function ClientCard({ matterId, matter }) {
             onClick={unlink}
             disabled={busy}
             title="Unlink this contact card from the case"
-            className="p-0.5 text-slate-300 hover:text-slate-600 disabled:opacity-40"
+            className="p-0.5 text-ink-4 hover:text-ink-2 disabled:opacity-40"
           >
             <Link2Off size={13} />
           </button>
@@ -128,7 +128,7 @@ export default function ClientCard({ matterId, matter }) {
   /* ---- no name at all ---- */
   if (!clientName) {
     return (
-      <span className="flex items-center gap-1.5 text-slate-400">
+      <span className="flex items-center gap-1.5 text-ink-4">
         <IdCard size={15} /> no client name
       </span>
     );
@@ -142,25 +142,25 @@ export default function ClientCard({ matterId, matter }) {
           type="button"
           onClick={() => { setOpen((v) => !v); setError(''); }}
           title="No contact card linked — click to link one"
-          className="flex items-center gap-1.5 text-slate-700 hover:text-teal-700 group"
+          className="flex items-center gap-1.5 text-ink-2 hover:text-accent-ink group"
         >
-          <IdCard size={15} className="text-slate-400 group-hover:text-teal-600" />
+          <IdCard size={15} className="text-ink-4 group-hover:text-accent-ink" />
           {clientName}
-          <span className="inline-flex items-center gap-0.5 rounded border border-dashed border-slate-300 px-1 py-0.5 text-[10px] uppercase tracking-wide text-slate-400 group-hover:border-teal-400 group-hover:text-teal-700">
+          <span className="inline-flex items-center gap-0.5 rounded border border-dashed border-line-strong px-1 py-0.5 text-[10px] uppercase tracking-wide text-ink-4 group-hover:border-accent-solid group-hover:text-accent-ink">
             <Link2 size={9} /> link
           </span>
         </button>
 
         {open ? (
-          <div className="absolute left-0 top-full z-50 mt-1.5 w-80 rounded-lg border border-slate-200 bg-white p-3 shadow-xl">
+          <div className="absolute left-0 top-full z-50 mt-1.5 w-80 rounded-lg border border-line bg-surface p-3 shadow-xl">
             <div className="flex items-start justify-between gap-2">
-              <p className="text-sm font-semibold text-slate-900">Link a contact card</p>
+              <p className="text-sm font-semibold text-ink">Link a contact card</p>
               <button type="button" onClick={() => setOpen(false)} aria-label="Close"
-                className="p-0.5 text-slate-400 hover:text-slate-700">
+                className="p-0.5 text-ink-4 hover:text-ink-2">
                 <X size={14} />
               </button>
             </div>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-ink-3">
               Then a phone or email saved on that card shows here, because it is one record.
             </p>
 
@@ -168,7 +168,7 @@ export default function ClientCard({ matterId, matter }) {
                 without anyone typing a search. */}
             {suggestions.length ? (
               <div className="mt-2.5">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-4">
                   {suggestions.length === 1 ? 'Same name' : 'Same name — pick one'}
                 </p>
                 {suggestions.map((c) => (
@@ -177,19 +177,19 @@ export default function ClientCard({ matterId, matter }) {
                     type="button"
                     disabled={busy}
                     onClick={() => link(c)}
-                    className="mt-1 flex w-full items-center gap-2 rounded border border-teal-200 bg-teal-50 px-2.5 py-2 text-left hover:border-teal-400 disabled:opacity-50"
+                    className="mt-1 flex w-full items-center gap-2 rounded border border-accent-line bg-accent-bg px-2.5 py-2 text-left hover:border-accent-solid disabled:opacity-50"
                   >
-                    <Check size={14} className="shrink-0 text-teal-600" />
+                    <Check size={14} className="shrink-0 text-accent-ink" />
                     <span className="min-w-0">
-                      <span className="block truncate text-sm font-medium text-slate-900">
+                      <span className="block truncate text-sm font-medium text-ink">
                         {displayName(c)}
                       </span>
                       {primaryPhone(c) || primaryEmail(c) ? (
-                        <span className="block truncate text-[11px] text-slate-500">
+                        <span className="block truncate text-[11px] text-ink-3">
                           {primaryPhone(c) || primaryEmail(c)}
                         </span>
                       ) : (
-                        <span className="block text-[11px] text-slate-400">no phone or email yet</span>
+                        <span className="block text-[11px] text-ink-4">no phone or email yet</span>
                       )}
                     </span>
                   </button>
@@ -198,7 +198,7 @@ export default function ClientCard({ matterId, matter }) {
             ) : null}
 
             <div className="relative mt-2.5">
-              <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-4" />
               <input
                 className="input w-full pl-8 text-sm"
                 placeholder={suggestions.length ? 'Or search for another' : 'Search contacts'}
@@ -209,19 +209,19 @@ export default function ClientCard({ matterId, matter }) {
             </div>
 
             {query.trim() ? (
-              <ul className="mt-1 max-h-44 overflow-y-auto rounded border border-slate-200">
+              <ul className="mt-1 max-h-44 overflow-y-auto rounded border border-line">
                 {results.length ? results.map((c) => (
                   <li key={c.id}>
                     <button type="button" disabled={busy} onClick={() => link(c)}
-                      className="w-full px-2.5 py-1.5 text-left hover:bg-slate-50 disabled:opacity-50">
-                      <span className="block truncate text-sm text-slate-900">{displayName(c)}</span>
+                      className="w-full px-2.5 py-1.5 text-left hover:bg-hover disabled:opacity-50">
+                      <span className="block truncate text-sm text-ink">{displayName(c)}</span>
                       {primaryPhone(c) ? (
-                        <span className="block text-[11px] text-slate-500">{primaryPhone(c)}</span>
+                        <span className="block text-[11px] text-ink-3">{primaryPhone(c)}</span>
                       ) : null}
                     </button>
                   </li>
                 )) : (
-                  <li className="px-2.5 py-2 text-xs text-slate-500">No contact matches that.</li>
+                  <li className="px-2.5 py-2 text-xs text-ink-3">No contact matches that.</li>
                 )}
               </ul>
             ) : null}
@@ -235,13 +235,13 @@ export default function ClientCard({ matterId, matter }) {
                   firstName: clientName.split(',')[1]?.trim() || '', tags: ['Client'] });
                 setOpen(false);
               }}
-              className="mt-2 flex w-full items-center justify-center gap-1.5 rounded border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:border-teal-400 hover:text-teal-700"
+              className="mt-2 flex w-full items-center justify-center gap-1.5 rounded border border-line-strong px-2.5 py-1.5 text-xs font-medium text-ink-2 hover:border-accent-solid hover:text-accent-ink"
             >
               <UserPlus size={13} /> Create a contact for {clientName}
             </button>
 
             {error ? (
-              <p className="mt-2 flex items-start gap-1 text-xs text-rose-700">
+              <p className="mt-2 flex items-start gap-1 text-xs text-danger-ink">
                 <AlertTriangle size={12} className="mt-0.5 shrink-0" /> {error}
               </p>
             ) : null}

@@ -50,8 +50,8 @@ export default function GlobalSearch() {
 
   return (
     <div ref={boxRef} className="relative w-full max-w-md">
-      <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded px-3 py-1.5">
-        <Search size={16} className="text-slate-400 shrink-0" />
+      <div className="flex items-center gap-2 bg-chrome-2 border border-white/10 rounded px-3 py-1.5">
+        <Search size={16} className="text-chrome-muted shrink-0" />
         <input
           // The main menu's Search item focuses this by id. A ref would have to
           // be threaded through TopRail and the drawer for no extra safety.
@@ -67,23 +67,23 @@ export default function GlobalSearch() {
             if (e.key === 'Escape') setOpen(false);
           }}
           placeholder="Search for a project"
-          className="bg-transparent text-sm text-white placeholder-slate-400 outline-none w-full"
+          className="bg-transparent text-sm text-white placeholder-white/50 outline-none w-full"
         />
       </div>
 
       {open && q.trim() ? (
-        <div className="absolute left-0 right-0 mt-1 bg-white rounded-lg shadow-xl border border-slate-200 overflow-hidden z-50">
+        <div className="absolute left-0 right-0 mt-1 bg-surface rounded-lg shadow-xl border border-line overflow-hidden z-50">
           {results.length === 0 ? (
-            <p className="px-4 py-3 text-sm text-slate-500">No matching cases.</p>
+            <p className="px-4 py-3 text-sm text-ink-3">No matching cases.</p>
           ) : (
             results.map((r) => (
               <button
                 key={r.id}
                 onClick={() => go(r.id)}
-                className="w-full text-left px-4 py-2.5 hover:bg-slate-50 border-b border-slate-100 last:border-0"
+                className="w-full text-left px-4 py-2.5 hover:bg-hover border-b border-line-soft last:border-0"
               >
-                <span className="block text-sm font-medium text-teal-700 truncate">{r.title}</span>
-                {r.status ? <span className="block text-xs text-slate-500">{r.status}</span> : null}
+                <span className="block text-sm font-medium text-accent-ink truncate">{r.title}</span>
+                {r.status ? <span className="block text-xs text-ink-3">{r.status}</span> : null}
               </button>
             ))
           )}
