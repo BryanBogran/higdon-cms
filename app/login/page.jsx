@@ -10,7 +10,8 @@
 
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Scale, AlertTriangle, Loader2 } from 'lucide-react';
+import Logo from '@/components/shell/Logo';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 import { getSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
 
 /**
@@ -53,11 +54,18 @@ function LoginForm() {
 
   return (
     <div className="w-full max-w-sm">
-        <div className="flex items-center gap-2.5 justify-center mb-6">
-          <span className="w-10 h-10 rounded-lg bg-slate-900 grid place-items-center">
-            <Scale size={20} className="text-white" />
+        {/*
+          The logo is white lettering, and this page is white. Dropped straight
+          on it, it would be an invisible rectangle above the sign-in box --
+          so it sits on the same slate-900 the top bar uses. Reads as a
+          deliberate mark rather than as artwork that failed to load, and it
+          means one file serves all three places instead of needing a second
+          dark-on-light version the firm may not have.
+        */}
+        <div className="flex justify-center mb-6">
+          <span className="rounded-xl bg-slate-900 px-6 py-4">
+            <Logo width={160} />
           </span>
-          <span className="text-xl font-bold text-slate-900">Higdon Lawyers</span>
         </div>
 
         <form onSubmit={submit} className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">

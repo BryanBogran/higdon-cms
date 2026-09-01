@@ -16,6 +16,7 @@ import GlobalSearch from './GlobalSearch';
 import MainMenu from './MainMenu';
 import SaveIndicator from './SaveIndicator';
 import UserMenu from './UserMenu';
+import Logo from './Logo';
 import ReportProblem from './ReportProblem';
 
 const NAV = [
@@ -65,9 +66,7 @@ export default function TopRail() {
         </nav>
 
         <div className="flex-1 flex items-center justify-center min-w-0 px-4">
-          <span className="hidden xl:block font-bold tracking-tight text-sm mr-4 shrink-0">
-            HIGDON LAWYERS
-          </span>
+          <Logo width={110} className="hidden xl:block mr-4 shrink-0" />
           <GlobalSearch />
         </div>
 

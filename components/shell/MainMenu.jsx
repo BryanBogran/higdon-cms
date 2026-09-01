@@ -26,6 +26,7 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import Logo from './Logo';
 import {
   X, Inbox, Contact, Calendar, Search, Plus, ListChecks,
   FilePlus2, Settings, LayoutGrid, Upload, Download,
@@ -100,7 +101,7 @@ export default function MainMenu({ open, onClose, onSearch }) {
           <button onClick={onClose} aria-label="Close menu" className="p-1 hover:bg-white/10 rounded">
             <X size={22} />
           </button>
-          <span className="font-bold tracking-tight">HIGDON LAWYERS</span>
+          <Logo width={132} />
         </div>
 
         <ul className="py-2">
