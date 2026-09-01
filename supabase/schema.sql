@@ -229,8 +229,18 @@ create table if not exists activity (
 
 -- THE chain idempotency mechanism. At most one auto task per matter per
 -- rule, so regeneration updates in place instead of duplicating.
+--
+-- ⚠️ NOT PARTIAL, and it used to be `where source = 'auto'`. Postgres will
+-- not use a partial index for ON CONFLICT unless the statement repeats the
+-- predicate, and PostgREST's on_conflict parameter takes column names only
+-- — so every deadline-chain upsert failed with 42P10 and the tasks an SOL
+-- implies were never written. See supabase/014_auto_task_upsert.sql.
+--
+-- Dropping the predicate costs nothing: rule_key is set only on auto rows,
+-- and Postgres does not consider two NULLs equal, so manual notes and tasks
+-- never collide.
 create unique index if not exists activity_auto_rule_uq
-  on activity (matter_id, rule_key) where source = 'auto';
+  on activity (matter_id, rule_key);
 
 create index if not exists activity_matter_time on activity (matter_id, created_at desc);
 create index if not exists activity_open_due    on activity (due_date) where kind = 'task' and not completed;
