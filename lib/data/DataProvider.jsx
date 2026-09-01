@@ -49,13 +49,21 @@ export function DataProvider({ children }) {
   const [relations, setRelations] = useState([]);
   const [contacts, setContacts] = useState({});
   const [loaded, setLoaded] = useState(false);
-  // Derived from the env on the first render, not after the load effect. It
-  // used to start as 'local', so the user menu's first paint claimed "running
-  // on browser storage" even when Supabase was configured -- which reads as
-  // "the database isn't linked".
-  const [backend, setBackend] = useState(() =>
-    typeof window !== 'undefined' && isSupabaseConfigured() ? 'supabase' : 'local'
-  );
+  // `null` means NOT KNOWN YET, and every consumer must treat it that way.
+  //
+  // This cannot be derived from `typeof window`. Doing so made the server's
+  // first render say 'local' and the browser's say 'supabase' -- a hydration
+  // mismatch. React does not patch those: it threw away the entire
+  // server-rendered tree for /documents and re-rendered on the client, which
+  // also wiped attributes set on <html> before hydration.
+  //
+  // It cannot start as 'local' either. That was the original bug: the user
+  // menu's first paint claimed "running on browser storage" even when Supabase
+  // was configured, which reads as "the database isn't linked".
+  //
+  // null satisfies both -- identical on both sides, and asserts nothing. The
+  // load effect below settles it on mount.
+  const [backend, setBackend] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [saveState, setSaveState] = useState({ status: 'idle', error: null });
 

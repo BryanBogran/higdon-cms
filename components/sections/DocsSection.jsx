@@ -212,7 +212,9 @@ export default function DocsSection({ matterId, matter }) {
 
   /* ---------------- states that are not the browser ---------------- */
 
-  if (backend !== 'supabase') {
+  // `backend &&` -- null means not-known-yet, and announcing "needs a server"
+  // before we know would flash on every open of this tab.
+  if (backend && backend !== 'supabase') {
     return (
       <Card>
         <p className="px-5 py-10 text-center text-sm text-ink-4">

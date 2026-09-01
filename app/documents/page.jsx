@@ -59,7 +59,11 @@ export default function DocumentsPage() {
         Searches Drive directly — including the text inside PDFs and Google Docs, not only
         filenames.
       </p>
-      {backend !== 'supabase' ? (
+      {/* `backend &&` because null means not-known-yet, and this warning must
+          not appear before then. Rendering it on the strength of null was the
+          hydration mismatch: the server said 'local', the browser said
+          'supabase', and React discarded the whole server render of this page. */}
+      {backend && backend !== 'supabase' ? (
         <p className="text-xs text-warn-ink leading-snug">
           Running on local storage, so there is no Drive to search.
         </p>

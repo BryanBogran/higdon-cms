@@ -88,8 +88,13 @@ export default function UserMenu() {
           <ThemeToggle />
 
           {/* State the connection positively as well as negatively -- an absent
-              warning is not the same as a visible confirmation. */}
-          {backend === 'supabase' ? (
+              warning is not the same as a visible confirmation.
+
+              `backend` is null until the load effect settles it, and null must
+              show NEITHER line: falling through to the else would claim
+              "running on browser storage" on every first paint even with
+              Supabase configured. */}
+          {backend === null ? null : backend === 'supabase' ? (
             <p className="px-4 py-2 text-xs text-accent-ink bg-accent-bg border-b border-accent-line">
               Connected to the shared database.
             </p>
