@@ -62,7 +62,7 @@ most dangerous step in this feature: an MX record put on `higdonlawyers.com`
 instead of `case.higdonlawyers.com` stops every client and carrier email until
 somebody notices.
 
-The trade is an uglier address, roughly five minutes of delay instead of
+The trade is an uglier address, about a minute of delay instead of
 instant, and the fact that a few web forms reject `+` in an address. For CC and
 forward from Outlook or Gmail — which is how staff will actually use it — none
 of those bite.
@@ -130,16 +130,21 @@ In **Project Settings → Script Properties** add:
 | `CMS_WEBHOOK` | `https://<your-app>.vercel.app/api/inbound-email` |
 | `CMS_SECRET` | the same secret as above |
 | `CMS_PREFIX` | `files+` — must match `NEXT_PUBLIC_INTAKE_MAIL_USER` plus a `+` |
+| `CMS_POLL_MINUTES` | optional. `1`, `5`, `10`, `15` or `30`. Defaults to `1`. |
 
 Then run **`testConnection`** once from the editor and approve the permission
 prompt. A `200` with `"filed": 0` is the correct answer — the test message
 names no case.
 
-Finally run **`installTrigger`** once. It schedules `pollInbox` every five
-minutes.
+Finally run **`installTrigger`** once. It schedules `pollInbox` every minute
+by default — Apps Script's fastest interval, and comfortably inside the six
+hours of daily trigger runtime a Workspace account gets. To change it, set
+`CMS_POLL_MINUTES` and run `installTrigger` again; the old trigger is removed
+first, so it never doubles up.
 
 **e. Test it.** Open any matter, copy its address, and send it an email from
-your own account. Within five minutes it appears on that matter's Activity tab.
+your own account. Within a minute or so it appears on that matter's Activity
+tab.
 
 ### What the script does, and what it will not do
 

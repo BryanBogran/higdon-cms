@@ -2,8 +2,8 @@
  * Higdon CMS — inbound email poller
  *
  * Paste this into script.google.com as the mailbox that receives case mail —
- * `files@higdonlawyers.com` is fine and needs no new licence — set the three
- * Script Properties below, and add a 5-minute time trigger.
+ * `files@higdonlawyers.com` is fine and needs no new licence — set the
+ * Script Properties below, then run installTrigger once.
  *
  * WHAT IT DOES
  * Reads unread mail in this mailbox, POSTs each message to the case system in
@@ -28,6 +28,7 @@
  *   CMS_SECRET    the same value as INBOUND_EMAIL_SECRET in Vercel
  *   CMS_PREFIX    the tagged address prefix, e.g. `files+`  — MUST match
  *                 NEXT_PUBLIC_INTAKE_MAIL_USER in Vercel, plus a "+"
+ *   CMS_POLL_MINUTES  optional. 1, 5, 10, 15 or 30. Defaults to 1.
  */
 
 var LABEL_FILED = 'CMS/Filed';
@@ -143,15 +144,39 @@ function getOrCreateLabel(name) {
 
 /**
  * Run ONCE by hand, from the editor, to install the timer.
- * Re-running is safe: the old trigger is removed first.
+ * Re-running is safe: the old trigger is removed first, so this is also how
+ * you CHANGE the interval — set CMS_POLL_MINUTES and run it again.
+ *
+ * ── Why one minute is the default ─────────────────────────────────────
+ *
+ * Apps Script accepts only 1, 5, 10, 15 or 30 — not arbitrary values — and
+ * one minute is both the fastest available and comfortably within quota.
+ * A Workspace account allows 6 hours of trigger runtime a day; 1,440 runs
+ * of a couple of seconds each is well under an hour, and a run with no case
+ * mail in it does almost nothing.
+ *
+ * The validation matters more than it looks. Passing 2 or 60 throws
+ * "Invalid argument", which does not say that the value must come from a
+ * fixed set — so the failure reads like a bug in the script rather than a
+ * typo in a setting.
  */
+var ALLOWED_MINUTES = [1, 5, 10, 15, 30];
+
 function installTrigger() {
+  var raw = PropertiesService.getScriptProperties().getProperty('CMS_POLL_MINUTES');
+  var minutes = raw ? Number(raw) : 1;
+  if (ALLOWED_MINUTES.indexOf(minutes) === -1) {
+    throw new Error(
+      'CMS_POLL_MINUTES must be one of ' + ALLOWED_MINUTES.join(', ') +
+      ' — Apps Script does not accept other intervals. Got: ' + raw);
+  }
+
   var existing = ScriptApp.getProjectTriggers();
   for (var i = 0; i < existing.length; i++) {
     if (existing[i].getHandlerFunction() === 'pollInbox') ScriptApp.deleteTrigger(existing[i]);
   }
-  ScriptApp.newTrigger('pollInbox').timeBased().everyMinutes(5).create();
-  console.log('Trigger installed — pollInbox runs every 5 minutes.');
+  ScriptApp.newTrigger('pollInbox').timeBased().everyMinutes(minutes).create();
+  console.log('Trigger installed — pollInbox runs every ' + minutes + ' minute(s).');
 }
 
 /**
