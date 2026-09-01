@@ -31,6 +31,7 @@ import FieldInput from './FieldInput';
 import ChecklistItems from './ChecklistItems';
 import { useData } from '@/lib/data/DataProvider';
 import { FIELD_BY_KEY } from '@/lib/domain/fields';
+import { columnMinWidth } from '@/lib/sections/columns';
 
 function money(n) {
   const num = parseFloat(String(n ?? '').replace(/[^0-9.-]/g, ''));
@@ -77,7 +78,19 @@ function Collection({ matterId, sectionKey, collection, uploadFolder }) {
               {state.rows.map((row) => (
                 <tr key={row.id} className="border-b border-slate-50 last:border-0">
                   {cols.map((c) => (
-                    <td key={c.key} className="px-3 py-2 align-top min-w-[130px]">
+                    /*
+                     * The minimum comes from the column TYPE, not one number
+                     * for all of them. An auto-layout table shares width by
+                     * content, so a flat 130px let the two textareas take what
+                     * they wanted and collapsed every name column to the floor
+                     * -- rendering "Aguilar, Karen" as "Aguilar, Karer" with
+                     * the rest hidden under the next input.
+                     */
+                    <td
+                      key={c.key}
+                      className="px-3 py-2 align-top"
+                      style={{ minWidth: columnMinWidth(c.type) }}
+                    >
                       <FieldInput
                         field={{ ...c, inputs: collection.calculated?.[c.key]?.inputs }}
                         value={row[c.key]}
@@ -118,7 +131,11 @@ function Collection({ matterId, sectionKey, collection, uploadFolder }) {
           // other needs a saved row to hang off.
           .filter((c) => c.type !== 'calculated' && c.type !== 'attachments')
           .map((c) => (
-            <div key={c.key} className={c.type === 'textarea' ? 'min-w-[220px] flex-1' : 'min-w-[140px]'}>
+            <div
+              key={c.key}
+              className={c.type === 'textarea' ? 'flex-1' : ''}
+              style={{ minWidth: columnMinWidth(c.type) }}
+            >
               <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">
                 {c.label}
               </label>

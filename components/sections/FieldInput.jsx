@@ -266,6 +266,7 @@ export { fmt };
 function ContactField({ value, onChange }) {
   const { contacts } = useData();
   const listId = useId();
+  const text = typeof value === 'object' ? value?.fullname || '' : (value ?? '');
 
   const names = useMemo(() => {
     const seen = new Set();
@@ -285,10 +286,20 @@ function ContactField({ value, onChange }) {
         className="input pl-8"
         placeholder="Name"
         list={names.length ? listId : undefined}
-        title={names.length
+        /*
+         * The VALUE is the tooltip when there is one, and the help text only
+         * when the field is empty.
+         *
+         * No column width fits every provider name -- "Memorial Hermann
+         * Southwest" is wider than any cell a nine-column table can spare --
+         * so a clipped name has to be recoverable without clicking into the
+         * box and pressing End. Hovering is that. Help text on a filled field
+         * would waste the one affordance that solves the real problem.
+         */
+        title={text || (names.length
           ? 'Suggestions come from Contacts. A name that is not there can still be typed.'
-          : 'No contacts yet — add providers and carriers on the Contacts page and they will be suggested here.'}
-        value={typeof value === 'object' ? value?.fullname || '' : value}
+          : 'No contacts yet — add providers and carriers on the Contacts page and they will be suggested here.')}
+        value={text}
         onChange={(e) => onChange(e.target.value)}
       />
       {names.length ? (
