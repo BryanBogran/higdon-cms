@@ -1,8 +1,9 @@
 /**
  * Higdon CMS — inbound email poller
  *
- * Paste this into script.google.com as the `cases@higdonlawyers.com` user,
- * set the two Script Properties below, and add a 5-minute time trigger.
+ * Paste this into script.google.com as the mailbox that receives case mail —
+ * `files@higdonlawyers.com` is fine and needs no new licence — set the three
+ * Script Properties below, and add a 5-minute time trigger.
  *
  * WHAT IT DOES
  * Reads unread mail in this mailbox, POSTs each message to the case system in
@@ -15,9 +16,18 @@
  * record put on the wrong host stops every client and carrier email until
  * somebody notices. This route touches no DNS.
  *
+ * ⚠️ IT LEAVES EVERYTHING ELSE ALONE
+ * If this mailbox also receives ordinary mail — which `files@` does — the
+ * script must not touch it. Only messages actually addressed to a case are
+ * read, POSTed or labelled; anything else is left exactly as it was found,
+ * unread and unlabelled. Getting this wrong would silently mark a colleague's
+ * mail as read, which is worse than not filing anything.
+ *
  * ── Script Properties (Project Settings → Script Properties) ─────────────
  *   CMS_WEBHOOK   https://<your-app>.vercel.app/api/inbound-email
  *   CMS_SECRET    the same value as INBOUND_EMAIL_SECRET in Vercel
+ *   CMS_PREFIX    the tagged address prefix, e.g. `files+`  — MUST match
+ *                 NEXT_PUBLIC_INTAKE_MAIL_USER in Vercel, plus a "+"
  */
 
 var LABEL_FILED = 'CMS/Filed';
@@ -35,8 +45,9 @@ function pollInbox() {
   var props = PropertiesService.getScriptProperties();
   var url = props.getProperty('CMS_WEBHOOK');
   var secret = props.getProperty('CMS_SECRET');
-  if (!url || !secret) {
-    throw new Error('Set CMS_WEBHOOK and CMS_SECRET in Project Settings → Script Properties.');
+  var prefix = (props.getProperty('CMS_PREFIX') || '').toLowerCase();
+  if (!url || !secret || !prefix) {
+    throw new Error('Set CMS_WEBHOOK, CMS_SECRET and CMS_PREFIX in Project Settings → Script Properties.');
   }
 
   var filed = getOrCreateLabel(LABEL_FILED);
@@ -47,6 +58,7 @@ function pollInbox() {
   var threads = GmailApp.search('is:unread -label:' + LABEL_FAILED, 0, MAX_PER_RUN);
   var sent = 0;
   var skipped = 0;
+  var ignored = 0;
 
   for (var t = 0; t < threads.length; t++) {
     var messages = threads[t].getMessages();
@@ -60,6 +72,23 @@ function pollInbox() {
       } catch (e) {
         threads[t].addLabel(failed);
         skipped++;
+        continue;
+      }
+
+      /*
+       * NOT ADDRESSED TO A CASE -> LEAVE IT COMPLETELY ALONE.
+       *
+       * The check that makes it safe to run this on a mailbox that also gets
+       * ordinary mail. Not marked read, not labelled, not POSTed. The server
+       * would answer `filed: 0` and the script would then mark it read, which
+       * would quietly hide a colleague's mail from them.
+       *
+       * Checked against the RAW message rather than the To header, so a BCC'd
+       * case address counts: Gmail writes it into Delivered-To, which is in
+       * the raw text even though it is in no visible recipient field.
+       */
+      if (raw.toLowerCase().indexOf(prefix) === -1) {
+        ignored++;
         continue;
       }
 
@@ -105,7 +134,7 @@ function pollInbox() {
     }
   }
 
-  console.log('filed ' + sent + ', flagged ' + skipped);
+  console.log('filed ' + sent + ', flagged ' + skipped + ', not case mail ' + ignored);
 }
 
 function getOrCreateLabel(name) {
@@ -140,4 +169,5 @@ function testConnection() {
   });
   console.log(res.getResponseCode() + ' ' + res.getContentText());
   console.log('200 with "filed: 0" is CORRECT — the test message names no case.');
+  console.log('A 401 means CMS_SECRET does not match INBOUND_EMAIL_SECRET in Vercel.');
 }
