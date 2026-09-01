@@ -210,6 +210,28 @@ export default function ReportProblem() {
                   attached automatically — you do not need to describe them.
                 </p>
 
+                {/*
+                  Said on every report, not only when the destination is
+                  outside the firm.
+
+                  The captured context is safe to send anywhere: the page is a
+                  path with a UUID in it, which identifies nobody without
+                  database access. What is NOT safe is the free text, and this
+                  form invites free text. "The SOL for Rivera 26-033 will not
+                  save" is a client name, a case number and a deadline, and it
+                  is the most natural sentence in the world to write here.
+
+                  Where the report goes is a server-side setting this page
+                  cannot see, and asking people to think about privilege only
+                  when a variable happens to be set is the wrong way round.
+                  A description of the fault does not need the client in it.
+                */}
+                <p className="rounded border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-800">
+                  Describe the fault, not the file. Reports may be read outside the firm, so
+                  leave out client names, case numbers and anything medical — &ldquo;the SOL
+                  field will not save&rdquo; is more useful than which case it was on.
+                </p>
+
                 {error ? (
                   <p className="flex items-start gap-1.5 text-sm text-rose-700">
                     <AlertTriangle size={14} className="mt-0.5 shrink-0" /> {error}
