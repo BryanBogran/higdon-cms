@@ -83,7 +83,18 @@ export default function DashboardPage() {
   const totalTrial = TRIAL_TIERS.reduce((n, t) => n + stats.countdown[t].length, 0);
 
   return (
-    <div className="p-4 sm:p-6 max-w-7xl">
+    /*
+     * `mx-auto` and a wider cap. It was `max-w-7xl` with no centring, which
+     * pins 1280px of content to the left edge and leaves the rest of the
+     * screen empty on the right -- on a 1500px laptop that is 250px of nothing,
+     * and it reads as the page being misaligned rather than as a width limit.
+     *
+     * The cap is kept, and raised: the panels below are two columns of case
+     * names, and stretched across an ultrawide they become long lines the eye
+     * has to track back across. 1800px uses essentially all of a laptop screen
+     * and keeps a 34-inch monitor readable.
+     */
+    <div className="p-4 sm:p-6 max-w-[1800px] mx-auto">
       <div className="flex items-baseline gap-3 mb-5 flex-wrap">
         <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
         <span className="text-sm text-slate-500">
