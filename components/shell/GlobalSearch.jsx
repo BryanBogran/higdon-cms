@@ -9,6 +9,7 @@ import { useMemo, useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { useData } from '@/lib/data/DataProvider';
+import { matchesCaseSearch } from '@/lib/domain/search';
 import { matterTitle } from '@/lib/domain/matter';
 
 export default function GlobalSearch() {
@@ -27,17 +28,13 @@ export default function GlobalSearch() {
   }, []);
 
   const results = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    if (!term) return [];
+    if (!q.trim()) return [];
     return Object.entries(matters)
       .filter(([, m]) => !m.archivedAt)
-      .filter(([, m]) => {
-        const v = m.values || {};
-        return (
-          (v.clientName || '').toLowerCase().includes(term) ||
-          (v.caseNumber || '').toLowerCase().includes(term)
-        );
-      })
+      // Term-based, so "Carlos Aguilar" finds "Aguilar, Carlos". The old
+      // substring test only matched the exact stored punctuation, which meant
+      // typing a client's name the way anyone says it found nothing.
+      .filter(([, m]) => matchesCaseSearch(m.values, q))
       .slice(0, 8)
       .map(([id, m]) => ({ id, title: matterTitle(m), status: m.values?.status || '' }));
   }, [q, matters]);
