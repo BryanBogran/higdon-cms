@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!--
+    The browser-tab icon. Next's App Router picks this up by filename and
+    injects the <link rel="icon"> itself, so app/layout.jsx says nothing about it.
+
+    ── Why not public/logo.png ───────────────────────────────────────────────
+    That file is a 279x61 WORDMARK. Reduced to 16px it is an illegible smear.
+    A tab needs its own mark, so this is the firm's H alone.
+
+    ── Drawn on a 32 grid, on purpose ────────────────────────────────────────
+    Every edge lands on a whole or half pixel so the shape stays crisp when the
+    browser renders it at 16. Nudging any coordinate off the grid softens the
+    crossbar first.
+
+    ── Why the red is a BAND and not the rule it is in the wordmark ──────────
+    As a hairline the red falls below one device pixel at 16 and greys out into
+    the navy. Thickened into a base band it survives. Checked at 16px, not at
+    the size you are probably reading this.
+
+    Colours sampled from public/logo.png. #bb0006 is the true red; the
+    #df4c55 in that file is only antialiasing. The navy is the app's own
+    chrome token.
+
+    NOTE: no double hyphen anywhere in this comment. XML forbids it inside a
+    comment, and an invalid SVG still returns 200 and still fetches as text,
+    so the only symptom is an icon that silently never renders.
+  -->
+  <rect width="32" height="32" rx="7" fill="#0f172a"/>
+  <path d="M0 25h32a7 7 0 0 1-7 7H7a7 7 0 0 1-7-7z" fill="#bb0006"/>
+  <!-- Slab-serif H: two stems, a crossbar, four flat serifs. Its feet sit
+       into the red band, the way the rule meets the letters in the wordmark. -->
+  <g fill="#f8f8f8">
+    <rect x="9.5" y="6" width="4" height="20"/>
+    <rect x="18.5" y="6" width="4" height="20"/>
+    <rect x="9.5" y="14" width="13" height="4"/>
+    <rect x="7.5" y="6" width="8" height="2.2"/>
+    <rect x="16.5" y="6" width="8" height="2.2"/>
+    <rect x="7.5" y="23.8" width="8" height="2.2"/>
+    <rect x="16.5" y="23.8" width="8" height="2.2"/>
+  </g>
+</svg>
