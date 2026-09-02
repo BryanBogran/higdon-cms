@@ -36,15 +36,39 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: 'Sign in required.' }, { status: 401 });
 
   const db = await getSupabaseServerClient();
-  const { data, error } = await db
-    .from('drive_folder_review')
-    .select('*')
-    .eq('dismissed', false)
-    .order('seen_at', { ascending: false })
-    .limit(500);
+
+  /*
+   * A row stays in this table until it is dismissed -- linking a folder does
+   * not delete it. So filtering on `dismissed` alone showed every folder ever
+   * queued, including the hundreds since linked, and the screen said
+   * "361 folders needing a decision" while the sync reported 345 of them
+   * already linked and only 18 outstanding.
+   *
+   * Two numbers describing the same thing and disagreeing by 20x is worse than
+   * either being wrong: the queue became a wall nobody could work, and the
+   * rows that did need a person were buried in it.
+   *
+   * A folder that now belongs to a case needs no decision, so it is excluded
+   * here rather than waiting to be dismissed one at a time.
+   */
+  const [{ data, error }, { data: linked, error: linkedErr }] = await Promise.all([
+    db.from('drive_folder_review')
+      .select('*')
+      .eq('dismissed', false)
+      .order('seen_at', { ascending: false })
+      // A safety valve, not a page size -- the filter below is what decides
+      // what is shown, and it must not be starved by the cap.
+      .limit(2000),
+    db.from('matter').select('drive_folder_id').not('drive_folder_id', 'is', null),
+  ]);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true, reviews: data || [] });
+  if (linkedErr) return NextResponse.json({ error: linkedErr.message }, { status: 500 });
+
+  const linkedIds = new Set((linked || []).map((m) => m.drive_folder_id));
+  const reviews = (data || []).filter((r) => !linkedIds.has(r.folder_id));
+
+  return NextResponse.json({ ok: true, reviews });
 }
 
 export async function POST(request) {

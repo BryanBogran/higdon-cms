@@ -22,12 +22,14 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   FolderSync, FolderPlus, Loader2, AlertCircle, AlertTriangle, CheckCircle2, ArrowLeft, X, RefreshCw,
+  FilePlus2,
 } from 'lucide-react';
 import { useData } from '@/lib/data/DataProvider';
 import { matterTitle } from '@/lib/domain/matter';
+import { planFolderCreate } from '@/lib/domain/drive-match';
 
 export default function DriveSyncPage() {
-  const { matters, loaded } = useData();
+  const { matters, loaded, createMatter, addRelation } = useData();
 
   const [plan, setPlan] = useState(null);
   const [reviews, setReviews] = useState([]);
@@ -138,6 +140,99 @@ export default function DriveSyncPage() {
       setNote("Linked. Its documents appear on the case's Docs tab straight away.");
       loadReviews();
     }
+  }
+
+  /**
+   * The third decision, and the one that was missing.
+   *
+   * The queue could only link a folder to a case that already existed, or
+   * record that it was not a case folder. For "Aguilar, Carlos 23-180" with no
+   * case 23-180 anywhere, neither is true: linking files a client's records
+   * against a stranger, and dismissing asserts something false and loses the
+   * folder. So the screen demanded a decision it did not offer.
+   */
+  async function createFromFolder(r) {
+    const { clientName, caseNumber, holderId, useNewNumber } = planFolderCreate(r.folder_name, matters);
+
+    setBusy(r.folder_id);
+    setError('');
+    setNote('');
+    try {
+      /*
+       * Two folders can carry one number -- the firm files a related matter as
+       * "23-180 Progressive Declaratory Action". Only one case can hold that
+       * number (matter_case_number_uq) and only one case can hold a folder
+       * (the unique index on drive_folder_id), so the second folder has to
+       * become its own case on a fresh number. That is not a workaround; it is
+       * the only shape the schema can represent, and Related Cases is the
+       * feature that keeps the two connected.
+       */
+      const res = useNewNumber
+        ? await createMatter({ clientName })
+        : await createMatter({ clientName, caseNumber });
+      if (!res?.ok) {
+        setError(res?.error || 'Could not create the case.');
+        return;
+      }
+
+      if (holderId) {
+        // Same client, stated as the fact it is -- both folders carry one
+        // number in Drive. Not fatal if it fails: the case and its folder are
+        // correct, and the link can be made by hand on the Related Cases tab.
+        await addRelation({
+          fromId: res.id,
+          toId: holderId,
+          kind: 'Same Client',
+          note: `Both Drive folders carry ${caseNumber}.`,
+        });
+      }
+
+      const body = await call(
+        '/api/drive/review',
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ folderId: r.folder_id, folderName: r.folder_name, matterId: res.id }),
+        },
+        r.folder_id
+      );
+      if (body) {
+        setNote(
+          holderId
+            ? `Created ${res.caseNumber || 'the case'} and related it to ${caseNumber}. Folder linked.`
+            : `Created ${res.caseNumber || 'the case'} and linked its folder.`
+        );
+        loadReviews();
+      }
+    } finally {
+      setBusy('');
+    }
+  }
+
+  /** What the create button will actually do, said on the button. */
+  function createPlan(folderName) {
+    const { caseNumber, holderId } = planFolderCreate(folderName, matters);
+    if (holderId) {
+      return {
+        confident: true,
+        label: 'Create as related',
+        title: `${caseNumber} already belongs to another case — this becomes its own case on the next free number, related to ${caseNumber}`,
+      };
+    }
+    if (!caseNumber) {
+      return {
+        // Not a recommendation: no number in the name is also what TEMPLATES
+        // and ARCHIVED FILES look like.
+        confident: false,
+        label: 'Create with a new number',
+        title: 'No case number in the folder name — the next free number is used. Check this is really a case folder.',
+      };
+    }
+    return {
+      confident: true,
+      label: `Create ${caseNumber}`,
+      title: `Creates case ${caseNumber} from this folder and links it`,
+    };
   }
 
   async function dismiss(folderId) {
@@ -360,7 +455,10 @@ export default function DriveSyncPage() {
         </h2>
         <p className="mt-1 text-sm text-ink-2">
           The matcher will not guess between two clients with the same name. Filing medical records
-          on the wrong case is a privilege breach; this dropdown is five seconds.
+          on the wrong case is a privilege breach, so it asks instead — and every row here can be
+          settled three ways: <strong className="text-ink">link</strong> it to a case that already
+          exists, <strong className="text-ink">create</strong> the case it plainly is, or say it is
+          not a case folder at all.
         </p>
 
         {!loaded ? (
@@ -407,6 +505,33 @@ export default function DriveSyncPage() {
                     ))}
                   </optgroup>
                 </select>
+
+                {/* The folder IS a case and no case exists: neither linking
+                    nor dismissing is true, so offer the decision that is.
+
+                    QUIET when the name carries no case number. Those rows are
+                    where TEMPLATES, ARCHIVED FILES and FILEVINE REPORTS AS OF
+                    8-30-26 live, and a confident accent button next to
+                    "TEMPLATES" invites a junk case. The action stays available
+                    -- "Jannesari, Mohammad" is a real client with no number in
+                    the folder name -- it just stops looking like the
+                    recommendation. */}
+                <button
+                  onClick={() => createFromFolder(r)}
+                  disabled={busy === r.folder_id}
+                  title={createPlan(r.folder_name).title}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-sm shrink-0
+                              disabled:opacity-50 ${
+                    createPlan(r.folder_name).confident
+                      ? 'border border-accent-line bg-accent-bg text-accent-ink font-medium hover:bg-accent-bg/70'
+                      : 'border border-line text-ink-3 hover:text-ink-2 hover:bg-raised'
+                  }`}
+                >
+                  {busy === r.folder_id
+                    ? <Loader2 size={14} className="animate-spin" />
+                    : <FilePlus2 size={14} />}
+                  {createPlan(r.folder_name).label}
+                </button>
 
                 <button
                   onClick={() => dismiss(r.folder_id)}
