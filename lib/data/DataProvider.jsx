@@ -386,11 +386,34 @@ export function DataProvider({ children }) {
    * "Unknown" forever. One place to get it from means one place to get it
    * wrong.
    */
+  /*
+   * Falls back to '' and NOT to 'Unknown'.
+   *
+   * 'Unknown' is what the READ path shows for a missing author
+   * (supabase-store.js: `row.author_label || 'Unknown'`). Writing the word
+   * makes an author we failed to record indistinguishable from one genuinely
+   * called that, and it is how a batch of rows ended up needing
+   * supabase/016_backfill_task_authors.sql to repair them.
+   *
+   * Empty here becomes null in the column, which is the honest answer.
+   */
   const authorLabel = useCallback(
-    () => currentUser?.displayName || currentUser?.email || 'Unknown',
+    () => currentUser?.displayName || currentUser?.email || '',
     [currentUser]
   );
 
+  /*
+   * ⚠️ ANY CALLBACK USING authorLabel MUST LIST IT AS A DEPENDENCY.
+   *
+   * `currentUser` is null on the first render and arrives after the session
+   * resolves, so `authorLabel` is a NEW function once that happens. A callback
+   * memoised without it keeps the first one for the life of the page -- the one
+   * that returns the literal 'Unknown'.
+   *
+   * That is precisely how the first attempt at this fix failed: the store was
+   * writing faithfully what it was handed, and what it was handed was a stale
+   * closure. Nothing errored, the task saved, and the author said Unknown.
+   */
   const createTask = useCallback(
     async (input = {}) => {
       const result = await run((s) => s.createTask({ author: authorLabel(), ...input }));
@@ -414,7 +437,7 @@ export function DataProvider({ children }) {
       });
       return result;
     },
-    [run, applyTasks]
+    [run, applyTasks, authorLabel]
   );
 
   const updateTask = useCallback(

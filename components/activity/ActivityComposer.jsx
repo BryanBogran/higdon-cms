@@ -25,7 +25,9 @@ export default function ActivityComposer({ matterId }) {
       kind,
       body: text,
       mentions,
-      author: currentUser?.displayName || currentUser?.email || 'Unknown',
+      // '' not 'Unknown': the word is the read path's fallback for a missing
+      // author, and storing it makes "we did not record this" look like a name.
+      author: currentUser?.displayName || currentUser?.email || '',
     });
     setBody('');
     setOpen(false);
