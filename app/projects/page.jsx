@@ -18,7 +18,8 @@ import { useData } from '@/lib/data/DataProvider';
 import CreateProjectPanel from '@/components/projects/CreateProjectPanel';
 import { matterTitle, initials, avatarColor } from '@/lib/domain/matter';
 import {
-  buildCaseList, SORTS, CASE_TYPES, DEPO_FILTERS, CHECKLIST_FILTERS, directionLabel,
+  buildCaseList, SORTS, CASE_TYPES, DEPO_FILTERS, CHECKLIST_FILTERS,
+  toggleChecklistFilter, directionLabel,
 } from '@/lib/domain/case-list';
 import { FIELD_BY_KEY } from '@/lib/domain/fields';
 
@@ -32,7 +33,9 @@ export default function ProjectHubPage() {
   const [attorney, setAttorney] = useState('');
   const [caseType, setCaseType] = useState('');
   const [depo, setDepo] = useState('');
-  const [checklist, setChecklist] = useState('');
+  // An ARRAY: several checklist conditions can be on at once and all must
+  // hold. See matchesChecklist for why that is AND rather than OR.
+  const [checklist, setChecklist] = useState([]);
   const [sort, setSort] = useState('activity');
   const [direction, setDirection] = useState('asc');
   const [showArchived, setShowArchived] = useState(false);
@@ -84,10 +87,12 @@ export default function ProjectHubPage() {
       label: DEPO_FILTERS.find((d) => d.key === depo)?.label || depo,
       clear: () => setDepo(''),
     } : null,
-    checklist ? {
-      label: CHECKLIST_FILTERS.find((c) => c.key === checklist)?.label || checklist,
-      clear: () => setChecklist(''),
-    } : null,
+    // One chip per condition rather than one for the set: removing "Answer
+    // Filed — not done" should not also drop "Suit Filed — done".
+    ...checklist.map((key) => ({
+      label: CHECKLIST_FILTERS.find((c) => c.key === key)?.label || key,
+      clear: () => setChecklist((prev) => prev.filter((k) => k !== key)),
+    })),
     q.trim() ? { label: `"${q.trim()}"`, clear: () => setQ('') } : null,
   ].filter(Boolean);
 
@@ -95,7 +100,7 @@ export default function ProjectHubPage() {
   // a sort hides nothing -- putting one there would make Clear filters look
   // like it had left something on.
   function clearAll() {
-    setStatus(''); setAttorney(''); setCaseType(''); setDepo(''); setChecklist(''); setQ(''); setPage(0);
+    setStatus(''); setAttorney(''); setCaseType(''); setDepo(''); setChecklist([]); setQ(''); setPage(0);
   }
 
   return (
@@ -139,8 +144,22 @@ export default function ProjectHubPage() {
             reads the way the rail does. The Depositions facet above stays:
             it expresses "either" and "neither", which a per-item filter
             cannot, and it is the control the firm asked us to copy. */}
-        <Facet label="Checklist" value={checklist} onChange={(v) => { setChecklist(v); setPage(0); }}
-          options={CHECKLIST_FILTERS.map((c) => ({ value: c.key, label: c.label, group: c.section }))} />
+        {/*
+          Multi-select without a bespoke popover: choosing an option ADDS it and
+          the dropdown snaps back to its label, so the next pick is one click
+          away and each active condition shows as its own chip below -- using
+          the chip row that already existed for every other filter.
+
+          Options already chosen are dropped from the list, so the same
+          condition cannot be added twice.
+        */}
+        <Facet
+          label={checklist.length ? `Checklist (${checklist.length})` : 'Checklist'}
+          value=""
+          onChange={(v) => { setChecklist((prev) => toggleChecklistFilter(prev, v)); setPage(0); }}
+          options={CHECKLIST_FILTERS
+            .filter((c) => !checklist.includes(c.key))
+            .map((c) => ({ value: c.key, label: c.label, group: c.section }))} />
 
         {/* Sort sits with the filters but is not one: it changes the order,
             never the contents, so it has no "any" option and no chip. */}
