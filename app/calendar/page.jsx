@@ -45,7 +45,7 @@ const FILTERS = [
 ];
 
 export default function CalendarPage() {
-  const { matters, tasks, loaded } = useData();
+  const { matters, tasks, sections, loaded } = useData();
   const today = todayInFirmTz();
 
   const [cursor, setCursor] = useState(() => monthOf(today));
@@ -55,16 +55,19 @@ export default function CalendarPage() {
   const weeks = useMemo(() => monthGrid(cursor, { today }), [cursor, today]);
 
   const { byDate, undated } = useMemo(
-    () => groupByDate(collectEvents({ matters, tasks, kinds: active })),
-    [matters, tasks, active]
+    () => groupByDate(collectEvents({ matters, tasks, sections, kinds: active })),
+    // `sections` belongs here. Omitting a dependency that a memo reads is how
+    // the task author spent a day reading "Unknown": the value it closed over
+    // was the one from the first render, before the data had loaded.
+    [matters, tasks, sections, active]
   );
 
   const counts = useMemo(() => {
-    const all = collectEvents({ matters, tasks });
+    const all = collectEvents({ matters, tasks, sections });
     const out = {};
     for (const f of FILTERS) out[f.key] = all.filter((e) => e.kind === f.key).length;
     return out;
-  }, [matters, tasks]);
+  }, [matters, tasks, sections]);
 
   function toggle(key) {
     setActive((a) => (a.includes(key) ? a.filter((k) => k !== key) : [...a, key]));
