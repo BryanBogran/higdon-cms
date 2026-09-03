@@ -377,9 +377,23 @@ export function DataProvider({ children }) {
     ref.current = { ...ref.current, tasks: next };
   }, []);
 
+  /*
+   * Who is doing this, as a label.
+   *
+   * Defaulted HERE rather than at each call site, because it was already being
+   * passed by the activity composer and the email intake and forgotten by the
+   * task dialog -- and forgetting it is silent: the task saves, and simply says
+   * "Unknown" forever. One place to get it from means one place to get it
+   * wrong.
+   */
+  const authorLabel = useCallback(
+    () => currentUser?.displayName || currentUser?.email || 'Unknown',
+    [currentUser]
+  );
+
   const createTask = useCallback(
     async (input = {}) => {
-      const result = await run((s) => s.createTask(input));
+      const result = await run((s) => s.createTask({ author: authorLabel(), ...input }));
       if (!result.ok) return result;
       applyTasks({
         ...ref.current.tasks,
