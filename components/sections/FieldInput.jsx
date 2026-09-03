@@ -4,6 +4,7 @@
 
 import { useId, useMemo } from 'react';
 import { checkBadDate, fmt } from '@/lib/domain/dates';
+import { orphanedOption } from '@/lib/domain/fields';
 import { AlertTriangle, ExternalLink, User, Paperclip, Check } from 'lucide-react';
 import DriveDrop from './DriveDrop';
 import { useData } from '@/lib/data/DataProvider';
@@ -69,10 +70,28 @@ export default function FieldInput({ field, value, onChange, row, matterId, uplo
   }
 
   if (field.type === 'select') {
+    /*
+     * ⚠️ A STORED VALUE THAT IS NO LONGER AN OPTION MUST STILL RENDER.
+     *
+     * Without this a `select` whose value is absent from `options` shows
+     * BLANK, and the DOM value becomes '' -- so editing any other cell in that
+     * row writes the emptiness back and the old value is gone. It does not
+     * look lost until it already is.
+     *
+     * That is not hypothetical: the expense Type list was just replaced with
+     * Filevine's, which drops "Filing Fee", "Expert" and "Court Reporter".
+     * Any expense already carrying one of those would have quietly emptied.
+     *
+     * Options are curated, so they change. Data is history, so it should not.
+     */
+    const options = field.options || [];
+    const orphaned = orphanedOption(field, v);
+
     return (
       <select className="input" value={v} onChange={(e) => onChange(e.target.value)}>
         <option value="">—</option>
-        {(field.options || []).map((o) => (
+        {orphaned ? <option value={orphaned}>{orphaned} (no longer offered)</option> : null}
+        {options.map((o) => (
           <option key={o} value={o}>{o}</option>
         ))}
       </select>
@@ -80,8 +99,15 @@ export default function FieldInput({ field, value, onChange, row, matterId, uplo
   }
 
   if (field.type === 'textarea') {
+    /*
+     * min-h-[76px] fit about three words in a 220px column, so "QB Case
+     * Expenses as of 8-31-26" wrapped to two cramped lines and anything longer
+     * had to be scrolled inside the cell. Taller here, wider in
+     * lib/sections/columns.js -- the two have to move together or the extra
+     * height just makes a narrow box tall.
+     */
     return (
-      <textarea className="input min-h-[76px]" value={v} onChange={(e) => onChange(e.target.value)} />
+      <textarea className="input min-h-[112px] leading-snug" value={v} onChange={(e) => onChange(e.target.value)} />
     );
   }
 

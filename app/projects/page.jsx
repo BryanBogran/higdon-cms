@@ -18,7 +18,7 @@ import { useData } from '@/lib/data/DataProvider';
 import CreateProjectPanel from '@/components/projects/CreateProjectPanel';
 import { matterTitle, initials, avatarColor } from '@/lib/domain/matter';
 import {
-  buildCaseList, SORTS, CASE_TYPES, DEPO_FILTERS, directionLabel,
+  buildCaseList, SORTS, CASE_TYPES, DEPO_FILTERS, CHECKLIST_FILTERS, directionLabel,
 } from '@/lib/domain/case-list';
 import { FIELD_BY_KEY } from '@/lib/domain/fields';
 
@@ -32,6 +32,7 @@ export default function ProjectHubPage() {
   const [attorney, setAttorney] = useState('');
   const [caseType, setCaseType] = useState('');
   const [depo, setDepo] = useState('');
+  const [checklist, setChecklist] = useState('');
   const [sort, setSort] = useState('activity');
   const [direction, setDirection] = useState('asc');
   const [showArchived, setShowArchived] = useState(false);
@@ -68,8 +69,8 @@ export default function ProjectHubPage() {
    * a component.
    */
   const rows = useMemo(
-    () => buildCaseList(matters, { q, status, attorney, caseType, depo, showArchived, sort, direction }),
-    [matters, q, status, attorney, caseType, depo, showArchived, sort, direction]
+    () => buildCaseList(matters, { q, status, attorney, caseType, depo, checklist, showArchived, sort, direction }),
+    [matters, q, status, attorney, caseType, depo, checklist, showArchived, sort, direction]
   );
 
   const pageRows = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -83,6 +84,10 @@ export default function ProjectHubPage() {
       label: DEPO_FILTERS.find((d) => d.key === depo)?.label || depo,
       clear: () => setDepo(''),
     } : null,
+    checklist ? {
+      label: CHECKLIST_FILTERS.find((c) => c.key === checklist)?.label || checklist,
+      clear: () => setChecklist(''),
+    } : null,
     q.trim() ? { label: `"${q.trim()}"`, clear: () => setQ('') } : null,
   ].filter(Boolean);
 
@@ -90,7 +95,7 @@ export default function ProjectHubPage() {
   // a sort hides nothing -- putting one there would make Clear filters look
   // like it had left something on.
   function clearAll() {
-    setStatus(''); setAttorney(''); setCaseType(''); setDepo(''); setQ(''); setPage(0);
+    setStatus(''); setAttorney(''); setCaseType(''); setDepo(''); setChecklist(''); setQ(''); setPage(0);
   }
 
   return (
@@ -129,6 +134,13 @@ export default function ProjectHubPage() {
           options={CASE_TYPES} />
         <Facet label="Depositions" value={depo} onChange={(v) => { setDepo(v); setPage(0); }}
           options={DEPO_FILTERS.map((d) => ({ value: d.key, label: d.label }))} />
+
+        {/* Every checklist item, done or not. Grouped by section so the list
+            reads the way the rail does. The Depositions facet above stays:
+            it expresses "either" and "neither", which a per-item filter
+            cannot, and it is the control the firm asked us to copy. */}
+        <Facet label="Checklist" value={checklist} onChange={(v) => { setChecklist(v); setPage(0); }}
+          options={CHECKLIST_FILTERS.map((c) => ({ value: c.key, label: c.label, group: c.section }))} />
 
         {/* Sort sits with the filters but is not one: it changes the order,
             never the contents, so it has no "any" option and no chip. */}
@@ -278,6 +290,20 @@ export default function ProjectHubPage() {
  */
 function Facet({ label, value, onChange, options = [] }) {
   const items = options.map((o) => (typeof o === 'string' ? { value: o, label: o } : o));
+
+  /*
+   * Grouped when any option carries a `group`. The checklist facet has 26
+   * options across five sections; ungrouped that is a wall, and the section is
+   * how anyone finds the item they mean.
+   */
+  const groups = items.some((o) => o.group)
+    ? items.reduce((acc, o) => {
+      const g = o.group || '';
+      (acc[g] = acc[g] || []).push(o);
+      return acc;
+    }, {})
+    : null;
+
   return (
     <div className="relative">
       <select
@@ -287,9 +313,17 @@ function Facet({ label, value, onChange, options = [] }) {
         className="appearance-none bg-surface border border-line-strong rounded pl-3 pr-8 py-1.5 text-sm text-ink-2"
       >
         <option value="">{label}</option>
-        {items.map((o) => (
-          <option key={o.value} value={o.value}>{o.label}</option>
-        ))}
+        {groups
+          ? Object.entries(groups).map(([g, opts]) => (
+            <optgroup key={g} label={g}>
+              {opts.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </optgroup>
+          ))
+          : items.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
       </select>
       <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-4 pointer-events-none" />
     </div>

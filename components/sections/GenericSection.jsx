@@ -65,9 +65,16 @@ function Collection({ matterId, sectionKey, collection, uploadFolder }) {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
+              {/*
+                Headers are text-ink-2 and bold, not text-ink-4 and semibold.
+                At the faint end of the ink scale they disappeared into the rows
+                and staff could not tell which column they were typing in. Every
+                section table shares this renderer, so this is the one place it
+                changes.
+              */}
               <tr className="border-b border-line-soft bg-canvas">
                 {cols.map((c) => (
-                  <th key={c.key} className="text-left px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-ink-4 whitespace-nowrap">
+                  <th key={c.key} className="text-left px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-ink-2 whitespace-nowrap">
                     {c.label}
                   </th>
                 ))}

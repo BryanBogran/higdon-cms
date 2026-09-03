@@ -26,7 +26,7 @@ import Link from 'next/link';
 import { AlertTriangle, ArrowRight } from 'lucide-react';
 import { useData } from '@/lib/data/DataProvider';
 import {
-  computeSettlement, statementLines, formatMoney,
+  computeSettlement, statementLines, formatMoney, totalLiens,
   COMMON_FEE_PERCENTS, FEE_BASIS, EXPENSE_BASIS,
 } from '@/lib/domain/settlement';
 import { FIELDS } from '@/lib/domain/fields';
@@ -52,8 +52,20 @@ export default function SettlementCalculatorSection({ matterId, matter }) {
   // edit the record of what was originally charged.
   const reductions = settings.reductions || {};
 
+  /*
+   * And per-line dollar amounts, for the same reason and in the same place. A
+   * bill is what the provider charged; the settlement figure is what was
+   * negotiated. Typing the second over the first would lose the first.
+   *
+   * The override replaces the billed amount, then the reduction applies to it.
+   */
+  const overrides = settings.overrides || {};
+
   const setReduction = (rowId, percent) =>
     setSectionField(matterId, KEY, 'reductions', { ...reductions, [rowId]: percent });
+
+  const setOverride = (rowId, amount) =>
+    setSectionField(matterId, KEY, 'overrides', { ...overrides, [rowId]: amount });
 
   const result = useMemo(
     () =>
@@ -67,10 +79,21 @@ export default function SettlementCalculatorSection({ matterId, matter }) {
         lienRows,
         includeLiens,
         reductions,
+        overrides,
       }),
     [matter?.values?.settlementAmount, feePercent, feeBasis, medicalRows, expenseRows,
-     expenseBasis, lienRows, includeLiens, reductions]
+     expenseBasis, lienRows, includeLiens, reductions, overrides]
   );
+
+  /*
+   * The lien figure to DISPLAY, which is not the one in `result`.
+   * `computeSettlement` reports lienCents as 0 when the deduct toggle is off,
+   * because that is what it subtracts. The firm asked to see the amount
+   * regardless, so it is computed here and shown either way. `totalLiens`
+   * already nets each lien's reduction and refuses a reduction larger than
+   * the lien itself.
+   */
+  const lienTotal = useMemo(() => totalLiens(lienRows), [lienRows]);
 
   const lines = statementLines(result);
 
@@ -250,18 +273,48 @@ export default function SettlementCalculatorSection({ matterId, matter }) {
         total={result.medicalCents}
         original={result.medicalOriginalCents}
         onReduction={setReduction}
+        onOverride={setOverride}
         emptyHref={`/matters/${matterId}/medicals`}
         emptyLabel="No provider rows on Medicals yet."
       />
 
-      <LineTable
+      {/*
+        Expenses as ONE total, not a line each.
+        A case accumulates dozens of small expenses -- postage, parking, a
+        crash report -- and listing every one pushed the figure that matters
+        off the screen. The breakdown is still here, one click away, because a
+        disbursement total nobody can check is not worth much either.
+      */}
+      <Totals
         title="Expenses"
-        lines={result.expenseLines?.lines || []}
         total={result.expenseCents}
-        original={result.expenseOriginalCents}
-        onReduction={setReduction}
-        emptyHref={`/matters/${matterId}/expenses`}
+        count={result.expenseLines?.count || 0}
+        missing={result.expenseLines?.missing || 0}
+        lines={result.expenseLines?.lines || []}
+        href={`/matters/${matterId}/expenses`}
         emptyLabel="No expense rows yet."
+        noun="expense"
+      />
+
+      {/*
+        ⚠️ LIENS ARE SHOWN, AND NOT DEDUCTED UNLESS ASKED.
+        On a PI file the provider bills usually ARE the liens, so deducting
+        both takes the same money off the client twice -- see settlement.js.
+        The firm asked for the lien amount to show up here, so it shows; the
+        deduction stays the per-file decision it was, on the toggle above.
+      */}
+      <Totals
+        title="Liens"
+        total={lienTotal.cents}
+        count={lienTotal.count}
+        missing={lienTotal.missing}
+        lines={[]}
+        href={`/matters/${matterId}/liens`}
+        emptyLabel="No liens recorded."
+        noun="lien"
+        note={includeLiens
+          ? 'Deducted from the client\u2019s net below.'
+          : 'Shown for reference \u2014 not deducted. Tick \u201calso deduct liens\u201d above to subtract it.'}
       />
 
       <p className="text-xs text-warn-ink">
@@ -276,11 +329,15 @@ export default function SettlementCalculatorSection({ matterId, matter }) {
  * One of the two deduction tables Filevine shows beneath the summary:
  * provider, original amount, reduction %, reduced amount.
  *
- * The percentage is edited here rather than on the Meds or Expenses row,
- * because negotiating a bill down is an outcome of this calculation and must
- * not rewrite the record of what was originally charged.
+ * Both the dollar figure and the percentage are edited here rather than on the
+ * Meds or Expenses row, because negotiating a bill down is an outcome of this
+ * calculation and must not rewrite the record of what was originally charged.
+ *
+ * "Billed" is shown beside "Use" so a substituted amount is visible. A
+ * calculator that quietly disagrees with the Medicals tab is worse than one
+ * that cannot be edited at all.
  */
-function LineTable({ title, lines, total, original, onReduction, emptyHref, emptyLabel }) {
+function LineTable({ title, lines, total, original, onReduction, onOverride, emptyHref, emptyLabel }) {
   return (
     <div className="bg-surface rounded-xl border border-line shadow-sm">
       <div className="px-5 py-3 border-b border-line-soft flex items-center justify-between">
@@ -302,7 +359,7 @@ function LineTable({ title, lines, total, original, onReduction, emptyHref, empt
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-line-soft bg-canvas">
-              {['Provider', 'Original Amount', 'Red. (%)', 'Reduced Amount'].map((h, i) => (
+              {['Provider', 'Billed', 'Use', 'Red. (%)', 'Amount'].map((h, i) => (
                 <th
                   key={h}
                   className={`px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-ink-4 ${i ? 'text-right' : 'text-left'}`}
@@ -316,8 +373,25 @@ function LineTable({ title, lines, total, original, onReduction, emptyHref, empt
             {lines.map((l) => (
               <tr key={l.id} className="border-b border-line-soft last:border-0">
                 <td className="px-4 py-2 text-ink">{l.label}</td>
-                <td className="px-4 py-2 text-right tabular-nums text-ink-2">
-                  {formatMoney(l.originalCents)}
+                {/* What the section says. Read-only here on purpose: this is
+                    the record of what was charged. */}
+                <td className="px-4 py-2 text-right tabular-nums text-ink-3">
+                  {l.billedCents === null ? '—' : formatMoney(l.billedCents)}
+                </td>
+                <td className="px-4 py-2 text-right">
+                  {onOverride ? (
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={l.overriddenCents === null ? '' : String(l.overriddenCents / 100)}
+                      onChange={(e) => onOverride(l.id, e.target.value)}
+                      placeholder={l.billedCents === null ? '' : String(l.billedCents / 100)}
+                      title="Leave blank to use the billed amount"
+                      className="input w-24 text-right"
+                    />
+                  ) : (
+                    <span className="tabular-nums text-ink-2">{formatMoney(l.originalCents)}</span>
+                  )}
                 </td>
                 <td className="px-4 py-2 text-right">
                   <input
@@ -337,6 +411,72 @@ function LineTable({ title, lines, total, original, onReduction, emptyHref, empt
           </tbody>
         </table>
       )}
+    </div>
+  );
+}
+
+/**
+ * One figure, with the detail behind a disclosure.
+ *
+ * Expenses used to render a line each and a case accumulates dozens of small
+ * ones -- postage, parking, a crash report -- which pushed the total that
+ * matters off the screen. So the total leads.
+ *
+ * The breakdown is still reachable, because a disbursement figure nobody can
+ * check is not worth much: `missing` is surfaced rather than swallowed, since a
+ * row with no readable amount is silently absent from the total and that is
+ * exactly the kind of gap that only shows up when a cheque is wrong.
+ */
+function Totals({ title, total, count, missing, lines, href, emptyLabel, noun, note }) {
+  return (
+    <div className="bg-surface rounded-xl border border-line shadow-sm">
+      <div className="px-5 py-3 border-b border-line-soft flex items-center justify-between gap-4">
+        <h2 className="font-semibold text-ink">{title}</h2>
+        <span className="text-sm tabular-nums font-medium text-ink">{formatMoney(total)}</span>
+      </div>
+
+      <div className="px-5 py-3 text-sm text-ink-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+        {count === 0 ? (
+          <>
+            <span>{emptyLabel}</span>
+            <Link href={href} className="text-accent-ink hover:underline">Add one</Link>
+          </>
+        ) : (
+          <>
+            <span>
+              {count} {noun}{count === 1 ? '' : 's'}
+            </span>
+            <Link href={href} className="text-accent-ink hover:underline">Open {title.toLowerCase()}</Link>
+            {missing > 0 ? (
+              <span className="text-warn-ink">
+                {missing} with no amount, so not counted
+              </span>
+            ) : null}
+          </>
+        )}
+      </div>
+
+      {note ? <p className="px-5 pb-3 text-xs text-ink-3">{note}</p> : null}
+
+      {lines.length > 0 ? (
+        <details className="border-t border-line-soft">
+          <summary className="px-5 py-2 text-xs text-ink-3 cursor-pointer hover:text-ink-2">
+            Show the {lines.length} line{lines.length === 1 ? '' : 's'}
+          </summary>
+          <table className="w-full text-sm border-t border-line-soft">
+            <tbody>
+              {lines.map((l) => (
+                <tr key={l.id} className="border-b border-line-soft last:border-0">
+                  <td className="px-5 py-1.5 text-ink-2">{l.label}</td>
+                  <td className="px-5 py-1.5 text-right tabular-nums text-ink-2">
+                    {formatMoney(l.reducedCents)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </details>
+      ) : null}
     </div>
   );
 }
