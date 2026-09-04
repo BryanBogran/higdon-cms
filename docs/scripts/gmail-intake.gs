@@ -28,7 +28,10 @@
  *   CMS_SECRET    the same value as INBOUND_EMAIL_SECRET in Vercel
  *   CMS_PREFIX    the tagged address prefix, e.g. `files+`  — MUST match
  *                 NEXT_PUBLIC_INTAKE_MAIL_USER in Vercel, plus a "+"
- *   CMS_POLL_MINUTES  optional. 1, 5, 10, 15 or 30. Defaults to 1.
+ *   CMS_POLL_MINUTES  optional. 1, 5, 10, 15 or 30. Defaults to 5.
+ *                 Was 1. Five minutes costs a client's email four extra
+ *                 minutes and cuts the cost of a bad day by five — see the
+ *                 retry policy note below.
  */
 
 var LABEL_FILED = 'CMS/Filed';
@@ -42,6 +45,73 @@ var MAX_BYTES = 25 * 1024 * 1024;
 // left stays unread and goes on the next run.
 var MAX_PER_RUN = 40;
 
+/* ── RETRY POLICY ─────────────────────────────────────────────
+ *
+ * A 5xx used to mean "leave it untouched, the next run retries". That is
+ * right for a blip and catastrophic for an outage. With a one-minute trigger
+ * and MAX_PER_RUN of 40, a server that is permanently unhappy receives 57,600
+ * POSTs a day, each carrying a full MIME message with its attachments.
+ *
+ * That is not hypothetical: it exhausted a 10 GB Vercel transfer allowance in
+ * three days, and the exhaustion then kept the endpoint failing, so the loop
+ * fed itself. Nothing was lost — messages stay unread on a 5xx — but four days
+ * of case mail went unfiled while the bill ran.
+ *
+ * Two limits now apply.
+ *
+ *   A CIRCUIT BREAKER. The first 5xx aborts the whole run. A 5xx is almost
+ *   never about the message — it is the server, the database or the storage
+ *   bucket — so POSTing the other 39 is guaranteed waste. Runs then skip
+ *   entirely until a backoff expires, doubling from two minutes to a six-hour
+ *   ceiling. Any 2xx clears it, so a real blip costs one extra run.
+ *
+ *   A PER-MESSAGE CAP. If one specific message fails MAX_ATTEMPTS times it is
+ *   labelled CMS/Failed and left for a person, exactly as a 4xx is. Without
+ *   this, one message the server cannot stomach would reopen the breaker
+ *   forever and never reach anybody's attention.
+ */
+var MAX_ATTEMPTS = 5;
+var BACKOFF_START_MIN = 2;
+var BACKOFF_CEILING_MIN = 360;
+
+var ATTEMPTS_KEY = 'CMS_ATTEMPTS';
+var BACKOFF_UNTIL_KEY = 'CMS_BACKOFF_UNTIL';
+var BACKOFF_LEVEL_KEY = 'CMS_BACKOFF_LEVEL';
+
+// A Script Property value is capped at 9 KB. Two hundred short Gmail ids sit
+// well inside that, and overflowing simply resets the map — which costs a few
+// messages one extra attempt each, and never loses a message.
+var MAX_TRACKED = 200;
+
+function readAttempts(props) {
+  try {
+    return JSON.parse(props.getProperty(ATTEMPTS_KEY) || '{}');
+  } catch (e) {
+    // A corrupt map must not stop the mail. Start again.
+    return {};
+  }
+}
+
+function writeAttempts(props, map) {
+  if (Object.keys(map).length > MAX_TRACKED) map = {};
+  props.setProperty(ATTEMPTS_KEY, JSON.stringify(map));
+}
+
+/** Open the breaker, doubling the wait each consecutive failure. */
+function openBreaker(props) {
+  var level = Number(props.getProperty(BACKOFF_LEVEL_KEY) || 0);
+  var wait = Math.min(BACKOFF_START_MIN * Math.pow(2, level), BACKOFF_CEILING_MIN);
+  props.setProperty(BACKOFF_LEVEL_KEY, String(level + 1));
+  props.setProperty(BACKOFF_UNTIL_KEY, String(Date.now() + wait * 60 * 1000));
+  return wait;
+}
+
+/** Any success means the server is back; forget the whole backoff history. */
+function closeBreaker(props) {
+  props.deleteProperty(BACKOFF_LEVEL_KEY);
+  props.deleteProperty(BACKOFF_UNTIL_KEY);
+}
+
 function pollInbox() {
   var props = PropertiesService.getScriptProperties();
   var url = props.getProperty('CMS_WEBHOOK');
@@ -50,6 +120,19 @@ function pollInbox() {
   if (!url || !secret || !prefix) {
     throw new Error('Set CMS_WEBHOOK, CMS_SECRET and CMS_PREFIX in Project Settings → Script Properties.');
   }
+
+  /*
+   * Is the breaker open? Checked before any Gmail work, because the point is
+   * to cost nothing: no search, no getRawContent, no POST.
+   */
+  var until = Number(props.getProperty(BACKOFF_UNTIL_KEY) || 0);
+  if (until && Date.now() < until) {
+    console.log('Backing off after a server error — next attempt at ' +
+      new Date(until).toISOString() + '. Run testConnection to see the current error.');
+    return;
+  }
+
+  var attempts = readAttempts(props);
 
   var filed = getOrCreateLabel(LABEL_FILED);
   var failed = getOrCreateLabel(LABEL_FAILED);
@@ -115,6 +198,8 @@ function pollInbox() {
       }
 
       var code = res.getResponseCode();
+      var id = msg.getId();
+
       if (code >= 200 && code < 300) {
         /*
          * Marked read only on a 2xx. The app returns 200 with `filed: 0` for a
@@ -124,17 +209,39 @@ function pollInbox() {
          */
         msg.markRead();
         threads[t].addLabel(filed);
+        delete attempts[id];
+        closeBreaker(props);
         sent++;
       } else if (code >= 400 && code < 500) {
         // A 4xx will not fix itself — bad secret, message too large. Flag it
         // for a person rather than hammering the endpoint.
         threads[t].addLabel(failed);
+        delete attempts[id];
         skipped++;
+      } else {
+        /*
+         * 5xx. Count it against this message, then STOP THE RUN — see the
+         * retry policy above. The remaining messages stay unread and
+         * unlabelled, so nothing is lost by not trying them now.
+         */
+        attempts[id] = (attempts[id] || 0) + 1;
+        var tries = attempts[id];
+        if (tries >= MAX_ATTEMPTS) {
+          threads[t].addLabel(failed);
+          delete attempts[id];
+          skipped++;
+        }
+        writeAttempts(props, attempts);
+        var wait = openBreaker(props);
+        console.log('Server error ' + code + ' after ' + tries + ' attempt(s) — run aborted, ' +
+          'next attempt in ' + wait + ' minute(s). Response: ' +
+          res.getContentText().slice(0, 300));
+        return;
       }
-      // 5xx: leave untouched. The next run retries.
     }
   }
 
+  writeAttempts(props, attempts);
   console.log('filed ' + sent + ', flagged ' + skipped + ', not case mail ' + ignored);
 }
 
@@ -164,7 +271,7 @@ var ALLOWED_MINUTES = [1, 5, 10, 15, 30];
 
 function installTrigger() {
   var raw = PropertiesService.getScriptProperties().getProperty('CMS_POLL_MINUTES');
-  var minutes = raw ? Number(raw) : 1;
+  var minutes = raw ? Number(raw) : 5;
   if (ALLOWED_MINUTES.indexOf(minutes) === -1) {
     throw new Error(
       'CMS_POLL_MINUTES must be one of ' + ALLOWED_MINUTES.join(', ') +

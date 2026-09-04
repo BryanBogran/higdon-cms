@@ -157,6 +157,11 @@ export async function POST(request) {
     .in('intake_slug', slugs);
 
   if (lookupError) {
+    // Logged, not just returned. The caller is a script whose only record of a
+    // failure is its own execution log; a 500 that says nothing anywhere the
+    // firm can see it is a fault nobody can diagnose. See the note below on
+    // what is deliberately NOT logged.
+    console.error('[inbound-email] matter lookup failed:', lookupError.message);
     return NextResponse.json({ error: lookupError.message }, { status: 500 });
   }
 
@@ -236,8 +241,28 @@ export async function POST(request) {
     filed.push({ matterId: matter.id, activityId: data.id });
   }
 
-  // A partial failure returns 500 so the provider retries; the rows that did
-  // land are protected from duplication by the dedupe key.
+  /*
+   * A partial failure returns 500 so the provider retries; the rows that did
+   * land are protected from duplication by the dedupe key.
+   *
+   * ⚠️ The retry is only safe because the CALLER limits it. docs/scripts/
+   * gmail-intake.gs aborts its run on the first 5xx and backs off to a
+   * six-hour ceiling. Without that, this line is an instruction to POST the
+   * same MIME message every minute forever -- which is exactly what happened
+   * on 2026-08-31, and it cost a 10 GB transfer allowance in three days.
+   *
+   * ── What is logged, and what is not ─────────────────────────────────────
+   * The ERROR and the matter id, because that is what makes this diagnosable.
+   * Never the subject, the body, the sender or a filename: this is privileged
+   * client correspondence, and Vercel's logs are neither the firm's records
+   * nor covered by its retention rules.
+   */
+  if (failed.length) {
+    for (const f of failed) {
+      console.error(`[inbound-email] matter ${f.matterId} not filed:`, f.error);
+    }
+  }
+
   const status = failed.length ? 500 : 200;
   return NextResponse.json({ ok: !failed.length, filed, failed }, { status });
 }
