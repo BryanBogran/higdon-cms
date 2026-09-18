@@ -26,7 +26,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Pin, MoreVertical, CheckCircle2, Circle, ListPlus, Paperclip, Trash2, Pencil, Check, X, AlertTriangle } from 'lucide-react';
+import { Pin, MoreVertical, CheckCircle2, Circle, ListPlus, Paperclip, Trash2, Pencil, Check, X, AlertTriangle, MessageSquare, CornerDownRight } from 'lucide-react';
 import { fmt, urgency, nextBusinessDay, todayInFirmTz, checkBadDate } from '@/lib/domain/dates';
 import { matterTitle, avatarColor } from '@/lib/domain/matter';
 import { useData } from '@/lib/data/DataProvider';
@@ -97,7 +97,7 @@ function DueDateInput({ value, onChange, id }) {
 }
 
 export default function ActivityCard({ entry, showMatter = true }) {
-  const { matters, activity, people, currentUser, updateActivity, deleteActivity, assignActivityAsTask } = useData();
+  const { matters, activity, people, replies, currentUser, updateActivity, deleteActivity, assignActivityAsTask, addReply, deleteReply } = useData();
   const matter = entry.matterId ? matters[entry.matterId] : null;
   const isTask = entry.kind === 'task';
   const isEmail = entry.kind === 'email';
@@ -415,6 +415,112 @@ export default function ActivityCard({ entry, showMatter = true }) {
           </button>
         )}
       </div>
+
+      <Thread
+        entry={entry}
+        thread={replies?.[entry.id] || []}
+        onReply={(body) => addReply(entry.id, body)}
+        onDelete={(replyId) => deleteReply(entry.id, replyId)}
+      />
     </article>
+  );
+}
+
+/**
+ * The conversation under an entry.
+ *
+ * ── Why a thread and not another note ────────────────────────────────────
+ *
+ * "Couldn't complete this — the provider hasn't sent the records" is about a
+ * specific task, and posted as a separate note it becomes a line in a feed
+ * that scrolls away from the thing it explains. Filevine keeps the answer
+ * attached to the question; so does this.
+ *
+ * Collapsed until there is something to read, because a reply box under every
+ * entry in a long feed is noise. The count is the affordance: a thread with
+ * replies says so, an empty one offers to start.
+ */
+function Thread({ entry, thread, onReply, onDelete }) {
+  const [open, setOpen] = useState(thread.length > 0);
+  const [draft, setDraft] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  async function send(e) {
+    e?.preventDefault();
+    const body = draft.trim();
+    if (!body || busy) return;
+    setBusy(true);
+    setError('');
+    const result = await onReply(body);
+    setBusy(false);
+    // The draft is cleared only on success -- clearing first is how a failed
+    // save takes somebody's typing with it and leaves nothing to retry from.
+    if (result?.ok) setDraft('');
+    else setError(result?.error || 'Could not post that reply.');
+  }
+
+  return (
+    <div className="px-5 pb-3">
+      {!open ? (
+        <button
+          onClick={() => setOpen(true)}
+          className="flex items-center gap-1.5 text-xs text-ink-4 hover:text-accent-ink"
+        >
+          <MessageSquare size={13} />
+          {thread.length ? `${thread.length} ${thread.length === 1 ? 'reply' : 'replies'}` : 'Reply'}
+        </button>
+      ) : (
+        <div className="border-l-2 border-line-soft pl-3">
+          {thread.map((r) => (
+            <div key={r.id} className="group flex items-start gap-1.5 py-1.5">
+              <CornerDownRight size={12} className="mt-1 shrink-0 text-ink-4" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-ink-3">
+                  <span className="font-semibold text-ink-2">{r.author}</span>
+                  {r.createdAt
+                    ? ` · ${new Date(r.createdAt).toLocaleString('en-US', {
+                        month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit',
+                      })}`
+                    : null}
+                </p>
+                <p className="whitespace-pre-wrap text-sm text-ink">{r.body}</p>
+              </div>
+              <button
+                onClick={() => onDelete(r.id)}
+                title="Delete this reply"
+                className="p-0.5 text-ink-4 opacity-0 transition group-hover:opacity-100 hover:text-danger-ink"
+              >
+                <Trash2 size={12} />
+              </button>
+            </div>
+          ))}
+
+          <form onSubmit={send} className="mt-1.5 flex items-end gap-1.5">
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                // Enter sends; Shift+Enter is a new line. A reply is usually one
+                // sentence, and reaching for a button for each is friction.
+                if (e.key === 'Enter' && !e.shiftKey) send(e);
+              }}
+              rows={1}
+              placeholder={`Reply to ${entry.author || 'this'}…`}
+              className="input min-h-[34px] flex-1 resize-y py-1.5 text-sm"
+            />
+            <button
+              type="submit"
+              disabled={!draft.trim() || busy}
+              className="shrink-0 rounded bg-accent-solid px-3 py-1.5 text-xs font-semibold text-white hover:bg-accent-solid-2 disabled:opacity-40"
+            >
+              {busy ? 'Posting…' : 'Reply'}
+            </button>
+          </form>
+
+          {error ? <p className="mt-1 text-xs text-danger-ink">{error}</p> : null}
+        </div>
+      )}
+    </div>
   );
 }

@@ -55,6 +55,9 @@ export function DataProvider({ children }) {
   const [team, setTeam] = useState({});
   // The assignable roster: active people, no shared mailboxes. See lib/domain/team.js.
   const [people, setPeople] = useState([]);
+  // Threads, grouped by the entry they answer. Kept OUT of `activity` so
+  // nothing iterating the feed can render a reply as a post of its own.
+  const [replies, setReplies] = useState({});
   const [sections, setSections] = useState({});
   const [activity, setActivity] = useState({});
   const [relations, setRelations] = useState([]);
@@ -88,7 +91,7 @@ export function DataProvider({ children }) {
   // READS during render must come from state, not this ref -- the ref syncs in
   // an effect that runs after render, so a render triggered by the initial load
   // would see stale data with no second render to correct it.
-  const ref = useRef({ matters, tasks, sections, activity, contacts });
+  const ref = useRef({ matters, tasks, sections, activity, contacts, replies });
 
   /*
    * Rows whose INSERT is still in flight, keyed by the temporary id the
@@ -174,8 +177,8 @@ export function DataProvider({ children }) {
     return false;
   }, []);
   useEffect(() => {
-    ref.current = { matters, tasks, sections, activity, contacts };
-  }, [matters, tasks, sections, activity, contacts]);
+    ref.current = { matters, tasks, sections, activity, contacts, replies };
+  }, [matters, tasks, sections, activity, contacts, replies]);
 
   useEffect(() => {
     let cancelled = false;
@@ -226,6 +229,7 @@ export function DataProvider({ children }) {
         setSections(data.sections || {});
         setTeam(data.team || {});
         setPeople(data.people || []);
+        setReplies(data.replies || {});
         setContacts(data.contacts || {});
       } catch (err) {
         if (cancelled) return;
@@ -307,6 +311,7 @@ export function DataProvider({ children }) {
           if (patch.activity) setActivity(patch.activity);
           if (patch.sections) setSections(patch.sections);
           if (patch.contacts) setContacts(patch.contacts);
+          if (patch.replies) setReplies(patch.replies);
         });
       }
 
@@ -414,10 +419,43 @@ export function DataProvider({ children }) {
         setSections(data.sections || {});
         setTeam(data.team || {});
         setPeople(data.people || []);
+        setReplies(data.replies || {});
         setContacts(data.contacts || {});
         ref.current = { ...ref.current, matters: data.matters || {}, tasks: data.tasks || {} };
       } catch (err) {
         return { ...result, ok: false, error: `Imported, but could not reload: ${err?.message || err}` };
+      }
+      return result;
+    },
+    [run]
+  );
+
+  /** Reply to an entry. A thread, the way Filevine does it. */
+  const addReply = useCallback(
+    async (parentId, body) => {
+      const text = String(body || '').trim();
+      if (!text) return { ok: false, error: 'A reply needs something in it.' };
+
+      const result = await run((s) => s.addReply(parentId, { body: text, author: authorLabel() }));
+      if (result.ok && result.reply) {
+        setReplies((prev) => ({
+          ...prev,
+          [parentId]: [...(prev[parentId] || []), result.reply],
+        }));
+      }
+      return result;
+    },
+    [run, authorLabel]
+  );
+
+  const deleteReply = useCallback(
+    async (parentId, replyId) => {
+      const result = await run((s) => s.deleteActivity(replyId));
+      if (result.ok) {
+        setReplies((prev) => ({
+          ...prev,
+          [parentId]: (prev[parentId] || []).filter((r) => r.id !== replyId),
+        }));
       }
       return result;
     },
@@ -968,20 +1006,20 @@ export function DataProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      matters, tasks, team, people, sections, activity, relations, contacts, loaded, saveState, backend, currentUser,
+      matters, tasks, team, people, sections, activity, replies, relations, contacts, loaded, saveState, backend, currentUser,
       createMatter, importMatters, updateMatterField, setChecklistItem, archiveMatter, unarchiveMatter, deleteMatter,
       createContact, updateContact, linkClientContact,
       createTask, updateTask, setTaskComplete, clearTaskOverride, deleteTask, bulkSetComplete,
       sectionState, setSectionField, addSectionRow, updateSectionRow, deleteSectionRow,
-      addActivity, addEmail, signFile, addRelation, removeRelation, updateActivity, deleteActivity, assignActivityAsTask, saveTeam,
+      addActivity, addReply, deleteReply, addEmail, signFile, addRelation, removeRelation, updateActivity, deleteActivity, assignActivityAsTask, saveTeam,
     }),
     [
-      matters, tasks, team, people, sections, activity, relations, contacts, loaded, saveState, backend, currentUser,
+      matters, tasks, team, people, sections, activity, replies, relations, contacts, loaded, saveState, backend, currentUser,
       createMatter, importMatters, updateMatterField, setChecklistItem, archiveMatter, unarchiveMatter, deleteMatter,
       createContact, updateContact, linkClientContact,
       createTask, updateTask, setTaskComplete, clearTaskOverride, deleteTask, bulkSetComplete,
       sectionState, setSectionField, addSectionRow, updateSectionRow, deleteSectionRow,
-      addActivity, addEmail, signFile, addRelation, removeRelation, updateActivity, deleteActivity, assignActivityAsTask, saveTeam,
+      addActivity, addReply, deleteReply, addEmail, signFile, addRelation, removeRelation, updateActivity, deleteActivity, assignActivityAsTask, saveTeam,
     ]
   );
 
