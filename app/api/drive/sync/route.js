@@ -37,7 +37,7 @@ export const dynamic = 'force-dynamic';
 async function loadMatters(db) {
   const { data, error } = await db
     .from('matter')
-    .select('id, client_name, case_number, drive_folder_id, deleted_at');
+    .select('id, client_name, case_number, drive_folder_id, drive_folder_name, deleted_at');
   if (error) return { ok: false, error: error.message };
 
   const matters = {};
@@ -45,6 +45,9 @@ async function loadMatters(db) {
     matters[row.id] = {
       values: { clientName: row.client_name, caseNumber: row.case_number },
       driveFolderId: row.drive_folder_id,
+      // Cached at link time. Compared against Drive below so a folder renamed
+      // afterwards does not keep showing its old name forever.
+      driveFolderName: row.drive_folder_name || '',
       archivedAt: row.deleted_at || undefined,
     };
   }
@@ -156,6 +159,37 @@ async function linkFolders(db, user) {
   const plan = planSync(listed.folders, loaded.matters);
   const failed = [];
   let linked = 0;
+  let renamed = 0;
+
+  /*
+   * ── A LINKED FOLDER THAT HAS BEEN RENAMED ────────────────────────────
+   *
+   * `drive_folder_name` was written once, at link time, and nothing ever
+   * touched it again: this loop only ever ran over `plan.auto` and newly
+   * created cases, and merely COUNTED plan.linked.
+   *
+   * So renaming a case folder in Drive -- which is exactly what happens when
+   * a case number is corrected -- left the app showing the old name in its
+   * breadcrumb indefinitely. The case header said 23-015 and the documents
+   * trail underneath said 23-105, on the same screen.
+   *
+   * Only the label is refreshed. The link itself is by folder ID and is not
+   * touched, so this cannot re-point a case at a different folder.
+   */
+  for (const item of plan.linked) {
+    const known = loaded.matters[item.matterId]?.driveFolderName || '';
+    const actual = item.folder?.name || '';
+    if (!actual || known === actual) continue;
+
+    const { error } = await db
+      .from('matter')
+      .update({ drive_folder_name: actual })
+      .eq('id', item.matterId)
+      .eq('drive_folder_id', item.folder.id); // belt and braces: same folder
+
+    if (error) failed.push({ folder: actual, error: error.message });
+    else renamed++;
+  }
 
   for (const item of plan.auto) {
     const { error } = await db
@@ -194,6 +228,8 @@ async function linkFolders(db, user) {
   return NextResponse.json({
     ok: failed.length === 0,
     linked,
+    // Folders whose cached name was refreshed because Drive's had changed.
+    renamed,
     queuedForReview: reviews.length,
     alreadyLinked: plan.linked.length,
     failed,
