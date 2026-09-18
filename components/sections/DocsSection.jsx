@@ -17,12 +17,10 @@
  * and returning re-reads Drive, which is the moment you would want fresh data.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import {
-  Folder, FileText, ExternalLink, Search, ChevronRight, Loader2,
-  FolderPlus, AlertCircle, X, Eye, Upload,
-} from 'lucide-react';
+import { Folder, FileText, ExternalLink, Search, ChevronRight, Loader2, FolderPlus, AlertCircle, X, Eye, Upload, ArrowUp, ArrowDown } from 'lucide-react';
+import { sortDriveFiles } from '@/lib/google/drive-paths';
 import { useData } from '@/lib/data/DataProvider';
 
 const PREVIEWABLE = /^(application\/pdf|image\/|application\/vnd\.google-apps\.(document|spreadsheet|presentation))/;
@@ -438,15 +436,57 @@ function Card({ children }) {
   return <div className="bg-surface rounded-xl border border-line shadow-sm">{children}</div>;
 }
 
+/**
+ * The column headings, which are also the sort control.
+ *
+ * Defaults to newest first. A case folder is a pile of correspondence and the
+ * question people actually arrive with is "what came in recently", not "what
+ * begins with A" -- and Drive's own search already returns newest-first, so
+ * this keeps the order somebody was already looking at.
+ */
 function Listing({ rows, onOpenFolder, onPreview, emptyText, note }) {
+  const [sort, setSort] = useState({ key: 'modified', ascending: false });
+  const sorted = useMemo(() => sortDriveFiles(rows, sort), [rows, sort]);
+
+  const toggle = (key) =>
+    setSort((s) =>
+      // Clicking the column you are already on reverses it; a new column
+      // starts in the direction that column is usually wanted in -- newest and
+      // largest first, but names from A.
+      s.key === key ? { key, ascending: !s.ascending } : { key, ascending: key === 'name' });
+
+  const Heading = ({ label, sortKey, className }) => (
+    <button
+      type="button"
+      onClick={() => toggle(sortKey)}
+      className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide transition ${
+        sort.key === sortKey ? 'text-accent-ink' : 'text-ink-4 hover:text-ink-2'
+      } ${className || ''}`}
+    >
+      {label}
+      {sort.key === sortKey
+        ? (sort.ascending ? <ArrowUp size={11} /> : <ArrowDown size={11} />)
+        : null}
+    </button>
+  );
+
   if (!rows.length) {
     return <p className="px-5 py-10 text-center text-sm text-ink-4">{emptyText || 'Nothing here.'}</p>;
   }
   return (
     <>
       {note ? <p className="px-5 pt-2.5 text-xs text-ink-4">{note}</p> : null}
+
+      <div className="px-5 py-1.5 flex items-center gap-3 border-b border-line-soft bg-canvas/60">
+        <span className="w-4 shrink-0" />
+        <Heading label="Name" sortKey="name" className="flex-1 min-w-0 justify-start" />
+        <Heading label="Size" sortKey="size" className="shrink-0" />
+        <Heading label="Modified" sortKey="modified" className="shrink-0 w-24 justify-end" />
+        <span className="w-14 shrink-0" />
+      </div>
+
       <ul className="divide-y divide-line-soft">
-        {rows.map((r) => {
+        {sorted.map((r) => {
           const isFolder = r.isFolder ?? false;
           return (
             <li key={r.id} className="px-5 py-2.5 flex items-center gap-3 hover:bg-hover">
