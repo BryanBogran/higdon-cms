@@ -32,8 +32,16 @@ import { isSupabaseConfigured } from '@/lib/supabase/client';
 import { createLocalStore } from './local-store';
 import { createSupabaseStore } from './supabase-store';
 import { readEmailFile } from '@/lib/data/email-ingest';
+import { applyChange, recordKey, REALTIME_TABLES } from './realtime';
 
 const DataContext = createContext(null);
+
+/*
+ * How long after a local write lands we keep ignoring echoes of it. Long
+ * enough to cover the gap between a write's response and its broadcast,
+ * short enough that a colleague's next edit is not held up noticeably.
+ */
+const ECHO_GRACE_MS = 1500;
 
 const uuid = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID
@@ -77,7 +85,7 @@ export function DataProvider({ children }) {
   // READS during render must come from state, not this ref -- the ref syncs in
   // an effect that runs after render, so a render triggered by the initial load
   // would see stale data with no second render to correct it.
-  const ref = useRef({ matters, tasks, sections, activity });
+  const ref = useRef({ matters, tasks, sections, activity, contacts });
 
   /*
    * Rows whose INSERT is still in flight, keyed by the temporary id the
@@ -93,9 +101,57 @@ export function DataProvider({ children }) {
    * than being thrown at one that was never real.
    */
   const pendingRows = useRef(new Map());
+
+  /*
+   * ── RECOGNISING THE ECHO OF OUR OWN WRITE ──────────────────────────────
+   *
+   * Live sync delivers our own changes back to us, and that is a problem
+   * here for one specific reason: FieldInput calls onChange on EVERY
+   * KEYSTROKE, so typing "Dr Ruiz" is seven writes and seven echoes.
+   *
+   * Applied naively, each echo would set the input back to the value the
+   * server has -- which is always a keystroke or two behind what the person
+   * is typing. The field would stutter and lose characters, which feels
+   * exactly like the bug we just fixed.
+   *
+   * So a record being written locally is suppressed: while any write to it
+   * is in flight, and briefly after, because an echo tends to land just
+   * after the response does. While somebody types, `inFlight` never reaches
+   * zero and no echo can touch the field. A second or so after they stop,
+   * other people's changes flow again.
+   *
+   * The cost is honest and small: an edit made by someone else to the SAME
+   * record in that window is missed until something else touches it. Two
+   * people typing in one field is a conflict no policy resolves well, and
+   * last-writer-wins is what the database does anyway.
+   */
+  const localWrites = useRef(new Map());
+
+  const beginLocalWrite = useCallback((key) => {
+    if (!key) return () => {};
+    const entry = localWrites.current.get(key) || { inFlight: 0, until: 0 };
+    entry.inFlight += 1;
+    localWrites.current.set(key, entry);
+    return () => {
+      const cur = localWrites.current.get(key);
+      if (!cur) return;
+      cur.inFlight = Math.max(0, cur.inFlight - 1);
+      cur.until = Date.now() + ECHO_GRACE_MS;
+    };
+  }, []);
+
+  const isOwnEcho = useCallback((key) => {
+    if (!key) return false;
+    const entry = localWrites.current.get(key);
+    if (!entry) return false;
+    if (entry.inFlight > 0) return true;
+    if (Date.now() < entry.until) return true;
+    localWrites.current.delete(key);
+    return false;
+  }, []);
   useEffect(() => {
-    ref.current = { matters, tasks, sections, activity };
-  }, [matters, tasks, sections, activity]);
+    ref.current = { matters, tasks, sections, activity, contacts };
+  }, [matters, tasks, sections, activity, contacts]);
 
   useEffect(() => {
     let cancelled = false;
@@ -166,6 +222,77 @@ export function DataProvider({ children }) {
       cancelled = true;
     };
   }, []);
+
+  /* ------------------------------------------------------------------ *
+   * LIVE SYNC
+   *
+   * Other people's changes, applied as they land, so nobody is working
+   * from a copy of the case that is hours old. What each change DOES is
+   * in lib/data/realtime.js, on its own and unit-tested; this is only the
+   * plumbing that gets events to it.
+   *
+   * Starts after the initial load, because a change applied to state that
+   * has not arrived yet is a change applied to nothing.
+   *
+   * NEXT_PUBLIC_DISABLE_REALTIME=1 turns it off without a code change.
+   * This is a live case management system and a kill switch that needs a
+   * developer is not a kill switch.
+   * ------------------------------------------------------------------ */
+  useEffect(() => {
+    if (backend !== 'supabase' || !loaded) return undefined;
+    if (process.env.NEXT_PUBLIC_DISABLE_REALTIME === '1') return undefined;
+
+    let db = null;
+    let channel = null;
+    let cancelled = false;
+
+    (async () => {
+      const { getSupabaseBrowserClient } = await import('@/lib/supabase/client');
+      db = getSupabaseBrowserClient();
+      if (!db || cancelled) return;
+
+      channel = db.channel('higdon-cms-live');
+
+      for (const table of REALTIME_TABLES) {
+        channel.on('postgres_changes', { event: '*', schema: 'public', table }, (payload) => {
+          // Postgres sends {} rather than absent for the half that does not
+          // apply, so an empty object means "no row", not "an empty row".
+          const has = (o) => (o && Object.keys(o).length ? o : null);
+          const event = {
+            table,
+            type: payload.eventType,
+            row: has(payload.new),
+            old: has(payload.old),
+          };
+
+          if (isOwnEcho(recordKey(table, event.row || event.old))) return;
+
+          const patch = applyChange(ref.current, event);
+          if (!patch) return;
+
+          /*
+           * ref.current FIRST, and synchronously. setState is asynchronous,
+           * so a burst of events -- an import, or somebody pasting a list --
+           * would otherwise each read the same stale snapshot and the last
+           * one would win. The ref is what the next event reduces against.
+           */
+          ref.current = { ...ref.current, ...patch };
+          if (patch.matters) setMatters(patch.matters);
+          if (patch.tasks) setTasks(patch.tasks);
+          if (patch.activity) setActivity(patch.activity);
+          if (patch.sections) setSections(patch.sections);
+          if (patch.contacts) setContacts(patch.contacts);
+        });
+      }
+
+      channel.subscribe();
+    })();
+
+    return () => {
+      cancelled = true;
+      if (db && channel) db.removeChannel(channel);
+    };
+  }, [backend, loaded, isOwnEcho]);
 
   /** Run a store call and surface the outcome. Never swallows. */
   const run = useCallback(async (fn) => {
@@ -533,9 +660,10 @@ export function DataProvider({ children }) {
         ...s,
         fields: { ...s.fields, [fieldKey]: value },
       }));
-      return run((s) => s.setSectionField(matterId, sectionKey, fieldKey, value));
+      const done = beginLocalWrite(`matter_section_data:${matterId}:${sectionKey}`);
+      return run((s) => s.setSectionField(matterId, sectionKey, fieldKey, value)).finally(done);
     },
-    [run, applySection]
+    [run, applySection, beginLocalWrite]
   );
 
   const addSectionRow = useCallback(
@@ -551,10 +679,21 @@ export function DataProvider({ children }) {
           // Reconcile the optimistic id with the one the store assigned.
           // The spread keeps anything typed while the insert was in flight.
           if (result.id !== optimisticId) {
-            applySection(matterId, sectionKey, (s) => ({
-              ...s,
-              rows: s.rows.map((r) => (r.id === optimisticId ? { ...r, id: result.id } : r)),
-            }));
+            applySection(matterId, sectionKey, (s) => {
+              /*
+               * Live sync may have delivered this very row already, under the
+               * id the database gave it. Renaming the optimistic row on top of
+               * that would leave TWO rows sharing one id -- so when the echo
+               * beat us here, drop our placeholder instead.
+               */
+              const arrivedAlready = s.rows.some((r) => r.id === result.id);
+              return {
+                ...s,
+                rows: arrivedAlready
+                  ? s.rows.filter((r) => r.id !== optimisticId)
+                  : s.rows.map((r) => (r.id === optimisticId ? { ...r, id: result.id } : r)),
+              };
+            });
           }
           return result.id;
         }
@@ -606,9 +745,10 @@ export function DataProvider({ children }) {
         }
       }
 
-      return run((s) => s.updateSectionRow(matterId, sectionKey, id, patch));
+      const done = beginLocalWrite(`matter_section_row:${id}`);
+      return run((s) => s.updateSectionRow(matterId, sectionKey, id, patch)).finally(done);
     },
-    [run, applySection]
+    [run, applySection, beginLocalWrite]
   );
 
   const deleteSectionRow = useCallback(
