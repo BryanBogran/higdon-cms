@@ -33,6 +33,7 @@ import { createLocalStore } from './local-store';
 import { createSupabaseStore } from './supabase-store';
 import { readEmailFile } from '@/lib/data/email-ingest';
 import { applyChange, recordKey, REALTIME_TABLES } from './realtime';
+import { createWriteQueue, DEFAULT_WRITE_DELAY_MS } from './write-queue';
 
 const DataContext = createContext(null);
 
@@ -126,6 +127,27 @@ export function DataProvider({ children }) {
    * last-writer-wins is what the database does anyway.
    */
   const localWrites = useRef(new Map());
+
+  /*
+   * Edits wait here briefly so a burst of typing becomes one write. The local
+   * state is already updated -- only the network call is deferred. See
+   * write-queue.js for why it coalesces AND serialises.
+   */
+  const writes = useRef(null);
+  if (!writes.current) writes.current = createWriteQueue();
+
+  /*
+   * Hold a record as "ours" for the whole time an edit is queued, not just
+   * while the request is in the air. Without this the debounce opens a window
+   * where somebody else's change could arrive and overwrite what the person
+   * is still typing -- the exact stutter the suppression exists to prevent.
+   */
+  const touchLocalWrite = useCallback((key) => {
+    if (!key) return;
+    const entry = localWrites.current.get(key) || { inFlight: 0, until: 0 };
+    entry.until = Date.now() + DEFAULT_WRITE_DELAY_MS + ECHO_GRACE_MS;
+    localWrites.current.set(key, entry);
+  }, []);
 
   const beginLocalWrite = useCallback((key) => {
     if (!key) return () => {};
@@ -293,6 +315,29 @@ export function DataProvider({ children }) {
       if (db && channel) db.removeChannel(channel);
     };
   }, [backend, loaded, isOwnEcho]);
+
+  /*
+   * A queued write must never be lost because the page went away.
+   *
+   * Moving between cases is safe on its own: this provider is mounted in the
+   * layout and survives client-side navigation, so a pending timer fires
+   * wherever you end up. The moments that WOULD lose an edit are the tab
+   * being hidden or closed, and both are covered here.
+   *
+   * `pagehide` rather than `beforeunload` -- it fires on mobile and when a
+   * page goes into the back/forward cache, where beforeunload does not.
+   */
+  useEffect(() => {
+    const flush = () => { writes.current?.flush(); };
+    const onVisibility = () => { if (document.visibilityState === 'hidden') flush(); };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onVisibility);
+      flush();
+    };
+  }, []);
 
   /** Run a store call and surface the outcome. Never swallows. */
   const run = useCallback(async (fn) => {
@@ -660,10 +705,24 @@ export function DataProvider({ children }) {
         ...s,
         fields: { ...s.fields, [fieldKey]: value },
       }));
-      const done = beginLocalWrite(`matter_section_data:${matterId}:${sectionKey}`);
-      return run((s) => s.setSectionField(matterId, sectionKey, fieldKey, value)).finally(done);
+      /*
+       * Keyed per FIELD, not per section: each field is its own single-field
+       * write, so two fields edited together stay two minimal writes rather
+       * than being merged into something the RPC cannot express.
+       */
+      const key = `matter_section_data:${matterId}:${sectionKey}`;
+      touchLocalWrite(key);
+      writes.current.enqueue(`${key}:${fieldKey}`, { value }, async (merged) => {
+        const done = beginLocalWrite(key);
+        try {
+          return await run((s) => s.setSectionField(matterId, sectionKey, fieldKey, merged.value));
+        } finally {
+          done();
+        }
+      });
+      return { ok: true, queued: true };
     },
-    [run, applySection, beginLocalWrite]
+    [run, applySection, beginLocalWrite, touchLocalWrite]
   );
 
   const addSectionRow = useCallback(
@@ -731,24 +790,36 @@ export function DataProvider({ children }) {
         rows: s.rows.map((r) => (r.id === rowId ? { ...r, ...patch } : r)),
       }));
 
-      /*
-       * If this row's insert has not come back yet, wait for its real id.
-       * Writing to the temporary one silently stores nothing -- see the
-       * note on `pendingRows`.
-       */
-      let id = rowId;
-      const pending = pendingRows.current.get(rowId);
-      if (pending) {
-        id = await pending;
-        if (!id) {
-          return { ok: false, error: 'That row could not be saved, so the change was not stored.' };
-        }
-      }
+      const key = `matter_section_row:${rowId}`;
+      touchLocalWrite(key);
 
-      const done = beginLocalWrite(`matter_section_row:${id}`);
-      return run((s) => s.updateSectionRow(matterId, sectionKey, id, patch)).finally(done);
+      writes.current.enqueue(key, patch, async (merged) => {
+        /*
+         * The real id is resolved HERE rather than when the edit was typed.
+         * By the time the queue fires, a row whose insert was in flight has
+         * almost always been given one -- and if it has not, this still
+         * waits rather than writing to the temporary id, which stores
+         * nothing and reports no error. See the note on `pendingRows`.
+         */
+        let id = rowId;
+        const pendingInsert = pendingRows.current.get(rowId);
+        if (pendingInsert) {
+          id = await pendingInsert;
+          if (!id) {
+            return { ok: false, error: 'That row could not be saved, so the change was not stored.' };
+          }
+        }
+        const done = beginLocalWrite(`matter_section_row:${id}`);
+        try {
+          return await run((s) => s.updateSectionRow(matterId, sectionKey, id, merged));
+        } finally {
+          done();
+        }
+      });
+
+      return { ok: true, queued: true };
     },
-    [run, applySection, beginLocalWrite]
+    [run, applySection, beginLocalWrite, touchLocalWrite]
   );
 
   const deleteSectionRow = useCallback(
