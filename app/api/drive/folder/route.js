@@ -15,7 +15,9 @@ import { NextResponse } from 'next/server';
 import {
   getSupabaseServerClient, getCurrentUser, isServerSupabaseConfigured,
 } from '@/lib/supabase/server';
-import { isDriveConfigured, createFolder, folderTree } from '@/lib/google/drive';
+import {
+  isDriveConfigured, folderTree, resolveSubfolder,
+} from '@/lib/google/drive';
 import { isWithinTree } from '@/lib/google/drive-paths';
 
 export const runtime = 'nodejs';
@@ -56,7 +58,30 @@ export async function POST(request) {
     return NextResponse.json({ error: 'That folder is not inside this case.' }, { status: 403 });
   }
 
-  const created = await createFolder({ parentId: target, name: name.trim() });
+  /*
+   * ⚠️ ADOPT BEFORE CREATE. This used to call createFolder unconditionally,
+   * and Drive is perfectly happy to hold two folders with the same name in the
+   * same parent. So two people typing "Settlements", or one person doing it
+   * twice, produced two folders -- after which uploads land in whichever one
+   * Drive happens to return first, and a search across the case reports every
+   * document twice because it genuinely finds two.
+   *
+   * resolveSubfolder is the same find-or-create the upload path already uses:
+   * case-insensitive, trimmed, so "settlements" and " Settlements " are the
+   * folder that is already there. The provision route has followed this rule
+   * from the start ("adopt before create") -- this one simply did not.
+   */
+  const resolved = await resolveSubfolder(target, name.trim());
+  if (resolved.ok && !resolved.created) {
+    return NextResponse.json({
+      ok: true,
+      adopted: true,
+      folder: { id: resolved.folderId, name: resolved.folderName || name.trim() },
+    });
+  }
+  const created = resolved.ok
+    ? { ok: true, folder: { id: resolved.folderId, name: resolved.folderName || name.trim() } }
+    : resolved;
   if (!created.ok) {
     // The one failure worth explaining, because Drive's own message does not.
     const quota = /storage quota/i.test(created.error || '');
