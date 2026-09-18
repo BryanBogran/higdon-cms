@@ -20,7 +20,7 @@ import { checkBadDate, fmt, nextBusinessDay, todayInFirmTz } from '@/lib/domain/
 import { assigneeOptions, UNASSIGNED } from '@/lib/domain/team';
 
 export default function AddTaskDialog({ open, onClose, matterId: fixedMatterId }) {
-  const { matters, team, currentUser, activity, createTask } = useData();
+  const { matters, people, currentUser, createTask } = useData();
   const [title, setTitle] = useState('');
   const [note, setNote] = useState('');
   const [dueDate, setDueDate] = useState('');
@@ -43,8 +43,8 @@ export default function AddTaskDialog({ open, onClose, matterId: fixedMatterId }
    * what keeps somebody who was typed in before they had a login selectable.
    */
   const assignees = useMemo(
-    () => assigneeOptions({ team, currentUser, activity }),
-    [team, currentUser, activity],
+    () => assigneeOptions({ people, currentUser }),
+    [people, currentUser],
   );
 
   if (!open) return null;

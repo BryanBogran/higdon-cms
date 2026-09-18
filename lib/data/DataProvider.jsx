@@ -53,6 +53,8 @@ export function DataProvider({ children }) {
   const [matters, setMatters] = useState({});
   const [tasks, setTasks] = useState({});
   const [team, setTeam] = useState({});
+  // The assignable roster: active people, no shared mailboxes. See lib/domain/team.js.
+  const [people, setPeople] = useState([]);
   const [sections, setSections] = useState({});
   const [activity, setActivity] = useState({});
   const [relations, setRelations] = useState([]);
@@ -223,6 +225,7 @@ export function DataProvider({ children }) {
         setRelations(data.relations || []);
         setSections(data.sections || {});
         setTeam(data.team || {});
+        setPeople(data.people || []);
         setContacts(data.contacts || {});
       } catch (err) {
         if (cancelled) return;
@@ -410,6 +413,7 @@ export function DataProvider({ children }) {
         setRelations(data.relations || []);
         setSections(data.sections || {});
         setTeam(data.team || {});
+        setPeople(data.people || []);
         setContacts(data.contacts || {});
         ref.current = { ...ref.current, matters: data.matters || {}, tasks: data.tasks || {} };
       } catch (err) {
@@ -964,7 +968,7 @@ export function DataProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      matters, tasks, team, sections, activity, relations, contacts, loaded, saveState, backend, currentUser,
+      matters, tasks, team, people, sections, activity, relations, contacts, loaded, saveState, backend, currentUser,
       createMatter, importMatters, updateMatterField, setChecklistItem, archiveMatter, unarchiveMatter, deleteMatter,
       createContact, updateContact, linkClientContact,
       createTask, updateTask, setTaskComplete, clearTaskOverride, deleteTask, bulkSetComplete,
@@ -972,7 +976,7 @@ export function DataProvider({ children }) {
       addActivity, addEmail, signFile, addRelation, removeRelation, updateActivity, deleteActivity, assignActivityAsTask, saveTeam,
     }),
     [
-      matters, tasks, team, sections, activity, relations, contacts, loaded, saveState, backend, currentUser,
+      matters, tasks, team, people, sections, activity, relations, contacts, loaded, saveState, backend, currentUser,
       createMatter, importMatters, updateMatterField, setChecklistItem, archiveMatter, unarchiveMatter, deleteMatter,
       createContact, updateContact, linkClientContact,
       createTask, updateTask, setTaskComplete, clearTaskOverride, deleteTask, bulkSetComplete,

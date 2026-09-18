@@ -97,7 +97,7 @@ function DueDateInput({ value, onChange, id }) {
 }
 
 export default function ActivityCard({ entry, showMatter = true }) {
-  const { matters, activity, team, currentUser, updateActivity, deleteActivity, assignActivityAsTask } = useData();
+  const { matters, activity, people, currentUser, updateActivity, deleteActivity, assignActivityAsTask } = useData();
   const matter = entry.matterId ? matters[entry.matterId] : null;
   const isTask = entry.kind === 'task';
   const isEmail = entry.kind === 'email';
@@ -116,8 +116,15 @@ export default function ActivityCard({ entry, showMatter = true }) {
   const [assignDue, setAssignDue] = useState('');
 
   const roster = useMemo(
-    () => assigneeOptions({ team, currentUser, activity }),
-    [team, currentUser, activity],
+    /*
+     * `current` is this task's own assignee. An old task may name somebody who
+     * is not a profile -- a spelling from an import, or a person who has left.
+     * Passing it keeps that one name selectable HERE, so the task renders and
+     * saves without silently losing it, while nobody else's dropdown inherits
+     * the variation.
+     */
+    () => assigneeOptions({ people, currentUser, current: entry?.assignedTo }),
+    [people, currentUser, entry?.assignedTo],
   );
 
   function openPromote() {
