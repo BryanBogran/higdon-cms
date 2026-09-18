@@ -430,38 +430,6 @@ export function DataProvider({ children }) {
     [run]
   );
 
-  /** Reply to an entry. A thread, the way Filevine does it. */
-  const addReply = useCallback(
-    async (parentId, body) => {
-      const text = String(body || '').trim();
-      if (!text) return { ok: false, error: 'A reply needs something in it.' };
-
-      const result = await run((s) => s.addReply(parentId, { body: text, author: authorLabel() }));
-      if (result.ok && result.reply) {
-        setReplies((prev) => ({
-          ...prev,
-          [parentId]: [...(prev[parentId] || []), result.reply],
-        }));
-      }
-      return result;
-    },
-    [run, authorLabel]
-  );
-
-  const deleteReply = useCallback(
-    async (parentId, replyId) => {
-      const result = await run((s) => s.deleteActivity(replyId));
-      if (result.ok) {
-        setReplies((prev) => ({
-          ...prev,
-          [parentId]: (prev[parentId] || []).filter((r) => r.id !== replyId),
-        }));
-      }
-      return result;
-    },
-    [run]
-  );
-
   /* ---------------- Contacts ---------------- */
 
   const createContact = useCallback(async (contact) => {
@@ -630,6 +598,51 @@ export function DataProvider({ children }) {
     () => currentUser?.displayName || currentUser?.email || '',
     [currentUser]
   );
+
+  /*
+   * ⚠️ BELOW authorLabel, not above it, and that is load-bearing.
+   *
+   * These read `authorLabel` in their dependency array, which React
+   * evaluates DURING RENDER. A `const` is in its temporal dead zone until
+   * the line that declares it runs, so placing these earlier threw
+   * "Cannot access 'authorLabel' before initialization" -- inside the
+   * provider that wraps the root layout, so every page 500ed.
+   *
+   * The build does not catch it: a TDZ violation is a runtime error, and
+   * nothing in the test suite renders this component.
+   */
+  /** Reply to an entry. A thread, the way Filevine does it. */
+  const addReply = useCallback(
+    async (parentId, body) => {
+      const text = String(body || '').trim();
+      if (!text) return { ok: false, error: 'A reply needs something in it.' };
+
+      const result = await run((s) => s.addReply(parentId, { body: text, author: authorLabel() }));
+      if (result.ok && result.reply) {
+        setReplies((prev) => ({
+          ...prev,
+          [parentId]: [...(prev[parentId] || []), result.reply],
+        }));
+      }
+      return result;
+    },
+    [run, authorLabel]
+  );
+
+  const deleteReply = useCallback(
+    async (parentId, replyId) => {
+      const result = await run((s) => s.deleteActivity(replyId));
+      if (result.ok) {
+        setReplies((prev) => ({
+          ...prev,
+          [parentId]: (prev[parentId] || []).filter((r) => r.id !== replyId),
+        }));
+      }
+      return result;
+    },
+    [run]
+  );
+
 
   /*
    * ⚠️ ANY CALLBACK USING authorLabel MUST LIST IT AS A DEPENDENCY.
