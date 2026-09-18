@@ -156,12 +156,28 @@ begin
   end if;
 
   raise notice 'OK: a deleted section row is recorded in full and can be restored';
-
-  -- Clean up the probe's own audit rows: they describe a test, not the firm.
-  delete from audit_event
-   where table_name = 'matter_section_row'
-     and (row_pk ->> 'section_key') = '__probe_019';
+  raise notice 'NOTE: two audit rows under section_key __probe_019 record this check.';
 end $$;
+
+-- ---------------------------------------------------------------------
+-- ⚠️ THE PROBE'S OWN AUDIT ROWS ARE LEFT IN PLACE, DELIBERATELY.
+--
+-- An earlier version of this file ended by deleting them, and got:
+--
+--   ERROR: P0001: audit_event is append-only
+--   CONTEXT: PL/pgSQL function audit_immutable()
+--
+-- Which is the log working. `audit_no_rowmod` blocks UPDATE and DELETE on
+-- audit_event because a history that can be edited is not a history --
+-- and the schema says so explicitly: "A REVOKE alone would not restrain a
+-- table owner."
+--
+-- Tidying them away would have meant falsifying the record of a thing
+-- that genuinely happened, using a mechanism that exists precisely to
+-- stop that. So the two rows stay. They are labelled `__probe_019` and
+-- carry no client data, and two rows in a table that will hold hundreds
+-- of thousands is not clutter worth breaking a guarantee for.
+-- ---------------------------------------------------------------------
 
 -- Which tables now have a history, and which do not.
 select
