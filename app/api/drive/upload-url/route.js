@@ -22,8 +22,33 @@ import { isWithinTree } from '@/lib/google/drive-paths';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/** Drive's own per-file ceiling is far higher; this is a sanity bound. */
-const MAX_BYTES = 500 * 1024 * 1024;
+/**
+ * A sanity bound, not a technical one.
+ *
+ * ── Why it was 500 MB, and why that was wrong ────────────────────────────
+ *
+ * Nothing in the pipeline needed it. The bytes never pass through this server:
+ * createUploadSession hands the browser a resumable session URL and the file
+ * goes straight to Google, so a large upload costs this app no memory, no
+ * execution time and no transfer. Drive's own per-file ceiling is 5 TB.
+ *
+ * The number was a guess, and it was the wrong guess for the one section that
+ * most needed a large file. ⚠️ A VIDEO DEPOSITION IS ROUTINELY 1-4 GB. The
+ * firm hit this on Depositions, which is exactly where it would hurt: the
+ * recording of a deposition is not something you can shrink or split, and the
+ * error said only that the file was too big.
+ *
+ * 5 GB keeps a bound against a mis-selected file or a runaway export while
+ * clearing real evidence with room to spare.
+ *
+ * The real constraint is the firm's Google Workspace storage pool, which is
+ * theirs to manage and says so plainly when it runs out — a far better failure
+ * than a number invented here.
+ */
+const MAX_BYTES = 5 * 1024 * 1024 * 1024;
+
+/** Whole GB reads better than 5368709120 in an error message. */
+const gb = (bytes) => `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 
 export async function POST(request) {
   if (!isServerSupabaseConfigured()) {
@@ -56,7 +81,12 @@ export async function POST(request) {
     return NextResponse.json({ error: 'matterId and name are required.' }, { status: 400 });
   }
   if (sizeBytes && sizeBytes > MAX_BYTES) {
-    return NextResponse.json({ error: 'That file is over 500 MB.' }, { status: 413 });
+    // Say both numbers. "Too large" without a size leaves the person guessing
+    // whether it is off by a little or by a lot.
+    return NextResponse.json(
+      { error: `That file is ${gb(sizeBytes)}. The limit is ${gb(MAX_BYTES)}.` },
+      { status: 413 },
+    );
   }
 
   const db = await getSupabaseServerClient();
