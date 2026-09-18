@@ -156,9 +156,14 @@ function Collection({ matterId, sectionKey, collection, uploadFolder }) {
             </div>
           ))}
         <button
-          onClick={() => {
-            addSectionRow(matterId, storageKey, draft);
-            setDraft({});
+          onClick={async () => {
+            /*
+             * Awaited, and the draft is cleared only if the row actually
+             * saved. Clearing it first meant a failed insert took the
+             * typing with it and left nothing to retry from.
+             */
+            const result = await addSectionRow(matterId, storageKey, draft);
+            if (result?.ok) setDraft({});
           }}
           className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-2"
         >

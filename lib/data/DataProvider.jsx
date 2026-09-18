@@ -78,6 +78,21 @@ export function DataProvider({ children }) {
   // an effect that runs after render, so a render triggered by the initial load
   // would see stale data with no second render to correct it.
   const ref = useRef({ matters, tasks, sections, activity });
+
+  /*
+   * Rows whose INSERT is still in flight, keyed by the temporary id the
+   * browser invented for them: optimisticId -> Promise<realId | null>.
+   *
+   * A new row is on screen and editable before the database has given it an
+   * id. Typing into it during that window used to write to the temporary
+   * id, which matches no row -- Postgres changed nothing, reported no
+   * error, and the value was lost the moment the page reloaded. It is the
+   * firm's "we're entering lines, but then they disappear".
+   *
+   * An edit to a row that is still pending now waits for its real id rather
+   * than being thrown at one that was never real.
+   */
+  const pendingRows = useRef(new Map());
   useEffect(() => {
     ref.current = { matters, tasks, sections, activity };
   }, [matters, tasks, sections, activity]);
@@ -530,26 +545,68 @@ export function DataProvider({ children }) {
         ...s,
         rows: [...s.rows, { id: optimisticId, ...row }],
       }));
-      const result = await run((s) => s.addSectionRow(matterId, sectionKey, row));
-      // Reconcile the optimistic id with the one the store assigned.
-      if (result.ok && result.id && result.id !== optimisticId) {
+
+      const settled = run((s) => s.addSectionRow(matterId, sectionKey, row)).then((result) => {
+        if (result.ok && result.id) {
+          // Reconcile the optimistic id with the one the store assigned.
+          // The spread keeps anything typed while the insert was in flight.
+          if (result.id !== optimisticId) {
+            applySection(matterId, sectionKey, (s) => ({
+              ...s,
+              rows: s.rows.map((r) => (r.id === optimisticId ? { ...r, id: result.id } : r)),
+            }));
+          }
+          return result.id;
+        }
+        /*
+         * The insert failed. TAKE THE ROW BACK OFF THE SCREEN.
+         *
+         * Leaving it there is what turned one failure into a silent hour:
+         * the row looked saved, every further edit went to an id that did
+         * not exist, and nothing said so until the page was reloaded and
+         * the whole lot had gone. A row that is not in the database must
+         * not be on the screen pretending otherwise.
+         */
         applySection(matterId, sectionKey, (s) => ({
           ...s,
-          rows: s.rows.map((r) => (r.id === optimisticId ? { ...r, id: result.id } : r)),
+          rows: s.rows.filter((r) => r.id !== optimisticId),
         }));
-      }
-      return result;
+        return null;
+      });
+
+      pendingRows.current.set(optimisticId, settled);
+      const realId = await settled;
+      pendingRows.current.delete(optimisticId);
+
+      return realId
+        ? { ok: true, id: realId }
+        : { ok: false, error: 'That row could not be saved. Nothing was stored — please try again.' };
     },
     [run, applySection]
   );
 
   const updateSectionRow = useCallback(
-    (matterId, sectionKey, rowId, patch) => {
+    async (matterId, sectionKey, rowId, patch) => {
       applySection(matterId, sectionKey, (s) => ({
         ...s,
         rows: s.rows.map((r) => (r.id === rowId ? { ...r, ...patch } : r)),
       }));
-      return run((s) => s.updateSectionRow(matterId, sectionKey, rowId, patch));
+
+      /*
+       * If this row's insert has not come back yet, wait for its real id.
+       * Writing to the temporary one silently stores nothing -- see the
+       * note on `pendingRows`.
+       */
+      let id = rowId;
+      const pending = pendingRows.current.get(rowId);
+      if (pending) {
+        id = await pending;
+        if (!id) {
+          return { ok: false, error: 'That row could not be saved, so the change was not stored.' };
+        }
+      }
+
+      return run((s) => s.updateSectionRow(matterId, sectionKey, id, patch));
     },
     [run, applySection]
   );
