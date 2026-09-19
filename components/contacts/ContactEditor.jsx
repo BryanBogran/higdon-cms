@@ -15,17 +15,13 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { X, Plus, Trash2, AlertTriangle, Building2, User } from 'lucide-react';
 import { useData } from '@/lib/data/DataProvider';
-import {
-  emptyContact, displayName, validateContact, duplicateCandidates, pruneEntries,
-  PHONE_LABELS, EMAIL_LABELS, ADDRESS_LABELS,
-  CONTACT_ROLES, rolesOf, toggleRole,
-} from '@/lib/domain/contact';
+import { emptyContact, displayName, validateContact, duplicateCandidates, pruneEntries, PHONE_LABELS, EMAIL_LABELS, ADDRESS_LABELS, CONTACT_ROLES, rolesOf, toggleRole, matterRefs } from '@/lib/domain/contact';
 import { matterTitle } from '@/lib/domain/matter';
 
 const TABS = ['Contact Info', 'Details', 'Associated Projects'];
 
 export default function ContactEditor({ contact: initial, onSaved, onCancel }) {
-  const { contacts, matters, createContact, updateContact } = useData();
+  const { contacts, matters, sections, createContact, updateContact } = useData();
   const [tab, setTab] = useState(TABS[0]);
   const [c, setC] = useState(() => ({ ...emptyContact(), ...(initial || {}) }));
   const [errors, setErrors] = useState([]);
@@ -35,10 +31,14 @@ export default function ContactEditor({ contact: initial, onSaved, onCancel }) {
   const roster = useMemo(() => Object.values(contacts || {}), [contacts]);
   const dupes = useMemo(() => duplicateCandidates(roster, c), [roster, c]);
 
-  const linked = useMemo(
-    () => Object.entries(matters || {})
-      .filter(([, m]) => m.clientContactId && m.clientContactId === c.id),
-    [matters, c.id],
+  /*
+   * Every case this contact appears on, not just the ones where they are the
+   * client. See matterRefs -- a contact field stores { id, name } now, so an
+   * attorney on thirty cases can be found on all thirty.
+   */
+  const refs = useMemo(
+    () => matterRefs(c, { matters, sections }),
+    [c, matters, sections],
   );
 
   async function save() {
@@ -136,7 +136,7 @@ export default function ContactEditor({ contact: initial, onSaved, onCancel }) {
                 tab === t ? 'border-accent-solid text-accent-ink' : 'border-transparent text-ink-3 hover:text-ink-2'
               }`}
             >
-              {t}{t === 'Associated Projects' && linked.length ? ` (${linked.length})` : ''}
+              {t}{t === 'Associated Projects' && refs.length ? ` (${refs.length})` : ''}
             </button>
           ))}
         </div>
@@ -157,7 +157,7 @@ export default function ContactEditor({ contact: initial, onSaved, onCancel }) {
           ) : tab === 'Details' ? (
             <Details c={c} set={set} />
           ) : (
-            <Associated linked={linked} isNew={!c.id} />
+            <Associated refs={refs} matters={matters} isNew={!c.id} />
           )}
         </div>
       </div>
@@ -335,9 +335,19 @@ function ContactInfo({ c, set, dupes }) {
 function Details({ c, set }) {
   return (
     <div className="space-y-6">
-      <Field label="Salutation" hint={'Letter salutation line, like: "Dear Mr/Ms/Dr/Judge or First Last,"'}>
-        {(id) => <Text id={id} value={c.salutation} onChange={(v) => set({ salutation: v })} />}
-      </Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Salutation" hint={'Letter salutation line, like: "Dear Mr/Ms/Dr/Judge or First Last,"'}>
+          {(id) => <Text id={id} value={c.salutation} onChange={(v) => set({ salutation: v })} />}
+        </Field>
+        {/*
+          TEXT, not a number. A bar number is an identifier: it can carry a
+          leading zero and no arithmetic is ever done on it, so storing it as
+          a number would drop the zero with nothing to say it had.
+        */}
+        <Field label="Bar Number" hint="State Bar number, for attorneys and mediators.">
+          {(id) => <Text id={id} value={c.barNumber} onChange={(v) => set({ barNumber: v })} />}
+        </Field>
+      </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
         <Toggle label="Can Text?" checked={c.canText} onChange={(v) => set({ canText: v })} />
@@ -391,39 +401,58 @@ function Details({ c, set }) {
   );
 }
 
-function Associated({ linked, isNew }) {
+function Associated({ refs, matters, isNew }) {
   if (isNew) {
     return <p className="text-sm text-ink-3">Save this contact and it can be added to a case.</p>;
   }
-  if (!linked.length) {
-    return (
-      <div className="space-y-2 text-sm text-ink-3">
-        <p>This contact is not the client on any case.</p>
-        {/*
-          Say what is NOT being counted. A provider on thirty cases would also
-          land here, and "no cases" would read as an answer when it is really
-          "the question cannot be asked yet": a case's provider and adjuster
-          rows store a NAME, not a link to this record. Only the client link is
-          a real reference. Same rule as the Drive review queue -- never render
-          "we could not ask" as "the answer is none".
-        */}
-        <p className="text-xs text-ink-4">
-          Only the client link is counted. A provider, adjuster or defence firm named on a case is
-          stored as text on that row, so it cannot be traced back here yet.
-        </p>
-      </div>
-    );
+  if (!refs.length) {
+    return <p className="text-sm text-ink-3">This contact does not appear on any case.</p>;
   }
-  return (
-    <ul className="divide-y divide-line-soft">
-      {linked.map(([id, m]) => (
-        <li key={id} className="py-2.5 flex items-center justify-between">
-          <Link href={`/matters/${id}`} className="text-sm font-medium text-accent-ink hover:underline">
+
+  const certain = refs.filter((r) => r.how === 'linked');
+  const guessed = refs.filter((r) => r.how === 'named');
+
+  const row = (r) => {
+    const m = matters?.[r.matterId];
+    if (!m) return null;
+    return (
+      <li key={r.matterId} className="flex items-center justify-between gap-3 py-2.5">
+        <div className="min-w-0">
+          <Link href={`/matters/${r.matterId}`} className="text-sm font-medium text-accent-ink hover:underline">
             {matterTitle(m)}
           </Link>
-          <span className="text-xs text-ink-3">{m.values?.status || ''}</span>
-        </li>
-      ))}
-    </ul>
+          <p className="truncate text-xs text-ink-4">{r.where.join(' · ')}</p>
+        </div>
+        <span className="shrink-0 text-xs text-ink-3">{m.values?.status || ''}</span>
+      </li>
+    );
+  };
+
+  return (
+    <div className="space-y-5">
+      {certain.length ? (
+        <ul className="divide-y divide-line-soft">{certain.map(row)}</ul>
+      ) : null}
+
+      {guessed.length ? (
+        <div>
+          {/*
+            ⚠️ KEPT APART FROM THE REST, and labelled. These matched on NAME
+            because the row was typed before contact fields stored an id. Two
+            contacts can share a name, and this cannot tell which was meant --
+            showing a guess among the certain ones is how somebody concludes
+            an attorney is on a case they have never touched.
+          */}
+          <h4 className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-ink-4">
+            Matched by name only
+          </h4>
+          <p className="mb-2 text-xs text-ink-4">
+            These rows carry the name rather than a link to this record, so they may be a
+            different person with the same name. Re-pick the contact on the case to make it certain.
+          </p>
+          <ul className="divide-y divide-line-soft opacity-80">{guessed.map(row)}</ul>
+        </div>
+      ) : null}
+    </div>
   );
 }
