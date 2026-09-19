@@ -7,6 +7,7 @@ import { checkBadDate, fmt } from '@/lib/domain/dates';
 import { orphanedOption } from '@/lib/domain/fields';
 import { AlertTriangle, ExternalLink, User, Paperclip, Check } from 'lucide-react';
 import DriveDrop from './DriveDrop';
+import { assigneeOptions } from '@/lib/domain/team';
 import { useData } from '@/lib/data/DataProvider';
 import { displayName } from '@/lib/domain/contact';
 
@@ -96,6 +97,25 @@ export default function FieldInput({ field, value, onChange, row, matterId, uplo
         ))}
       </select>
     );
+  }
+
+  /**
+   * A member of staff.
+   *
+   * The roster is the profile table -- active people, no shared mailboxes --
+   * so it cannot be a static list in FIELDS and is resolved here instead.
+   *
+   * ⚠️ A VALUE THAT MATCHES NOBODY IS STILL SHOWN. 56 cases already carry an
+   * attorney typed by hand, in twelve spellings. Blanking those on first
+   * render would destroy the only record of who is on the case, and it would
+   * happen silently the moment somebody edited any other field.
+   *
+   * assigneeOptions folds near-duplicates, so "John Paul Bogran, Jr." and
+   * "John Paul Bográn Jr" collapse to the profile's spelling rather than
+   * appearing twice.
+   */
+  if (field.type === 'person') {
+    return <PersonField value={v} onChange={onChange} />;
   }
 
   if (field.type === 'textarea') {
@@ -334,5 +354,22 @@ function ContactField({ value, onChange }) {
         </datalist>
       ) : null}
     </div>
+  );
+}
+
+
+/** The staff picker behind `type: 'person'`. */
+function PersonField({ value, onChange }) {
+  const { people, currentUser } = useData();
+  const v = value ?? '';
+  const options = assigneeOptions({ people, currentUser, current: v });
+
+  return (
+    <select className="input" value={v} onChange={(e) => onChange(e.target.value)}>
+      <option value="">—</option>
+      {options.map((o) => (
+        <option key={o} value={o}>{o}</option>
+      ))}
+    </select>
   );
 }
