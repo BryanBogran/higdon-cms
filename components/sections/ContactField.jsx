@@ -35,8 +35,9 @@
 
 import { useId, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { User, UserPlus, X, Phone, Mail, MapPin, Loader2 } from 'lucide-react';
+import { User, UserPlus, X, Phone, Mail, MapPin } from 'lucide-react';
 import { useData } from '@/lib/data/DataProvider';
+import ContactEditor from '@/components/contacts/ContactEditor';
 import {
   displayName, primaryPhone, primaryEmail, rolesOf, matchContactsByName, emptyContact,
 } from '@/lib/domain/contact';
@@ -91,9 +92,9 @@ function draftFrom(text, { kind = 'person', role = '' } = {}) {
 }
 
 export default function ContactField({ value, onChange, field }) {
-  const { contacts, createContact } = useData();
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const { contacts } = useData();
+  // The contact being created, as a draft for the editor. null = closed.
+  const [creating, setCreating] = useState(null);
   const inputRef = useRef(null);
   const listId = useId();
   const [editing, setEditing] = useState(false);
@@ -151,11 +152,24 @@ export default function ContactField({ value, onChange, field }) {
    * link straight to the full record, and the details get filled in when
    * somebody has them. A contact with a name is worth more than no contact.
    */
-  async function quickCreate() {
+  /**
+   * Open the full contact form, prefilled from what is typed.
+   *
+   * ⚠️ NOT A SILENT CREATE. An earlier version made the record straight from
+   * the text box, which put a contact into a law firm's directory with a name
+   * and nothing else -- no phone, no email, and no chance to notice it was
+   * the third "Allstate" in there. The one thing worth capturing about a
+   * carrier is the claims line, and that needs a form.
+   *
+   * ContactEditor is the same editor the Contacts page uses, so a contact
+   * made here is a normal contact: validated, checked for duplicates, and
+   * carrying whatever anybody bothered to fill in.
+   */
+  function openCreate() {
     const text = String(inputRef.current?.value || '').trim();
-    if (!text || saving) return;
 
-    // Already there under that name? Link it rather than making a second.
+    // Already there under that name? Link it rather than offering to make a
+    // second one -- the commonest reason for a duplicate directory.
     const hits = matchContactsByName(live, text);
     if (hits.length === 1) {
       onChange({ id: hits[0].id, name: displayName(hits[0]) });
@@ -163,21 +177,24 @@ export default function ContactField({ value, onChange, field }) {
       return;
     }
 
-    setSaving(true);
-    setError('');
-    const result = await createContact(draftFrom(text, {
+    setCreating(draftFrom(text, {
       kind: field?.contactKind || 'person',
       role: field?.contactRole || '',
     }));
-    setSaving(false);
-
-    if (!result?.ok) {
-      setError(result?.error || 'Could not create that contact.');
-      return;
-    }
-    onChange({ id: result.id, name: displayName(result.contact) });
-    setEditing(false);
   }
+
+  /** The editor renders its own modal, so it can sit at the end of any branch. */
+  const editor = creating ? (
+    <ContactEditor
+      contact={creating}
+      onCancel={() => setCreating(null)}
+      onSaved={(c) => {
+        setCreating(null);
+        setEditing(false);
+        if (c?.id) onChange({ id: c.id, name: displayName(c) });
+      }}
+    />
+  ) : null;
 
   /* ---------------- the card ---------------- */
   if (linked && !editing) {
@@ -244,6 +261,7 @@ export default function ContactField({ value, onChange, field }) {
             <X size={13} />
           </button>
         </div>
+        {editor}
       </div>
     );
   }
@@ -293,16 +311,20 @@ export default function ContactField({ value, onChange, field }) {
 
         <button
           type="button"
-          onMouseDown={(e) => { e.preventDefault(); quickCreate(); }}
-          disabled={saving}
-          title={`Create a contact from this name${field?.contactRole ? ` as a ${field.contactRole}` : ''}, and link it`}
-          className="shrink-0 rounded-lg border border-line-strong p-2 text-ink-4 transition hover:border-accent-solid hover:text-accent-ink disabled:opacity-40"
+          /*
+           * onMouseDown, not onClick: blur fires first otherwise, `commit`
+           * stores the plain name and re-renders, and the button appears to
+           * do nothing.
+           */
+          onMouseDown={(e) => { e.preventDefault(); openCreate(); }}
+          title={`Create a new contact${field?.contactRole ? ` — a ${field.contactRole}` : ''}, and link it here`}
+          className="shrink-0 rounded-lg border border-line-strong p-2 text-ink-4 transition hover:border-accent-solid hover:text-accent-ink"
         >
-          {saving ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
+          <UserPlus size={14} />
         </button>
       </div>
 
-      {error ? <p className="mt-1 text-xs text-danger-ink">{error}</p> : null}
+      {editor}
     </div>
   );
 }

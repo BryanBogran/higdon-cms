@@ -126,18 +126,46 @@ export default function DriveSyncPage() {
     loadReviews();
   }
 
-  async function resolve(folderId, folderName, matterId) {
+  /**
+   * Link a folder to a case.
+   *
+   * `moving` is set when the case ALREADY has a folder: it carries the folder
+   * being replaced, so the server can guard on it. That guard is what keeps a
+   * correction safe -- a double submit fails the second time, because by then
+   * the current folder is no longer the one being replaced, and so does a
+   * case somebody else re-pointed in the meantime.
+   */
+  async function resolve(folderId, folderName, matterId, moving) {
+    if (moving) {
+      /*
+       * Confirmed, because this one is not additive. Every document the case
+       * shows changes, and the person doing it should see both names first.
+       */
+      const ok = window.confirm(
+        `Move ${moving.title} from "${moving.folderName}" to "${folderName}"?\n\n`
+        + 'Its Docs tab will show this folder instead. Nothing in Drive is moved or deleted.'
+      );
+      if (!ok) return;
+    }
+
     const body = await call(
       '/api/drive/review',
       {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ folderId, folderName, matterId }),
+        body: JSON.stringify({
+          folderId,
+          folderName,
+          matterId,
+          ...(moving ? { replacing: moving.folderId } : {}),
+        }),
       },
       folderId
     );
     if (body) {
-      setNote("Linked. Its documents appear on the case's Docs tab straight away.");
+      setNote(moving
+        ? `Moved. ${moving.title} now shows this folder on its Docs tab.`
+        : "Linked. Its documents appear on the case's Docs tab straight away.");
       loadReviews();
     }
   }
@@ -247,6 +275,26 @@ export default function DriveSyncPage() {
   const unlinked = Object.entries(matters)
     .filter(([, m]) => !m?.archivedAt && !m?.driveFolderId)
     .map(([id, m]) => ({ id, title: matterTitle(m) }))
+    .sort((a, b) => a.title.localeCompare(b.title));
+
+  /*
+   * Cases that ALREADY have a folder, offered separately so a wrong link can
+   * be corrected.
+   *
+   * Without these the queue was a dead end. 26-063 has two folders carrying
+   * its number; the sync linked the empty one and the documents were in the
+   * other, and the only case that could have claimed the right folder was
+   * excluded from this list for already having one. The queue said "pick the
+   * right folder" and then did not offer the case.
+   */
+  const alreadyLinked = Object.entries(matters)
+    .filter(([, m]) => !m?.archivedAt && m?.driveFolderId)
+    .map(([id, m]) => ({
+      id,
+      title: matterTitle(m),
+      folderId: m.driveFolderId,
+      folderName: m.driveFolderName || 'its current folder',
+    }))
     .sort((a, b) => a.title.localeCompare(b.title));
 
   return (
@@ -485,7 +533,15 @@ export default function DriveSyncPage() {
                 <select
                   defaultValue=""
                   disabled={busy === r.folder_id}
-                  onChange={(e) => e.target.value && resolve(r.folder_id, r.folder_name, e.target.value)}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    if (!id) return;
+                    // A case from the "already linked" group is a MOVE, and
+                    // resolve asks before doing one.
+                    const moving = alreadyLinked.find((m) => m.id === id);
+                    resolve(r.folder_id, r.folder_name, id, moving);
+                    e.target.value = '';
+                  }}
                   className="input w-auto max-w-xs text-sm"
                 >
                   <option value="">Link to a case…</option>
@@ -504,6 +560,19 @@ export default function DriveSyncPage() {
                       <option key={m.id} value={m.id}>{m.title}</option>
                     ))}
                   </optgroup>
+                  {/*
+                    Last, and labelled as a move. These cases are not waiting
+                    for a folder -- picking one REPLACES the folder it has,
+                    which is right when the sync linked the wrong half of a
+                    colliding pair and wrong the rest of the time.
+                  */}
+                  {alreadyLinked.length ? (
+                    <optgroup label="Cases already linked — picking one MOVES it here">
+                      {alreadyLinked.map((m) => (
+                        <option key={m.id} value={m.id}>{m.title} — now on {m.folderName}</option>
+                      ))}
+                    </optgroup>
+                  ) : null}
                 </select>
 
                 {/* The folder IS a case and no case exists: neither linking

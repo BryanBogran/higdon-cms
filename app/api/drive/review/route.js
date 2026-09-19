@@ -77,7 +77,8 @@ export async function POST(request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'Sign in required.' }, { status: 401 });
 
-  const { folderId, folderName, matterId, dismiss } = await request.json().catch(() => ({}));
+  const body = await request.json().catch(() => ({}));
+  const { folderId, folderName, matterId, dismiss } = body;
   if (!folderId) return NextResponse.json({ error: 'folderId is required.' }, { status: 400 });
 
   const db = await getSupabaseServerClient();
@@ -94,12 +95,31 @@ export async function POST(request) {
 
   if (!matterId) return NextResponse.json({ error: 'matterId is required.' }, { status: 400 });
 
-  // `.is('drive_folder_id', null)` is the guard that makes this safe to click
-  // twice, and safe to click on a matter someone else just linked. Without it
-  // a double submit would re-point a case at a different folder, which is the
-  // exact failure the matching rules exist to prevent -- and it would be this
-  // endpoint, not the matcher, that caused it.
-  const { data, error } = await db
+  /*
+   * ── THE GUARD, AND THE DEAD END IT CREATED ──────────────────────────
+   *
+   * `.is('drive_folder_id', null)` makes this safe to click twice and safe
+   * to click on a matter somebody else just linked. Without it a double
+   * submit would re-point a case at a different folder, which is the exact
+   * failure the matching rules exist to prevent.
+   *
+   * But it also made a wrong link PERMANENT. Case 26-063 has two folders
+   * carrying its number; the sync linked the empty one, the documents are in
+   * the other, and nothing in the app could move it. The review queue told
+   * the firm to "pick the right folder" and then refused the pick.
+   *
+   * So a deliberate correction is allowed, and it is still not a blind
+   * overwrite: `replacing` names the folder the caller BELIEVES is currently
+   * on the case, and the update is guarded on that instead of on null.
+   *
+   * This keeps every property the null guard had. A double submit fails the
+   * second time, because by then the current folder is no longer the one
+   * being replaced. A case somebody else re-pointed in the meantime fails
+   * too, rather than quietly clobbering their decision.
+   */
+  const replacing = typeof body.replacing === 'string' ? body.replacing.trim() : '';
+
+  let q = db
     .from('matter')
     .update({
       drive_folder_id: folderId,
@@ -107,9 +127,11 @@ export async function POST(request) {
       drive_linked_at: new Date().toISOString(),
       drive_linked_by: user.id,
     })
-    .eq('id', matterId)
-    .is('drive_folder_id', null)
-    .select('id');
+    .eq('id', matterId);
+
+  q = replacing ? q.eq('drive_folder_id', replacing) : q.is('drive_folder_id', null);
+
+  const { data, error } = await q.select('id');
 
   if (error) {
     // 23505 is matter_drive_folder_uq: this FOLDER is already on another case.
@@ -125,8 +147,27 @@ export async function POST(request) {
   }
 
   if (!data?.length) {
+    /*
+     * Nothing matched the guard. Two different situations, and telling them
+     * apart matters -- the old message said "unlink it first", and there is
+     * no unlink, so it named a remedy that does not exist.
+     */
+    const { data: current } = await db
+      .from('matter').select('drive_folder_id, drive_folder_name').eq('id', matterId).maybeSingle();
+
     return NextResponse.json(
-      { error: 'That case already has a Drive folder. Unlink it first if this is a correction.' },
+      {
+        error: replacing
+          // A correction was attempted and the case has moved underneath it.
+          ? `That case is linked to ${current?.drive_folder_name || 'a different folder'} now, `
+            + 'not the one this was replacing. Re-run the dry run and try again.'
+          // A plain link onto a case that already has one.
+          : `That case is already linked to ${current?.drive_folder_name || 'a Drive folder'}. `
+            + 'To move it, use the relink option — it names the folder being replaced, '
+            + 'so two people cannot re-point the same case at once.',
+        currentFolderId: current?.drive_folder_id || '',
+        currentFolderName: current?.drive_folder_name || '',
+      },
       { status: 409 }
     );
   }
