@@ -2,14 +2,14 @@
 
 /** One control, driven by a field definition. Shared by every section. */
 
-import { useId, useMemo } from 'react';
+import { useMemo } from 'react';
 import { checkBadDate, fmt } from '@/lib/domain/dates';
 import { orphanedOption } from '@/lib/domain/fields';
-import { AlertTriangle, ExternalLink, User, Paperclip, Check } from 'lucide-react';
+import { AlertTriangle, ExternalLink, Paperclip, Check } from 'lucide-react';
 import DriveDrop from './DriveDrop';
+import ContactField from './ContactField';
 import { assigneeOptions } from '@/lib/domain/team';
 import { useData } from '@/lib/data/DataProvider';
-import { displayName } from '@/lib/domain/contact';
 
 export default function FieldInput({ field, value, onChange, row, matterId, uploadFolder }) {
   const v = value ?? '';
@@ -205,7 +205,7 @@ export default function FieldInput({ field, value, onChange, row, matterId, uplo
    * list -- a provider met once should not require a directory entry first.
    */
   if (field.type === 'contact') {
-    return <ContactField value={v} onChange={onChange} />;
+    return <ContactField value={v} onChange={onChange} field={field} />;
   }
 
   /** `{ dateValue, doneDate }` — a deadline with a completion stamp. */
@@ -304,58 +304,6 @@ export default function FieldInput({ field, value, onChange, row, matterId, uplo
 
 export { fmt };
 
-/**
- * Split out because it needs hooks, and FieldInput returns before reaching
- * this branch for most field types -- calling useData above those early
- * returns would run it for every cell in every table.
- */
-function ContactField({ value, onChange }) {
-  const { contacts } = useData();
-  const listId = useId();
-  const text = typeof value === 'object' ? value?.fullname || '' : (value ?? '');
-
-  const names = useMemo(() => {
-    const seen = new Set();
-    for (const c of Object.values(contacts || {})) {
-      if (!c || c.deletedAt) continue;
-      const name = displayName(c);
-      if (name) seen.add(name);
-    }
-    return [...seen].sort((a, b) => a.localeCompare(b));
-  }, [contacts]);
-
-  return (
-    <div className="relative">
-      <User size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-4" />
-      <input
-        type="text"
-        className="input pl-8"
-        placeholder="Name"
-        list={names.length ? listId : undefined}
-        /*
-         * The VALUE is the tooltip when there is one, and the help text only
-         * when the field is empty.
-         *
-         * No column width fits every provider name -- "Memorial Hermann
-         * Southwest" is wider than any cell a nine-column table can spare --
-         * so a clipped name has to be recoverable without clicking into the
-         * box and pressing End. Hovering is that. Help text on a filled field
-         * would waste the one affordance that solves the real problem.
-         */
-        title={text || (names.length
-          ? 'Suggestions come from Contacts. A name that is not there can still be typed.'
-          : 'No contacts yet — add providers and carriers on the Contacts page and they will be suggested here.')}
-        value={text}
-        onChange={(e) => onChange(e.target.value)}
-      />
-      {names.length ? (
-        <datalist id={listId}>
-          {names.map((n) => <option key={n} value={n} />)}
-        </datalist>
-      ) : null}
-    </div>
-  );
-}
 
 
 /** The staff picker behind `type: 'person'`. */
