@@ -134,9 +134,30 @@ function Collection({ matterId, sectionKey, collection, uploadFolder }) {
           fill the rest in the table.
         */}
         {cols
-          // Derived and attachment columns are skipped: one is computed, the
-          // other needs a saved row to hang off.
-          .filter((c) => c.type !== 'calculated' && c.type !== 'attachments')
+          /*
+           * Only CALCULATED columns are skipped, because a computed total has
+           * nothing to type into.
+           *
+           * Attachments used to be skipped too, on the grounds that they
+           * "need a saved row to hang off". That was not true. DriveDrop
+           * sends the file to the CASE's folder -- Medicals, Pleadings --
+           * not to anywhere belonging to a row, and the row only ever stores
+           * the { id, name, url } it gets back. A draft row holds that as
+           * happily as a saved one.
+           *
+           * The inconsistency gave it away: `driveFile` uses the SAME
+           * component and was always in this form, so Medical Records
+           * Request could be attached while adding a provider and Medical
+           * Records and Bills could not -- they had to be added first and
+           * uploaded afterwards, on a row already in the table.
+           *
+           * ⚠️ The one real consequence, which driveFile already had: a file
+           * uploaded and then abandoned without pressing Add is in Drive and
+           * referenced by nothing. It is in the case's own folder, so it is
+           * findable rather than lost -- and losing the file instead would be
+           * the worse trade.
+           */
+          .filter((c) => c.type !== 'calculated')
           .map((c) => (
             <div
               key={c.key}
