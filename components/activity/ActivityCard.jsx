@@ -30,7 +30,7 @@ import { Pin, MoreVertical, CheckCircle2, Circle, ListPlus, Paperclip, Trash2, P
 import { fmt, urgency, nextBusinessDay, todayInFirmTz, checkBadDate } from '@/lib/domain/dates';
 import { matterTitle, avatarColor } from '@/lib/domain/matter';
 import { useData } from '@/lib/data/DataProvider';
-import { assigneeOptions, UNASSIGNED } from '@/lib/domain/team';
+import { taskAssigneeGroups, flattenGroups, UNASSIGNED } from '@/lib/domain/team';
 import EmailBody from './EmailBody';
 
 const KIND_ICON_BG = {
@@ -43,8 +43,16 @@ const KIND_ICON_BG = {
   system: 'bg-line-strong',
 };
 
-/** The assignee picker. One control, used by the promote form and the footer. */
-function AssigneeSelect({ value, onChange, options, id }) {
+/**
+ * The assignee picker. One control, used by the promote form and the footer.
+ *
+ * Grouped: the people, then the shared desks (Records, Scheduling,
+ * Receptionist). The headings are not decoration -- a flat list puts
+ * "Receptionist" between "Records" and "Rose Hassanzai" and the reader
+ * cannot tell which of the three is a human.
+ */
+function AssigneeSelect({ value, onChange, groups, id }) {
+  const offered = flattenGroups(groups);
   return (
     <select
       id={id}
@@ -53,16 +61,20 @@ function AssigneeSelect({ value, onChange, options, id }) {
       onChange={(e) => onChange(e.target.value)}
     >
       <option value="">{UNASSIGNED}</option>
-      {options.map((name) => (
-        <option key={name} value={name}>{name}</option>
+      {groups.map((g) => (
+        <optgroup key={g.label} label={g.label}>
+          {g.names.map((name) => (
+            <option key={name} value={name}>{name}</option>
+          ))}
+        </optgroup>
       ))}
       {/*
         A name that is on the task but not in the roster still has to render,
         or opening the card would silently reassign it to Unassigned on the
-        next save. assigneeOptions folds task history in, so this is a
-        belt-and-braces case -- a name arriving from an import, say.
+        next save. taskAssigneeGroups folds this task's own name in, so this is
+        a belt-and-braces case -- a name arriving from an import, say.
       */}
-      {value && value !== UNASSIGNED && !options.includes(value)
+      {value && value !== UNASSIGNED && !offered.includes(value)
         ? <option value={value}>{value}</option>
         : null}
     </select>
@@ -123,7 +135,7 @@ export default function ActivityCard({ entry, showMatter = true }) {
      * saves without silently losing it, while nobody else's dropdown inherits
      * the variation.
      */
-    () => assigneeOptions({ people, currentUser, current: entry?.assignedTo }),
+    () => taskAssigneeGroups({ people, currentUser, current: entry?.assignedTo }),
     [people, currentUser, entry?.assignedTo],
   );
 
@@ -340,7 +352,7 @@ export default function ActivityCard({ entry, showMatter = true }) {
               <AssigneeSelect
                 id={`assignee-${entry.id}`}
                 value={entry.assignedTo === UNASSIGNED ? '' : entry.assignedTo}
-                options={roster}
+                groups={roster}
                 onChange={(name) => updateActivity(entry.id, { assignedTo: name || UNASSIGNED })}
               />
             </label>
@@ -372,7 +384,7 @@ export default function ActivityCard({ entry, showMatter = true }) {
                 <AssigneeSelect
                   id={`promote-assignee-${entry.id}`}
                   value={assignTo}
-                  options={roster}
+                  groups={roster}
                   onChange={setAssignTo}
                 />
               </label>
@@ -398,9 +410,14 @@ export default function ActivityCard({ entry, showMatter = true }) {
               >
                 Cancel
               </button>
-              {!roster.length ? (
+              {/*
+                The DESKS are always offered, so `roster` is never empty and
+                this has to ask about people specifically -- otherwise the
+                hint that staff are missing disappears the moment desks exist.
+              */}
+              {!roster.some((g) => g.label === 'People') ? (
                 <span className="text-[11px] text-warn-ink">
-                  Nobody to assign to yet — staff appear here once they have signed in.
+                  No staff to assign to yet — they appear here once they have signed in.
                 </span>
               ) : null}
             </div>

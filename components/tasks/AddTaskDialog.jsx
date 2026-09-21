@@ -17,7 +17,7 @@ import { X, Plus, AlertTriangle } from 'lucide-react';
 import { useData } from '@/lib/data/DataProvider';
 import { matterTitle } from '@/lib/domain/matter';
 import { checkBadDate, fmt, nextBusinessDay, todayInFirmTz } from '@/lib/domain/dates';
-import { assigneeOptions, UNASSIGNED } from '@/lib/domain/team';
+import { taskAssigneeGroups, UNASSIGNED } from '@/lib/domain/team';
 
 export default function AddTaskDialog({ open, onClose, matterId: fixedMatterId }) {
   const { matters, people, currentUser, createTask } = useData();
@@ -43,7 +43,7 @@ export default function AddTaskDialog({ open, onClose, matterId: fixedMatterId }
    * what keeps somebody who was typed in before they had a login selectable.
    */
   const assignees = useMemo(
-    () => assigneeOptions({ people, currentUser }),
+    () => taskAssigneeGroups({ people, currentUser }),
     [people, currentUser],
   );
 
@@ -159,13 +159,23 @@ export default function AddTaskDialog({ open, onClose, matterId: fixedMatterId }
               </label>
               <select className="input" value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)}>
                 <option value="">{UNASSIGNED}</option>
-                {assignees.map((a) => (
-                  <option key={a} value={a}>{a}</option>
+                {/*
+                  People, then the shared desks -- Records, Scheduling,
+                  Receptionist. Grouped rather than merged, so a desk is never
+                  mistaken for a person halfway down an alphabetical list.
+                */}
+                {assignees.map((g) => (
+                  <optgroup key={g.label} label={g.label}>
+                    {g.names.map((a) => (
+                      <option key={a} value={a}>{a}</option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
-              {!assignees.length ? (
+              {/* Desks are always offered, so this asks about people. */}
+              {!assignees.some((g) => g.label === 'People') ? (
                 <p className="mt-1 text-[11px] text-warn-ink">
-                  Nobody to assign to yet — staff appear here once they have signed in.
+                  No staff to assign to yet — they appear here once they have signed in.
                 </p>
               ) : null}
             </div>
