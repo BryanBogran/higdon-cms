@@ -83,7 +83,17 @@ function Collection({ matterId, sectionKey, collection, uploadFolder }) {
                     {c.label}
                   </th>
                 ))}
-                <th className="w-10" />
+                {/*
+                  ⚠️ PINNED TO THE RIGHT EDGE, AND WIDE ENOUGH FOR ITS BUTTONS.
+                  This was a bare 40px column at the end of an eighteen-column
+                  table that scrolls sideways -- so the row's actions sat off
+                  the right of the screen and had to be hunted for. That was
+                  survivable while the only action was Delete. It is not
+                  survivable for Generate, which is a thing the records clerk
+                  does many times a day: a button nobody can find is a feature
+                  nobody has.
+                */}
+                <th className="sticky right-0 z-10 w-32 bg-canvas px-2 border-l border-line-soft" />
               </tr>
             </thead>
             <tbody>
@@ -113,8 +123,8 @@ function Collection({ matterId, sectionKey, collection, uploadFolder }) {
                       />
                     </td>
                   ))}
-                  <td className="px-2 align-middle">
-                    <div className="flex items-center gap-0.5">
+                  <td className="sticky right-0 z-10 bg-surface px-2 align-middle border-l border-line-soft">
+                    <div className="flex items-center justify-end gap-0.5">
                       {/*
                         Document templates for this table, if any. Driven by
                         the registry in lib/domain/docgen.js, so the firm's

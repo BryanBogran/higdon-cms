@@ -170,14 +170,22 @@ export default function GenerateDoc({ matterId, template, row, existing }) {
 
   return (
     <>
+      {/*
+        Labelled, not a bare icon. The first version was a document glyph
+        beside the delete glyph at the far right of a table that scrolls
+        sideways, and the answer to "where is the button" was that there
+        wasn't one anybody could find. Two icons that mean unrelated things,
+        sitting together, are a puzzle rather than a control.
+      */}
       <button
         type="button"
         onClick={start}
         disabled={busy}
         title={`Generate the ${template.label} for this row`}
-        className="p-1.5 text-ink-4 hover:text-accent-ink disabled:opacity-50"
+        className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg border border-line-strong px-2 py-1 text-[11px] font-semibold text-ink-2 transition hover:border-accent-solid hover:text-accent-ink disabled:opacity-50"
       >
-        {busy ? <Loader2 size={15} className="animate-spin" /> : <FileText size={15} />}
+        {busy ? <Loader2 size={13} className="animate-spin" /> : <FileText size={13} />}
+        {template.button || 'Generate'}
       </button>
       {dialog}
     </>
