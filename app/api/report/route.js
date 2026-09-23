@@ -30,6 +30,7 @@ import {
 } from '@/lib/supabase/server';
 import { validateReport, reportSubject, reportEmailBody } from '@/lib/domain/report';
 import { sendMail, isGmailConfigured } from '@/lib/google/gmail';
+import { ticketLink } from '@/lib/domain/help';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -103,7 +104,11 @@ export async function POST(request) {
     const sent = await sendMail({
       to,
       subject: reportSubject(report, reporter),
-      text: reportEmailBody(report, reporter, { when: row.created_at }),
+      text: reportEmailBody(report, reporter, {
+        when: row.created_at,
+        // Straight into the ticket, where the status and the replies live.
+        link: ticketLink(new URL(request.url).origin, row.id),
+      }),
       /*
        * So a reply reaches the person who reported it rather than the mailbox
        * it was sent from. This is the untrusted value -- profile.email is
@@ -117,9 +122,20 @@ export async function POST(request) {
   }
 
   if (emailed) {
-    // Not awaited for correctness -- the report is already safe, and failing
-    // to stamp it is a worse thing to report than the thing being reported.
-    await db.from('bug_report').update({ emailed_at: new Date().toISOString() }).eq('id', row.id);
+    /*
+     * ⚠️ Through an RPC, not an update. After 022 only the admin may update
+     * bug_report, so the reporter's own `update ... set emailed_at` would be
+     * refused -- silently, as zero rows -- and every report would look
+     * un-emailed. The update stays as the fallback for a database that has
+     * not run 022 yet, where it still works.
+     *
+     * Failing to stamp is not reported: the report is already safe, and that
+     * would be a worse thing to show than the thing being reported.
+     */
+    const { error: stampError } = await db.rpc('stamp_report_emailed', { p_id: row.id });
+    if (stampError) {
+      await db.from('bug_report').update({ emailed_at: new Date().toISOString() }).eq('id', row.id);
+    }
   }
 
   return NextResponse.json({ ok: true, id: row.id, saved: true, emailed, emailError });
