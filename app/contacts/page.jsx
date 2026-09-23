@@ -26,7 +26,7 @@
  * `tags` column 008 already created, so this page needs no migration.
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Search, Plus, X, Users, Building2, User, Phone, Mail, Briefcase } from 'lucide-react';
 import { useData } from '@/lib/data/DataProvider';
@@ -64,6 +64,37 @@ export default function ContactsPage() {
   const [query, setQuery] = useState('');
   const [role, setRole] = useState('');
   const [editing, setEditing] = useState(null);
+
+  /*
+   * ── /contacts?id=<uuid> opens that contact ───────────────────────────
+   *
+   * ⚠️ THIS PAGE USED TO IGNORE THE QUERY STRING ENTIRELY. Section contact
+   * cards linked here with `?id=…`, and the page rendered the full directory
+   * -- so clicking a provider on Medicals took the records clerk to a list of
+   * several hundred names with nothing to say which one they had asked for.
+   *
+   * Read off `window.location` rather than with `useSearchParams`, for the
+   * reason app/projects/page.jsx:45 gives about `?new=1`: useSearchParams
+   * opts the whole page out of prerendering unless it is wrapped in Suspense.
+   *
+   * ⚠️ IT CANNOT RUN ONLY ON MOUNT. Contacts arrive asynchronously from
+   * useData(), so on first render `contacts` is empty and the lookup misses.
+   * The ref makes it fire once, when the record it wants actually exists.
+   */
+  const opened = useRef(false);
+  useEffect(() => {
+    if (opened.current || !loaded) return;
+    const id = new URLSearchParams(window.location.search).get('id');
+    if (!id) { opened.current = true; return; }
+
+    const found = contacts?.[id];
+    if (!found || found.deletedAt) return;   // still loading, or gone
+
+    opened.current = true;
+    setEditing(found);
+    // Stripped once used, or the card reopens every time somebody hits Back.
+    window.history.replaceState(null, '', '/contacts');
+  }, [contacts, loaded]);
 
   const roster = useMemo(() => Object.values(contacts || {}), [contacts]);
   const rows = useMemo(() => browseContacts(roster, { query, role }), [roster, query, role]);

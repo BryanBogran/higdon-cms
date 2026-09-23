@@ -34,12 +34,12 @@
  */
 
 import { useId, useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
 import { User, UserPlus, X, Phone, Mail, MapPin } from 'lucide-react';
 import { useData } from '@/lib/data/DataProvider';
 import ContactEditor from '@/components/contacts/ContactEditor';
 import {
   displayName, primaryPhone, primaryEmail, rolesOf, matchContactsByName, emptyContact,
+  primaryAddress, formatAddress,
 } from '@/lib/domain/contact';
 
 /** Two letters from a name, for the avatar. */
@@ -93,8 +93,9 @@ function draftFrom(text, { kind = 'person', role = '' } = {}) {
 
 export default function ContactField({ value, onChange, field }) {
   const { contacts } = useData();
-  // The contact being created, as a draft for the editor. null = closed.
-  const [creating, setCreating] = useState(null);
+  // The contact the editor is open on -- an existing one, or a draft for a
+  // new one. null = closed.
+  const [editorContact, setEditorContact] = useState(null);
   const inputRef = useRef(null);
   const listId = useId();
   const [editing, setEditing] = useState(false);
@@ -177,19 +178,19 @@ export default function ContactField({ value, onChange, field }) {
       return;
     }
 
-    setCreating(draftFrom(text, {
+    setEditorContact(draftFrom(text, {
       kind: field?.contactKind || 'person',
       role: field?.contactRole || '',
     }));
   }
 
   /** The editor renders its own modal, so it can sit at the end of any branch. */
-  const editor = creating ? (
+  const editor = editorContact ? (
     <ContactEditor
-      contact={creating}
-      onCancel={() => setCreating(null)}
+      contact={editorContact}
+      onCancel={() => setEditorContact(null)}
       onSaved={(c) => {
-        setCreating(null);
+        setEditorContact(null);
         setEditing(false);
         if (c?.id) onChange({ id: c.id, name: displayName(c) });
       }}
@@ -201,7 +202,20 @@ export default function ContactField({ value, onChange, field }) {
     const name = displayName(linked);
     const phone = primaryPhone(linked);
     const email = primaryEmail(linked);
-    const address = linked.addresses?.[0]?.value || '';
+    /*
+     * ⚠️ THIS READ `addresses[0].value`, AND NO ADDRESS HAS A `value` KEY.
+     *
+     * ContactEditor writes { line1, line2, city, state, postal } and
+     * `pruneEntries` filters on those same keys, so the data was being stored
+     * perfectly well and rendered nowhere -- on this card or anywhere else in
+     * the app. The records clerk asking to "see their contact information"
+     * was asking for exactly this line.
+     *
+     * Sixth instance this month of a column written by an editor and never
+     * read back correctly. The formatter now lives in contact.js, so the
+     * letter and the card cannot disagree about what an address looks like.
+     */
+    const address = formatAddress(primaryAddress(linked));
     const role = rolesOf(linked)[0] || '';
     const more = Math.max(0, (linked.phones?.length || 0) - 1);
 
@@ -215,12 +229,26 @@ export default function ContactField({ value, onChange, field }) {
           </span>
 
           <div className="min-w-0 flex-1">
-            <Link
-              href={`/contacts?id=${linked.id}`}
-              className="block truncate text-sm font-semibold text-accent-ink hover:underline"
+            {/*
+              ⚠️ OPENS HERE, RATHER THAN NAVIGATING TO THE DIRECTORY.
+              This was a <Link> to /contacts?id=… -- and that page never read
+              the query string, so clicking a provider landed on the full
+              contact list with no indication which one had been asked for.
+              (The page honours ?id= now too, because the link may have been
+              bookmarked or pasted into an email.)
+
+              But a clerk checking a fax number is mid-row on Medicals. Sending
+              them to another page and back loses their place in a table of
+              eighteen columns, which is why Filevine shows a card in place.
+            */}
+            <button
+              type="button"
+              onClick={() => setEditorContact(linked)}
+              title="Open this contact"
+              className="block w-full truncate text-left text-sm font-semibold text-accent-ink hover:underline"
             >
               {name}
-            </Link>
+            </button>
 
             {phone || email ? (
               <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-ink-3">

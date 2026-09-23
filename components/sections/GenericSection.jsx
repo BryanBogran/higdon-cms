@@ -27,6 +27,8 @@
 
 import { useMemo, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
+import GenerateDoc from './GenerateDoc';
+import { templatesFor } from '@/lib/domain/docgen';
 import FieldInput from './FieldInput';
 import ChecklistItems from './ChecklistItems';
 import { useData } from '@/lib/data/DataProvider';
@@ -46,6 +48,9 @@ function Collection({ matterId, sectionKey, collection, uploadFolder }) {
   const [draft, setDraft] = useState({});
 
   const cols = collection.columns || [];
+  // Keyed on storageKey, not the section key: a row's documents belong to the
+  // table the rows actually live in. See the note at the top of this file.
+  const docTemplates = templatesFor(storageKey);
   const total = useMemo(() => {
     if (!collection.total) return null;
     return state.rows.reduce((sum, r) => sum + money(r[collection.total]), 0);
@@ -109,13 +114,30 @@ function Collection({ matterId, sectionKey, collection, uploadFolder }) {
                     </td>
                   ))}
                   <td className="px-2 align-middle">
-                    <button
-                      onClick={() => deleteSectionRow(matterId, storageKey, row.id)}
-                      className="p-1.5 text-ink-4 hover:text-danger-ink"
-                      title="Delete row"
-                    >
-                      <Trash2 size={15} />
-                    </button>
+                    <div className="flex items-center gap-0.5">
+                      {/*
+                        Document templates for this table, if any. Driven by
+                        the registry in lib/domain/docgen.js, so the firm's
+                        other four Filevine templates arrive as configuration
+                        rather than as another button wired in by hand.
+                      */}
+                      {docTemplates.map((t) => (
+                        <GenerateDoc
+                          key={t.key}
+                          matterId={matterId}
+                          template={t}
+                          row={row}
+                          existing={row[t.targetField]}
+                        />
+                      ))}
+                      <button
+                        onClick={() => deleteSectionRow(matterId, storageKey, row.id)}
+                        className="p-1.5 text-ink-4 hover:text-danger-ink"
+                        title="Delete row"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

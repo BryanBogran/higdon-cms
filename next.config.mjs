@@ -13,6 +13,22 @@ const nextConfig = {
   turbopack: {
     root: path.dirname(fileURLToPath(import.meta.url)),
   },
+
+  /*
+   * ⚠️ THE .docx TEMPLATES HAVE TO BE TRACED IN BY HAND.
+   *
+   * /api/docgen reads them with `readFile(path.join(process.cwd(), 'lib',
+   * 'templates', ...))`. Next traces what a route IMPORTS; a path assembled at
+   * runtime is invisible to it, so the file is left out of the serverless
+   * bundle -- and the route then works perfectly in `next dev` and answers
+   * ENOENT in production. That is the worst shape of bug available here, so it
+   * is declared rather than discovered.
+   *
+   * Anything added to lib/templates is covered automatically.
+   */
+  outputFileTracingIncludes: {
+    '/api/docgen': ['./lib/templates/**/*'],
+  },
 };
 
 export default nextConfig;
