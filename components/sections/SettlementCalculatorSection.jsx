@@ -26,14 +26,13 @@ import Link from 'next/link';
 import { AlertTriangle, ArrowRight } from 'lucide-react';
 import { useData } from '@/lib/data/DataProvider';
 import {
-  computeSettlement, statementLines, formatMoney, totalLiens,
+  computeSettlement, statementLines, formatMoney, centsToInput, totalLiens,
   COMMON_FEE_PERCENTS, FEE_BASIS, EXPENSE_BASIS,
 } from '@/lib/domain/settlement';
 import { FIELDS } from '@/lib/domain/fields';
 import FieldInput from './FieldInput';
 
 const KEY = 'settlement-calculator';
-const OWN_FIELDS = FIELDS.filter((f) => f.section === 'Settlement Calculator' && f.key !== 'settlementAmount');
 
 export default function SettlementCalculatorSection({ matterId, matter }) {
   const { sectionState, setSectionField, updateMatterField } = useData();
@@ -272,6 +271,8 @@ export default function SettlementCalculatorSection({ matterId, matter }) {
         lines={result.medicals?.lines || []}
         total={result.medicalCents}
         original={result.medicalOriginalCents}
+        overrides={overrides}
+        reductions={reductions}
         onReduction={setReduction}
         onOverride={setOverride}
         emptyHref={`/matters/${matterId}/medicals`}
@@ -337,7 +338,13 @@ export default function SettlementCalculatorSection({ matterId, matter }) {
  * calculator that quietly disagrees with the Medicals tab is worse than one
  * that cannot be edited at all.
  */
-function LineTable({ title, lines, total, original, onReduction, onOverride, emptyHref, emptyLabel }) {
+function LineTable({
+  title, lines, total, original,
+  // ⚠️ THE RAW TYPED STRINGS, not the parsed numbers. See the note on the
+  // inputs below -- rendering the parsed value is what made cents untypable.
+  overrides = {}, reductions = {},
+  onReduction, onOverride, emptyHref, emptyLabel,
+}) {
   return (
     <div className="bg-surface rounded-xl border border-line shadow-sm">
       <div className="px-5 py-3 border-b border-line-soft flex items-center justify-between">
@@ -378,14 +385,39 @@ function LineTable({ title, lines, total, original, onReduction, onOverride, emp
                 <td className="px-4 py-2 text-right tabular-nums text-ink-3">
                   {l.billedCents === null ? '—' : formatMoney(l.billedCents)}
                 </td>
+                {/*
+                  ⚠️ THE BOX SHOWS WHAT WAS TYPED, NOT WHAT IT PARSED TO.
+                  ⚠️ NEVER RENDER THE PARSED NUMBER BACK INTO A CONTROLLED
+                     INPUT SOMEBODY IS STILL TYPING IN.
+
+                  This read `String(l.overriddenCents / 100)` -- the value
+                  after parseMoney. Every keystroke round-tripped through
+                  cents and back, so the decimal point was erased the instant
+                  it was pressed:
+
+                    typed "1234"   -> box shows "1234"
+                    typed "1234."  -> box shows "1234"   <- the dot is gone
+                    typed "1234.5" -> box shows "12345"
+
+                  and $1,234.50 became $12,345.00. Not merely awkward: a
+                  ten-fold error on the sheet a client is read their money
+                  off. "1234.56" landed on $123,456.00.
+
+                  The string is now stored and shown exactly as typed, and
+                  parseMoney reads it for the arithmetic. Mid-word it reads
+                  what is there so far -- "1234." is 123400 -- so the total
+                  moves while you type and settles when you stop. An EMPTY
+                  box is the null, and that falls back to the billed amount.
+                  Nothing downstream changed.
+                */}
                 <td className="px-4 py-2 text-right">
                   {onOverride ? (
                     <input
                       type="text"
                       inputMode="decimal"
-                      value={l.overriddenCents === null ? '' : String(l.overriddenCents / 100)}
+                      value={overrides[l.id] ?? ''}
                       onChange={(e) => onOverride(l.id, e.target.value)}
-                      placeholder={l.billedCents === null ? '' : String(l.billedCents / 100)}
+                      placeholder={l.billedCents === null ? '' : centsToInput(l.billedCents)}
                       title="Leave blank to use the billed amount"
                       className="input w-24 text-right"
                     />
@@ -393,13 +425,28 @@ function LineTable({ title, lines, total, original, onReduction, onOverride, emp
                     <span className="tabular-nums text-ink-2">{formatMoney(l.originalCents)}</span>
                   )}
                 </td>
+                {/*
+                  The same fault, and it was here too: `value={l.percent || 0}`
+                  is the parsed number, so "33.33" stalled at "33." and became
+                  3333. Reported against the money box because that is the one
+                  somebody was typing cents into.
+
+                  `type="text"` rather than `number`: a number input cannot
+                  hold the intermediate "33." either, and min/max on it were
+                  decoration -- applyReduction clamps to 0-100 in the domain,
+                  where it actually binds.
+
+                  `?? ''` rather than `|| 0`: with `|| 0` the box refills
+                  itself with a 0 the moment it is cleared, so changing 10 to
+                  5 means deleting the 0 first.
+                */}
                 <td className="px-4 py-2 text-right">
                   <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={l.percent || 0}
+                    type="text"
+                    inputMode="decimal"
+                    value={reductions[l.id] ?? ''}
                     onChange={(e) => onReduction(l.id, e.target.value)}
+                    placeholder="0"
                     className="input w-20 text-right"
                   />
                 </td>
