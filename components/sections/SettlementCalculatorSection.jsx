@@ -33,6 +33,7 @@ import { FIELDS } from '@/lib/domain/fields';
 import FieldInput from './FieldInput';
 
 const KEY = 'settlement-calculator';
+const OWN_FIELDS = FIELDS.filter((f) => f.section === 'Settlement Calculator' && f.key !== 'settlementAmount');
 
 export default function SettlementCalculatorSection({ matterId, matter }) {
   const { sectionState, setSectionField, updateMatterField } = useData();
