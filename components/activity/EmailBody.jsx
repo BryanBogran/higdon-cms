@@ -166,8 +166,10 @@ export default function EmailBody({ entry }) {
 
       {files.length ? (
         <div className="mt-2 ml-5 space-y-1">
+          {/* Index first: rows filed before paths were indexed can share a
+              path (several image.png in one message), and so can't key alone. */}
           {files.map((f, i) => (
-            <AttachmentRow key={f.path || `${f.name}-${i}`} file={f} />
+            <AttachmentRow key={`${i}-${f.path || f.name}`} file={f} />
           ))}
         </div>
       ) : null}
