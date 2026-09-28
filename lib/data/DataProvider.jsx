@@ -476,9 +476,43 @@ export function DataProvider({ children }) {
           lastActivityAt: new Date().toISOString(),
         },
       });
-      return run((s) => s.updateMatterField(matterId, fieldKey, value));
+
+      /*
+       * ⚠️ QUEUED AND ECHO-SUPPRESSED, LIKE THE SECTION FIELDS. IT WAS NEITHER.
+       *
+       * Reported 2026-09-28 by several staff at once: typing "Allstate" into
+       * Insurance came out "Alstate", as though a backspace had been pressed.
+       * Case Info, and "How settled" / "Check status" on the calculator --
+       * every field that lives on the matter row.
+       *
+       * This wrote on EVERY KEYSTROKE, and never marked the record as ours.
+       * So "A", "Al", "All" went out as three writes, and live sync (018)
+       * played each one back: the echo of "Al" landed after "All" had been
+       * typed and replaced it. The keystroke was not lost by the keyboard; it
+       * was overwritten by the app's own previous save arriving late.
+       * Parallel writes could also land out of order, so the saved value could
+       * be the stutter too.
+       *
+       * The section-field path was fixed for exactly this in "One write per
+       * word, not per keystroke" (cf36dcb). The matter path was missed, and it
+       * is the one staff type into most.
+       *
+       * Keyed on the whole matter record: a realtime event carries the entire
+       * row, so an echo for ANY field would overwrite the field being typed.
+       */
+      const key = `matter:${matterId}`;
+      touchLocalWrite(key);
+      writes.current.enqueue(`${key}:${fieldKey}`, { value }, async (merged) => {
+        const done = beginLocalWrite(key);
+        try {
+          return await run((s) => s.updateMatterField(matterId, fieldKey, merged.value));
+        } finally {
+          done();
+        }
+      });
+      return Promise.resolve({ ok: true, queued: true });
     },
-    [run, applyMatters]
+    [run, applyMatters, beginLocalWrite, touchLocalWrite]
   );
 
   const setChecklistItem = useCallback(
@@ -498,9 +532,27 @@ export function DataProvider({ children }) {
           lastActivityAt: new Date().toISOString(),
         },
       });
-      return run((s) => s.setChecklistItem(matterId, fieldKey, patch));
+
+      /*
+       * Same fault as updateMatterField above: a checklist note or link typed
+       * one keystroke per write, with the echo of each write free to land on
+       * top of the next. Queued per item, and the patches coalesce, so a
+       * note typed and a box ticked in quick succession go out as one write
+       * carrying both.
+       */
+      const key = `matter_checklist_item:${matterId}:${fieldKey}`;
+      touchLocalWrite(key);
+      writes.current.enqueue(key, patch, async (combined) => {
+        const done = beginLocalWrite(key);
+        try {
+          return await run((s) => s.setChecklistItem(matterId, fieldKey, combined));
+        } finally {
+          done();
+        }
+      });
+      return Promise.resolve({ ok: true, queued: true });
     },
-    [run, applyMatters]
+    [run, applyMatters, beginLocalWrite, touchLocalWrite]
   );
 
   const archiveMatter = useCallback(
