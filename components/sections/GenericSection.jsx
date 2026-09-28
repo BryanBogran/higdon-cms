@@ -93,7 +93,7 @@ function Collection({ matterId, sectionKey, collection, uploadFolder }) {
                   does many times a day: a button nobody can find is a feature
                   nobody has.
                 */}
-                <th className="sticky right-0 z-10 w-32 bg-canvas px-2 border-l border-line-soft" />
+                <th className="sticky right-0 z-10 w-48 bg-canvas px-2 border-l border-line-soft" />
               </tr>
             </thead>
             <tbody>
