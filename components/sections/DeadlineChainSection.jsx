@@ -21,6 +21,7 @@ import { fmt, urgency, nextBusinessDay, checkBadDate } from '@/lib/domain/dates'
 import { useData } from '@/lib/data/DataProvider';
 import { useMatter } from '@/lib/data/DataProvider';
 import { urgencyBadgeClass } from '@/lib/ui/tone';
+import DateInput from './DateInput';
 
 function DueBadge({ date }) {
   const { level, days } = urgency(date);
@@ -116,12 +117,13 @@ export default function DeadlineChainSection({ matterId }) {
                     <div className="flex items-center gap-2 shrink-0">
                       <DueBadge date={t.dueDate} />
                       {editing === t.id ? (
-                        <input
-                          type="date"
+                        /* A half-typed year here would reschedule a deadline
+                           to year 2 -- see DateInput. */
+                        <DateInput
                           autoFocus
                           className="input w-[145px]"
                           value={t.dueDate || ''}
-                          onChange={(e) => updateTask(t.id, { dueDate: e.target.value })}
+                          onChange={(date) => updateTask(t.id, { dueDate: date })}
                           onBlur={() => setEditing(null)}
                         />
                       ) : (

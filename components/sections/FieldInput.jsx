@@ -9,6 +9,7 @@ import { AlertTriangle, ExternalLink, Paperclip, Check } from 'lucide-react';
 import DriveDrop from './DriveDrop';
 import ContactField from './ContactField';
 import { assigneeOptions } from '@/lib/domain/team';
+import DateInput from './DateInput';
 import { useData } from '@/lib/data/DataProvider';
 
 export default function FieldInput({ field, value, onChange, row, matterId, uploadFolder }) {
@@ -135,7 +136,9 @@ export default function FieldInput({ field, value, onChange, row, matterId, uplo
     const bad = checkBadDate(v);
     return (
       <div>
-        <input type="date" className="input" value={v} onChange={(e) => onChange(e.target.value)} />
+        {/* DateInput, not <input type="date">: see its header. Half-typed years
+            were being saved, including onto the matter's DOA and SOL. */}
+        <DateInput className="input" value={v} onChange={onChange} />
         {bad ? (
           <p className="flex items-center gap-1 mt-1 text-[11px] text-warn-ink">
             <AlertTriangle size={12} /> Falls on a {bad}
@@ -214,11 +217,10 @@ export default function FieldInput({ field, value, onChange, row, matterId, uplo
     const done = Boolean(val.doneDate);
     return (
       <div className="flex items-center gap-1.5">
-        <input
-          type="date"
+        <DateInput
           className="input"
           value={val.dateValue || ''}
-          onChange={(e) => onChange({ ...val, dateValue: e.target.value })}
+          onChange={(date) => onChange({ ...val, dateValue: date })}
         />
         <button
           type="button"

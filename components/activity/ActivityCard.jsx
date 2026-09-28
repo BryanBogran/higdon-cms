@@ -32,6 +32,7 @@ import { matterTitle, avatarColor } from '@/lib/domain/matter';
 import { useData } from '@/lib/data/DataProvider';
 import { taskAssigneeGroups, flattenGroups, UNASSIGNED } from '@/lib/domain/team';
 import EmailBody from './EmailBody';
+import DateInput from '@/components/sections/DateInput';
 
 const KIND_ICON_BG = {
   note: 'bg-warn-solid-2',
@@ -86,12 +87,13 @@ function DueDateInput({ value, onChange, id }) {
   const bad = checkBadDate(value);
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5">
-      <input
+      {/* Saves as it changes, so a half-typed year would reach the task.
+          See DateInput. */}
+      <DateInput
         id={id}
-        type="date"
         className="rounded border border-line-strong px-2 py-1 text-sm bg-surface"
         value={value || ''}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={onChange}
       />
       <button type="button" onClick={() => onChange(todayInFirmTz())}
         className="text-[11px] text-accent-ink hover:underline">Today</button>

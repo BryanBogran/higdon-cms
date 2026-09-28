@@ -20,6 +20,7 @@
 
 import { CheckCircle2, Circle, AlertTriangle } from 'lucide-react';
 import DriveDrop from './DriveDrop';
+import DateInput from './DateInput';
 import { checklistFieldsForSection } from '@/lib/domain/fields';
 import { todayInFirmTz } from '@/lib/domain/dates';
 import { useData } from '@/lib/data/DataProvider';
@@ -82,11 +83,12 @@ export default function ChecklistItems({ matterId, matter, sectionLabel, title =
               </div>
 
               <div className="w-[150px] shrink-0">
-                <input
-                  type="date"
+                {/* The source of the occurred_on_range errors: 0002, 0020 and
+                    0202 were each sent while a year was typed. */}
+                <DateInput
                   className="input"
                   value={item.date || ''}
-                  onChange={(e) => setChecklistItem(matterId, f.key, { date: e.target.value })}
+                  onChange={(date) => setChecklistItem(matterId, f.key, { date })}
                 />
               </div>
 
