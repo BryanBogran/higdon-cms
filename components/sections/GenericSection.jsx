@@ -25,8 +25,11 @@
  * `storageKey` falls back to the section key, which is every other section.
  */
 
-import { useMemo, useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Plus, Trash2, LayoutGrid, Table2 } from 'lucide-react';
+import ItemCard from './items/ItemCard';
+import ItemEditor from './items/ItemEditor';
+import { usesCards, itemLayout } from '@/lib/sections/layout';
 import GenerateDoc from './GenerateDoc';
 import { templatesFor } from '@/lib/domain/docgen';
 import FieldInput from './FieldInput';
@@ -40,6 +43,28 @@ function money(n) {
   return Number.isFinite(num) ? num : 0;
 }
 
+/**
+ * Cards or table, remembered per section in this browser -- as Filevine
+ * remembers the view per section. Read after mount, not during render, so the
+ * server's HTML and the first client render agree. Storage can throw (private
+ * windows, blocked site data); the default view is then simply used.
+ */
+function useRememberedView(storageKey, fallback) {
+  const [view, setView] = useState(fallback);
+  const key = `hlcms:view:${storageKey}`;
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(key);
+      if (saved === 'cards' || saved === 'table') setView(saved);
+    } catch { /* keep the default */ }
+  }, [key]);
+  const choose = (next) => {
+    setView(next);
+    try { window.localStorage.setItem(key, next); } catch { /* not remembered, still switched */ }
+  };
+  return [view, choose];
+}
+
 /** One repeating table. Its own draft row, so two on a page cannot collide. */
 function Collection({ matterId, sectionKey, collection, uploadFolder }) {
   const { sectionState, addSectionRow, updateSectionRow, deleteSectionRow } = useData();
@@ -48,6 +73,24 @@ function Collection({ matterId, sectionKey, collection, uploadFolder }) {
   const [draft, setDraft] = useState({});
 
   const cols = collection.columns || [];
+
+  /*
+   * Wide tables read as Filevine-style cards and edit in a drawer; see
+   * lib/sections/layout.js for why. Narrow ones already fit and stay tables.
+   * The table is kept for wide ones too, one click away, for comparing
+   * amounts down a column.
+   */
+  const wide = usesCards(collection);
+  const [view, setView] = useRememberedView(storageKey, wide ? 'cards' : 'table');
+  const layout = useMemo(() => itemLayout(collection), [collection]);
+  const noun = collection.item?.noun || 'entry';
+  // The row the drawer is open on: a row id, 'new' for the add form, or null.
+  const [openId, setOpenId] = useState(null);
+  const openRow = openId && openId !== 'new' ? state.rows.find((r) => r.id === openId) : null;
+  // Somebody else deleted it while it was open: close rather than edit a ghost.
+  useEffect(() => {
+    if (openId && openId !== 'new' && !openRow) setOpenId(null);
+  }, [openId, openRow]);
   // Keyed on storageKey, not the section key: a row's documents belong to the
   // table the rows actually live in. See the note at the top of this file.
   const docTemplates = templatesFor(storageKey);
@@ -58,15 +101,69 @@ function Collection({ matterId, sectionKey, collection, uploadFolder }) {
 
   return (
     <div className="bg-surface rounded-xl border border-line shadow-sm">
-      <div className="px-5 py-3 border-b border-line-soft flex items-center justify-between">
+      <div className="px-5 py-3 border-b border-line-soft flex flex-wrap items-center gap-x-4 gap-y-2">
         <h2 className="font-semibold text-ink">{collection.label}</h2>
         <span className="text-sm text-ink-3">
           {state.rows.length} {state.rows.length === 1 ? 'entry' : 'entries'}
           {total !== null ? ` · $${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : ''}
         </span>
+        {wide ? (
+          <div className="ml-auto flex items-center gap-2">
+            <div className="inline-flex overflow-hidden rounded-lg border border-line-strong" role="group" aria-label="View">
+              {[['cards', LayoutGrid, 'Cards'], ['table', Table2, 'Table']].map(([k, Icon, label]) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setView(k)}
+                  aria-pressed={view === k}
+                  title={`${label} view`}
+                  className={`flex items-center gap-1 px-2.5 py-1 text-xs font-semibold ${
+                    view === k ? 'bg-primary text-white' : 'bg-surface text-ink-3 hover:bg-hover'
+                  }`}
+                >
+                  <Icon size={13} /> {label}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setOpenId('new')}
+              className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-2"
+            >
+              <Plus size={14} /> Add {noun}
+            </button>
+          </div>
+        ) : null}
       </div>
 
-      {state.rows.length > 0 ? (
+      {wide && view === 'cards' ? (
+        state.rows.length > 0 ? (
+          <div className="space-y-2.5 p-4">
+            {state.rows.map((row) => (
+              <ItemCard
+                key={row.id}
+                collection={collection}
+                layout={layout}
+                row={row}
+                matterId={matterId}
+                docTemplates={docTemplates}
+                onOpen={setOpenId}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="px-5 py-10 text-center">
+            <p className="text-sm text-ink-4">No entries yet.</p>
+            <button
+              type="button"
+              onClick={() => setOpenId('new')}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-line-strong px-3 py-1.5 text-sm text-ink-2 hover:bg-hover"
+            >
+              <Plus size={14} /> Add the first {noun}
+            </button>
+          </div>
+        )
+      ) : state.rows.length > 0 ? (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -158,6 +255,13 @@ function Collection({ matterId, sectionKey, collection, uploadFolder }) {
         <p className="px-5 py-8 text-center text-sm text-ink-4">No entries yet.</p>
       )}
 
+      {/*
+        The always-open add form is for narrow tables only. On a wide one it
+        was nineteen empty boxes flowing into whatever space was left -- the
+        cluttered form the firm sent a screenshot of. Wide tables add through
+        the drawer, with the same grouped two-column layout as editing.
+      */}
+      {!wide ? (
       <div className="px-5 py-3 border-t border-line-soft bg-canvas/60 flex flex-wrap items-end gap-3">
         {/*
           Every column, not the first three. It used to slice(0, 3), so on
@@ -223,6 +327,21 @@ function Collection({ matterId, sectionKey, collection, uploadFolder }) {
           <Plus size={15} /> Add
         </button>
       </div>
+      ) : null}
+
+      {openId === 'new' || openRow ? (
+        <ItemEditor
+          collection={collection}
+          layout={layout}
+          storageKey={storageKey}
+          matterId={matterId}
+          uploadFolder={uploadFolder}
+          row={openId === 'new' ? null : openRow}
+          noun={noun}
+          docTemplates={docTemplates}
+          onClose={() => setOpenId(null)}
+        />
+      ) : null}
     </div>
   );
 }
