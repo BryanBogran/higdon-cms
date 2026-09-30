@@ -34,12 +34,12 @@
  */
 
 import { useId, useMemo, useRef, useState } from 'react';
-import { User, UserPlus, X, Phone, Mail, MapPin } from 'lucide-react';
+import { User, UserPlus, X, Phone, Mail, MapPin, StickyNote } from 'lucide-react';
 import { useData } from '@/lib/data/DataProvider';
 import ContactEditor from '@/components/contacts/ContactEditor';
 import {
   displayName, primaryPhone, primaryEmail, rolesOf, matchContactsByName, emptyContact,
-  primaryAddress, formatAddress,
+  primaryAddress, formatAddress, primaryNote,
 } from '@/lib/domain/contact';
 
 /** Two letters from a name, for the avatar. */
@@ -218,6 +218,16 @@ export default function ContactField({ value, onChange, field }) {
     const address = formatAddress(primaryAddress(linked));
     const role = rolesOf(linked)[0] || '';
     const more = Math.max(0, (linked.phones?.length || 0) - 1);
+    // The staff's note on each line ("billing only", "ask for Maria"): a mark
+    // on the card, the words on hover. The full notes are in the contact.
+    const notes = {
+      phone: primaryNote(linked, 'phones'),
+      email: primaryNote(linked, 'emails'),
+      address: primaryNote(linked, 'addresses'),
+    };
+    const noteMark = (text) => (text
+      ? <StickyNote size={10} className="shrink-0 text-accent-ink" aria-label={`Note: ${text}`} />
+      : null);
 
     return (
       <div className="rounded-lg border border-line bg-surface p-2.5">
@@ -253,23 +263,26 @@ export default function ContactField({ value, onChange, field }) {
             {phone || email ? (
               <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-ink-3">
                 {phone ? (
-                  <a href={`tel:${phone.replace(/[^\d+]/g, '')}`} className="flex items-center gap-1 hover:underline">
+                  <a href={`tel:${phone.replace(/[^\d+]/g, '')}`} title={notes.phone || undefined} className="flex items-center gap-1 hover:underline">
                     <Phone size={11} /> {phone}
+                    {noteMark(notes.phone)}
                     {more ? <span className="text-ink-4">(+{more} more)</span> : null}
                   </a>
                 ) : null}
                 {email ? (
-                  <a href={`mailto:${email}`} className="flex items-center gap-1 truncate hover:underline">
+                  <a href={`mailto:${email}`} title={notes.email || undefined} className="flex items-center gap-1 truncate hover:underline">
                     <Mail size={11} /> <span className="truncate">{email}</span>
+                    {noteMark(notes.email)}
                   </a>
                 ) : null}
               </p>
             ) : null}
 
             {address ? (
-              <p className="mt-0.5 flex items-start gap-1 text-xs text-ink-4">
+              <p className="mt-0.5 flex items-start gap-1 text-xs text-ink-4" title={notes.address || undefined}>
                 <MapPin size={11} className="mt-0.5 shrink-0" />
                 <span className="truncate">{address}</span>
+                {noteMark(notes.address)}
               </p>
             ) : null}
 

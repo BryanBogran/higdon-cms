@@ -13,7 +13,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { X, Plus, Trash2, AlertTriangle, Building2, User } from 'lucide-react';
+import { X, Plus, Trash2, AlertTriangle, Building2, User, StickyNote } from 'lucide-react';
 import { useData } from '@/lib/data/DataProvider';
 import { emptyContact, displayName, validateContact, duplicateCandidates, pruneEntries, PHONE_LABELS, EMAIL_LABELS, ADDRESS_LABELS, CONTACT_ROLES, rolesOf, toggleRole, matterRefs } from '@/lib/domain/contact';
 import { matterTitle } from '@/lib/domain/matter';
@@ -206,37 +206,78 @@ function Repeating({ title, entries, labels, fields, onChange, addLabel }) {
   const add = () => onChange([...(entries || []), { label: labels[0] }]);
   const patch = (i, p) => onChange(entries.map((e, n) => (n === i ? { ...e, ...p } : e)));
   const remove = (i) => onChange(entries.filter((_, n) => n !== i));
+  // Phones -> phone, Addresses -> address. (/e?s$/ made "phon".)
+  const noun = title.toLowerCase().replace(/(ss)es$|s$/, '$1');
 
   return (
     <div>
       <h3 className="text-sm font-semibold text-ink mb-2">{title}</h3>
       <div className="space-y-2">
-        {(entries || []).map((entry, i) => (
-          <div key={i} className="flex items-start gap-2">
-            <select
-              className="input w-28 shrink-0"
-              value={entry.label || labels[0]}
-              onChange={(e) => patch(i, { label: e.target.value })}
-              aria-label={`${title} type`}
-            >
-              {labels.map((l) => <option key={l}>{l}</option>)}
-            </select>
-            {fields.map((f) => (
-              <input
-                key={f.key}
-                className={`input ${f.width || 'flex-1'}`}
-                placeholder={f.placeholder}
-                aria-label={f.placeholder}
-                value={entry[f.key] || ''}
-                onChange={(e) => patch(i, { [f.key]: e.target.value })}
-              />
-            ))}
-            <button type="button" onClick={() => remove(i)} aria-label={`Remove this ${title.toLowerCase().replace(/e?s$/, '')}`}
-              className="p-2 text-ink-4 hover:text-danger-ink shrink-0">
-              <Trash2 size={14} />
-            </button>
-          </div>
-        ))}
+        {(entries || []).map((entry, i) => {
+          /*
+           * A note per number / email / address -- "billing only", "ask for
+           * Maria", "old address, mail returned". Asked for 2026-09-30.
+           *
+           * Shown only once somebody adds one, so a contact with six phones
+           * is not six empty note boxes. `note` being PRESENT (even '') is
+           * what shows the box; pruneEntries drops an empty one on save, so
+           * an abandoned box is gone the next time the contact opens.
+           */
+          const hasNote = typeof entry.note === 'string';
+          return (
+            <div key={i}>
+              {/*
+                Wraps on a phone: street, city, state and ZIP plus two
+                buttons do not fit 375px, and squeezed they left the street
+                box no width at all. The first field keeps room to type in.
+              */}
+              <div className="flex flex-wrap items-start gap-2 sm:flex-nowrap">
+                <select
+                  className="input w-28 shrink-0"
+                  value={entry.label || labels[0]}
+                  onChange={(e) => patch(i, { label: e.target.value })}
+                  aria-label={`${title} type`}
+                >
+                  {labels.map((l) => <option key={l}>{l}</option>)}
+                </select>
+                {fields.map((f, n) => (
+                  <input
+                    key={f.key}
+                    className={`input ${n === 0 ? 'min-w-[10rem] sm:min-w-0' : 'min-w-0'} ${f.width || 'flex-1'}`}
+                    placeholder={f.placeholder}
+                    aria-label={f.placeholder}
+                    value={entry[f.key] || ''}
+                    onChange={(e) => patch(i, { [f.key]: e.target.value })}
+                  />
+                ))}
+                <button
+                  type="button"
+                  onClick={() => { if (!hasNote) patch(i, { note: '' }); }}
+                  disabled={hasNote}
+                  aria-label={`Add a note to this ${noun}`}
+                  title={hasNote ? 'This has a note' : `Add a note to this ${noun}`}
+                  className={`p-2 shrink-0 ${hasNote ? 'text-accent-ink' : 'text-ink-4 hover:text-accent-ink'}`}
+                >
+                  <StickyNote size={14} />
+                </button>
+                <button type="button" onClick={() => remove(i)} aria-label={`Remove this ${noun}`}
+                  className="p-2 text-ink-4 hover:text-danger-ink shrink-0">
+                  <Trash2 size={14} />
+                </button>
+              </div>
+              {hasNote ? (
+                <input
+                  className="input mt-1.5 w-full text-sm sm:ml-[7.5rem] sm:w-[calc(100%-7.5rem)]"
+                  placeholder={`Note about this ${noun}`}
+                  aria-label={`Note about this ${noun}`}
+                  value={entry.note}
+                  autoFocus={!entry.note}
+                  onChange={(e) => patch(i, { note: e.target.value })}
+                />
+              ) : null}
+            </div>
+          );
+        })}
       </div>
       <button type="button" onClick={add}
         className="mt-2 inline-flex items-center gap-1 text-sm text-accent-ink hover:underline">
@@ -306,7 +347,7 @@ function ContactInfo({ c, set, dupes }) {
           onChange={(phones) => set({ phones })}
           fields={[
             { key: 'value', placeholder: 'Enter a phone number' },
-            { key: 'extension', placeholder: 'Extension', width: 'w-24' },
+            { key: 'extension', placeholder: 'Ext.', width: 'w-20' },
           ]}
         />
         <Repeating
