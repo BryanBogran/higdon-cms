@@ -30,7 +30,7 @@ import { Plus, Trash2, LayoutGrid, Table2 } from 'lucide-react';
 import ItemCard from './items/ItemCard';
 import ItemEditor from './items/ItemEditor';
 import { usesCards, itemLayout } from '@/lib/sections/layout';
-import GenerateDoc from './GenerateDoc';
+import { DocButtons } from './GenerateDoc';
 import { templatesFor } from '@/lib/domain/docgen';
 import FieldInput from './FieldInput';
 import ChecklistItems from './ChecklistItems';
@@ -228,15 +228,7 @@ function Collection({ matterId, sectionKey, collection, uploadFolder }) {
                         other four Filevine templates arrive as configuration
                         rather than as another button wired in by hand.
                       */}
-                      {docTemplates.map((t) => (
-                        <GenerateDoc
-                          key={t.key}
-                          matterId={matterId}
-                          template={t}
-                          row={row}
-                          existing={row[t.targetField]}
-                        />
-                      ))}
+                      <DocButtons matterId={matterId} templates={docTemplates} row={row} />
                       <button
                         onClick={() => deleteSectionRow(matterId, storageKey, row.id)}
                         className="p-1.5 text-ink-4 hover:text-danger-ink"

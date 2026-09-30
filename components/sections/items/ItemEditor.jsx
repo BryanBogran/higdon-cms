@@ -19,7 +19,7 @@
 import { useEffect, useState } from 'react';
 import { X, Trash2, Loader2, AlertTriangle, Plus } from 'lucide-react';
 import FieldInput from '../FieldInput';
-import GenerateDoc from '../GenerateDoc';
+import { DocButtons } from '../GenerateDoc';
 import { useData } from '@/lib/data/DataProvider';
 import { displayValue } from '@/lib/sections/layout';
 
@@ -82,9 +82,7 @@ export default function ItemEditor({
           </div>
           {!adding && docTemplates.length ? (
             <div className="flex shrink-0 items-center gap-1">
-              {docTemplates.map((t) => (
-                <GenerateDoc key={t.key} matterId={matterId} template={t} row={row} existing={row[t.targetField]} />
-              ))}
+              <DocButtons matterId={matterId} templates={docTemplates} row={row} />
             </div>
           ) : null}
           <button type="button" onClick={tryClose} aria-label="Close" className="p-1 text-ink-4 hover:text-ink-2">

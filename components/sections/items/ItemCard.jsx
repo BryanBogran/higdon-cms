@@ -13,7 +13,7 @@
  */
 
 import { Paperclip, ChevronRight } from 'lucide-react';
-import GenerateDoc from '../GenerateDoc';
+import { DocButtons } from '../GenerateDoc';
 import { displayValue, previewFields } from '@/lib/sections/layout';
 
 export default function ItemCard({ collection, layout, row, matterId, docTemplates = [], onOpen }) {
@@ -73,13 +73,11 @@ export default function ItemCard({ collection, layout, row, matterId, docTemplat
         */}
         {docTemplates.length ? (
           <div
-            className="flex shrink-0 items-center gap-1"
+            className="flex shrink-0 flex-wrap items-center gap-1"
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
           >
-            {docTemplates.map((t) => (
-              <GenerateDoc key={t.key} matterId={matterId} template={t} row={row} existing={row[t.targetField]} />
-            ))}
+            <DocButtons matterId={matterId} templates={docTemplates} row={row} />
           </div>
         ) : null}
 
