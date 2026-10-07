@@ -19,7 +19,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Folder, FileText, ExternalLink, Search, ChevronRight, Loader2, FolderPlus, AlertCircle, X, Eye, Upload, ArrowUp, ArrowDown } from 'lucide-react';
+import { Folder, FileText, ExternalLink, Search, ChevronRight, Loader2, FolderPlus, AlertCircle, X, Eye, Upload, ArrowUp, ArrowDown, FolderInput } from 'lucide-react';
 import { sortDriveFiles } from '@/lib/google/drive-paths';
 import { useData } from '@/lib/data/DataProvider';
 
@@ -33,6 +33,7 @@ export default function DocsSection({ matterId, matter }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [preview, setPreview] = useState(null);
+  const [moving, setMoving] = useState(null);     // the file being moved
 
   const [term, setTerm] = useState('');
   const [results, setResults] = useState(null);  // null = not searching
@@ -389,6 +390,7 @@ export default function DocsSection({ matterId, matter }) {
             rows={results}
             emptyText={`Nothing in this case matches “${term.trim()}”.`}
             onPreview={setPreview}
+            onMove={setMoving}
             note="Drive searches inside PDFs and Docs, not just filenames."
           />
         ) : children.length === 0 ? (
@@ -396,11 +398,157 @@ export default function DocsSection({ matterId, matter }) {
             This folder is empty.
           </p>
         ) : (
-          <Listing rows={children} onOpenFolder={open} onPreview={setPreview} />
+          <Listing rows={children} onOpenFolder={open} onPreview={setPreview} onMove={setMoving} />
         )}
       </Card>
 
       {preview ? <Preview file={preview} onClose={() => setPreview(null)} /> : null}
+
+      {moving ? (
+        <MoveDialog
+          matterId={matterId}
+          file={moving}
+          currentFolderId={results === null ? (folderId || view?.rootId || null) : null}
+          onClose={() => setMoving(null)}
+          onMoved={() => {
+            setMoving(null);
+            // Both folders' listings are now stale -- the one it left and the
+            // one it went to, which may be cached from an earlier visit.
+            cache.current.clear();
+            // A search result stays listed: the file is still in this case.
+            if (results === null) load(folderId, { bustCache: true });
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * "Move to…" -- every folder in this case, by its full path.
+ *
+ * Asked for 2026-10-07: deposition transcripts had been filed into Discovery
+ * and there was no way to put them right from the app. Drive keeps a moved
+ * file's link, so wherever the case already links to it still works.
+ */
+function MoveDialog({ matterId, file, currentFolderId, onClose, onMoved }) {
+  const [folders, setFolders] = useState(null);
+  const [target, setTarget] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/drive/move?matterId=${encodeURIComponent(matterId)}`);
+        const body = await res.json().catch(() => ({}));
+        if (!live) return;
+        if (!res.ok) { setError(body.error || `Could not read this case's folders (${res.status}).`); return; }
+        setFolders(body.folders || []);
+      } catch {
+        if (live) setError('Could not reach Drive.');
+      }
+    })();
+    return () => { live = false; };
+  }, [matterId]);
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape' && !busy) onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [busy, onClose]);
+
+  async function move() {
+    setBusy(true);
+    setError('');
+    try {
+      const res = await fetch('/api/drive/move', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ matterId, fileId: file.id, toFolderId: target }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(body.error || `The move failed (${res.status}).`); return; }
+      onMoved();
+    } catch {
+      setError('Could not reach Drive. Nothing was moved.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/40 p-4" onMouseDown={() => { if (!busy) onClose(); }}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Move ${file.name}`}
+        onMouseDown={(e) => e.stopPropagation()}
+        className="flex max-h-[80vh] w-full max-w-md flex-col rounded-xl border border-line bg-surface shadow-lg"
+      >
+        <div className="flex items-start gap-3 border-b border-line-soft px-5 py-3">
+          <div className="min-w-0 flex-1">
+            <h2 className="font-semibold text-ink">Move to…</h2>
+            <p className="truncate text-xs text-ink-3" title={file.name}>{file.name}</p>
+          </div>
+          <button type="button" onClick={onClose} disabled={busy} className="p-1 text-ink-4 hover:text-ink-2" aria-label="Close">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
+          {folders === null && !error ? (
+            <p className="px-3 py-6 text-center text-sm text-ink-4">
+              <Loader2 size={14} className="mr-1.5 inline animate-spin" /> Reading the case's folders…
+            </p>
+          ) : null}
+          {(folders || []).map((f) => {
+            const here = f.id === currentFolderId;
+            return (
+              <label
+                key={f.id}
+                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm ${
+                  here ? 'cursor-default text-ink-4' : 'cursor-pointer text-ink-2 hover:bg-hover'
+                } ${target === f.id ? 'bg-accent-bg text-ink' : ''}`}
+              >
+                <input
+                  type="radio"
+                  name="move-target"
+                  value={f.id}
+                  checked={target === f.id}
+                  disabled={here || busy}
+                  onChange={() => setTarget(f.id)}
+                />
+                <Folder size={15} className="shrink-0 text-info-solid" />
+                <span className="min-w-0 flex-1 truncate">{f.label}</span>
+                {here ? <span className="shrink-0 text-xs">(here now)</span> : null}
+              </label>
+            );
+          })}
+        </div>
+
+        {error ? (
+          <p className="flex items-start gap-1.5 border-t border-line-soft px-5 py-2.5 text-sm text-danger-ink">
+            <AlertCircle size={14} className="mt-0.5 shrink-0" /> {error}
+          </p>
+        ) : null}
+
+        <div className="flex items-center justify-end gap-2 border-t border-line-soft px-5 py-3">
+          <button type="button" onClick={onClose} disabled={busy} className="px-3 py-1.5 text-sm text-ink-2 hover:text-ink">
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={move}
+            disabled={!target || busy}
+            className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-white hover:bg-primary-2 disabled:opacity-40"
+          >
+            {busy ? <Loader2 size={14} className="animate-spin" /> : <FolderInput size={14} />}
+            Move
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -444,7 +592,7 @@ function Card({ children }) {
  * begins with A" -- and Drive's own search already returns newest-first, so
  * this keeps the order somebody was already looking at.
  */
-function Listing({ rows, onOpenFolder, onPreview, emptyText, note }) {
+function Listing({ rows, onOpenFolder, onPreview, onMove, emptyText, note }) {
   const [sort, setSort] = useState({ key: 'modified', ascending: false });
   const sorted = useMemo(() => sortDriveFiles(rows, sort), [rows, sort]);
 
@@ -527,6 +675,16 @@ function Listing({ rows, onOpenFolder, onPreview, emptyText, note }) {
                   className="p-1 text-ink-4 hover:text-ink-2 shrink-0"
                 >
                   <Eye size={15} />
+                </button>
+              ) : null}
+              {!isFolder && onMove ? (
+                <button
+                  onClick={() => onMove(r)}
+                  title="Move to another folder"
+                  aria-label={`Move ${r.name} to another folder`}
+                  className="p-1 text-ink-4 hover:text-accent-ink shrink-0"
+                >
+                  <FolderInput size={15} />
                 </button>
               ) : null}
               {!isFolder && r.webViewLink ? (
