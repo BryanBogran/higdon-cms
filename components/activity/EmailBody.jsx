@@ -12,7 +12,7 @@
  * is unreadable once a thread runs past a few replies.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronRight, Mail, Paperclip, Download, Loader2 } from 'lucide-react';
 import { useData } from '@/lib/data/DataProvider';
 import { addressLabel } from '@/lib/domain/email';
@@ -108,8 +108,28 @@ function AttachmentRow({ file }) {
 }
 
 export default function EmailBody({ entry }) {
+  const { loadActivityBody } = useData();
   const [open, setOpen] = useState(false);
+  const [bodyError, setBodyError] = useState('');
+  const [attempt, setAttempt] = useState(0);
   const meta = entry.meta || {};
+
+  /*
+   * The body is fetched when the card OPENS, not with the feed. `undefined`
+   * is "not fetched yet"; '' is a message that had no text. Loading every
+   * body up front was 24 MB on every open of the app -- see
+   * EMAIL_LIST_COLUMNS in lib/data/supabase-store.js.
+   */
+  const pending = open && entry.body === undefined;
+  useEffect(() => {
+    if (!pending) return;
+    let cancelled = false;
+    setBodyError('');
+    loadActivityBody(entry.id).then((res) => {
+      if (!cancelled && !res?.ok) setBodyError(res?.error || 'Could not load this message.');
+    });
+    return () => { cancelled = true; };
+  }, [pending, entry.id, loadActivityBody, attempt]);
   const files = entry.attachments || [];
   const subject = entry.subject || meta.subject || '(no subject)';
 
@@ -149,7 +169,18 @@ export default function EmailBody({ entry }) {
 
       {open ? (
         <div className="ml-5 mt-2.5 pl-3 border-l-2 border-line">
-          {entry.body ? (
+          {bodyError && pending ? (
+            <p className="text-sm text-danger-ink">
+              {bodyError}{' '}
+              <button onClick={() => setAttempt((n) => n + 1)} className="underline hover:no-underline">
+                Try again
+              </button>
+            </p>
+          ) : pending ? (
+            <p className="flex items-center gap-1.5 text-sm text-ink-3">
+              <Loader2 size={13} className="animate-spin" /> Loading message…
+            </p>
+          ) : entry.body ? (
             <p className="text-sm text-ink whitespace-pre-wrap break-words">{entry.body}</p>
           ) : (
             <p className="text-sm text-ink-4 italic">

@@ -32,8 +32,9 @@ function download(filename, text, mimeType) {
 }
 
 export default function ExportPage() {
-  const { matters, tasks, activity, sections, relations, team, loaded, backend } = useData();
+  const { matters, tasks, activity, sections, relations, team, loaded, backend, loadFullActivity } = useData();
   const [last, setLast] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const counts = {
     matters: Object.keys(matters || {}).length,
@@ -42,9 +43,24 @@ export default function ExportPage() {
     relations: (relations || []).length,
   };
 
-  function saveBackup() {
+  /*
+   * ⚠️ THE BACKUP FETCHES EMAIL BODIES FIRST. The app no longer loads them
+   * at startup (24 MB, on every open), so the activity on screen has none.
+   * Building from it would produce a backup that looks complete and is
+   * missing the text of every email on file -- discovered, if ever, on the
+   * day it is restored.
+   */
+  async function saveBackup() {
+    setBusy(true);
+    setLast('Gathering every email…');
+    const full = await loadFullActivity();
+    setBusy(false);
+    if (!full.ok) {
+      setLast(`Backup NOT saved — could not load the email text: ${full.error}`);
+      return;
+    }
     const exportedAt = new Date().toISOString();
-    const backup = buildBackup({ matters, tasks, activity, sections, relations, team, exportedAt });
+    const backup = buildBackup({ matters, tasks, activity: full.activity, sections, relations, team, exportedAt });
     download(backupFilename(exportedAt), JSON.stringify(backup, null, 2), 'application/json');
     setLast(`Full backup saved — ${counts.matters} cases.`);
   }
@@ -59,8 +75,9 @@ export default function ExportPage() {
     <div className="max-w-3xl mx-auto px-6 py-8">
       <h1 className="text-2xl font-bold text-ink">Export the firm's data</h1>
       <p className="mt-1 text-sm text-ink-3">
-        Nothing here leaves your computer. Both files are built in the browser from data
-        already on screen.
+        Nothing here leaves your computer. Both files are built in the browser; the full
+        backup first fetches the text of every email, which the app loads only when one is
+        opened.
       </p>
 
       {!loaded ? <p className="mt-6 text-sm text-ink-3">Loading…</p> : (
@@ -86,7 +103,8 @@ export default function ExportPage() {
             <button
               type="button"
               onClick={saveBackup}
-              className="text-left rounded-lg border border-line bg-surface p-5 hover:border-line-strong transition"
+              disabled={busy}
+              className="text-left rounded-lg border border-line bg-surface p-5 hover:border-line-strong transition disabled:opacity-60 disabled:cursor-wait"
             >
               <div className="flex items-center gap-2 text-ink font-semibold">
                 <Database size={16} className="text-accent-ink" /> Full backup (JSON)

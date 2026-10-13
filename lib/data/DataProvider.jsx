@@ -1035,6 +1035,51 @@ export function DataProvider({ children }) {
   /** Short-lived read URL for a stored attachment. Minted per click. */
   const signFile = useCallback((path) => run((s) => s.signFile(path)), [run]);
 
+  /*
+   * ── Email bodies, fetched when a card is opened ─────────────────────
+   *
+   * loadAll leaves them on the server: 24 MB of quoted reply chains were
+   * being downloaded on every open of the app, for cards that show them
+   * collapsed. A body is `undefined` until fetched; '' is a message that
+   * genuinely had no text. See EMAIL_LIST_COLUMNS in supabase-store.js.
+   *
+   * Not through `run`: this is a read, and flashing "Saved" because
+   * somebody opened an email would be a lie.
+   */
+  const loadActivityBody = useCallback(async (id) => {
+    const s = storeRef.current;
+    const current = ref.current.activity[id];
+    if (current?.body !== undefined) return { ok: true, body: current.body };
+    if (!s?.loadActivityBody) return { ok: true, body: '' };
+    try {
+      const res = await s.loadActivityBody(id);
+      if (!res.ok) return res;
+      const latest = ref.current.activity[id];
+      if (latest) applyActivity({ ...ref.current.activity, [id]: { ...latest, body: res.body } });
+      return res;
+    } catch (err) {
+      return { ok: false, error: err?.message || 'Could not load that message.' };
+    }
+  }, [applyActivity]);
+
+  /**
+   * The activity map WITH every email body -- for the full backup, which
+   * must not quietly leave out the text loadAll did not fetch. Returned,
+   * not stored: the point is not to hold 24 MB in memory for every session.
+   */
+  const loadFullActivity = useCallback(async () => {
+    const s = storeRef.current;
+    const activityNow = ref.current.activity;
+    if (!s?.loadEmailBodies) return { ok: true, activity: activityNow };
+    const res = await s.loadEmailBodies();
+    if (!res.ok) return res;
+    const full = {};
+    for (const [id, entry] of Object.entries(activityNow)) {
+      full[id] = entry.body === undefined ? { ...entry, body: res.bodies[id] ?? '' } : entry;
+    }
+    return { ok: true, activity: full };
+  }, []);
+
   const updateActivity = useCallback(
     (id, patch) => {
       const current = ref.current.activity[id];
@@ -1076,7 +1121,7 @@ export function DataProvider({ children }) {
       createContact, updateContact, linkClientContact,
       createTask, updateTask, setTaskComplete, clearTaskOverride, deleteTask, bulkSetComplete,
       sectionState, setSectionField, addSectionRow, updateSectionRow, deleteSectionRow,
-      addActivity, addReply, deleteReply, addEmail, signFile, addRelation, removeRelation, updateActivity, deleteActivity, assignActivityAsTask, saveTeam,
+      addActivity, addReply, deleteReply, addEmail, signFile, loadActivityBody, loadFullActivity, addRelation, removeRelation, updateActivity, deleteActivity, assignActivityAsTask, saveTeam,
     }),
     [
       matters, tasks, team, people, sections, activity, replies, relations, contacts, loaded, saveState, backend, currentUser,
@@ -1084,7 +1129,7 @@ export function DataProvider({ children }) {
       createContact, updateContact, linkClientContact,
       createTask, updateTask, setTaskComplete, clearTaskOverride, deleteTask, bulkSetComplete,
       sectionState, setSectionField, addSectionRow, updateSectionRow, deleteSectionRow,
-      addActivity, addReply, deleteReply, addEmail, signFile, addRelation, removeRelation, updateActivity, deleteActivity, assignActivityAsTask, saveTeam,
+      addActivity, addReply, deleteReply, addEmail, signFile, loadActivityBody, loadFullActivity, addRelation, removeRelation, updateActivity, deleteActivity, assignActivityAsTask, saveTeam,
     ]
   );
 
