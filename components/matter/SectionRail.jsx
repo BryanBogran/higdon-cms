@@ -9,16 +9,28 @@
  */
 
 import Link from 'next/link';
-import * as Icons from 'lucide-react';
+import {
+  Bell, Bookmark, Calculator, CalendarDays, CheckSquare, ClipboardList, FileText, Files, FolderOpen, Gavel, GitBranch, Handshake, Link2, MessageSquare, Mic, Phone, Pill, Receipt, Search, Shield, TrendingDown, Users, Circle,
+} from 'lucide-react';
 // RAIL_SECTIONS, not SECTIONS: the rail is the firm's own ordered list, and
 // retired sections stay routable without appearing here.
 import { RAIL_SECTIONS } from '@/lib/sections/registry';
+
+/*
+ * Named, not `import * as Icons`. A namespace import indexed by a string
+ * cannot be tree-shaken, so it shipped all ~1,700 lucide icons (765 KB) to
+ * every case page to draw these few. A registry icon missing from this map
+ * shows as a Circle -- add it here.
+ */
+const ICONS = {
+  Bell, Bookmark, Calculator, CalendarDays, CheckSquare, ClipboardList, FileText, Files, FolderOpen, Gavel, GitBranch, Handshake, Link2, MessageSquare, Mic, Phone, Pill, Receipt, Search, Shield, TrendingDown, Users,
+};
 
 export default function SectionRail({ matterId, activeSection }) {
   return (
     <nav className="py-2" aria-label="Matter sections">
       {RAIL_SECTIONS.map((s) => {
-        const Icon = Icons[s.icon] || Icons.Circle;
+        const Icon = ICONS[s.icon] || Circle;
         const active = s.key === activeSection;
         return (
           <Link
